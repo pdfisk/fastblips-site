@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compile } from '../src/index.js';
-import { Op, OP_NAMES, OPERANDS } from '../src/opcodes.js';
+import { Op, OP_NAMES, OPERANDS } from '../src/vm/opcodes.js';
+import { BUILTIN_LIST } from '../src/vm/builtins.js';
+import { BUILTINS as LEXICAL_BUILTINS } from '../src/tokens.js';
 
 function messages(source) {
   return compile(source).errors.map((e) => `${e.line}: ${e.message}`);
@@ -20,6 +22,13 @@ function ops(source) {
   }
   return out;
 }
+
+// The name list in tokens.js (front end) and the implementations in
+// vm/builtins.js (back end) are separate on purpose: src/vm never imports the
+// lexer. This guard is what keeps them from drifting apart.
+test('the front end and the VM agree on the built-in list', () => {
+  assert.deepEqual([...LEXICAL_BUILTINS], BUILTIN_LIST.map((b) => b.name));
+});
 
 // ------------------------------------------------------------------- resolving
 

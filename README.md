@@ -5,22 +5,28 @@ Visual-Basic-flavoured language specified in `crumb-v0.1-spec.md`.
 
 Zero dependencies, ES modules, Node 18+.
 
+The front end lives at the top of `src/`; everything from the AST onwards is
+under `src/vm/`. Only `diagnostics.js` is shared by both, and the dependency
+runs one way: `src/vm/` never imports the lexer or the parser.
+
 ```
-src/tokens.js       token classes, the 24 reserved words, the 15 built-ins
-src/lexer.js        source text -> tokens              (spec section 2)
-src/parser.js       tokens      -> AST                 (spec section 13)
-src/compiler.js     AST         -> bytecode + resolve  (sections 5, 7, 9, 10)
-src/opcodes.js      the instruction set
-src/values.js       runtime values and conversions     (sections 3, 10)
-src/builtins.js     the 15 built-in functions          (section 10)
-src/vm.js           the stack machine
-src/disasm.js       bytecode listing
-src/diagnostics.js  CrumbError + the section 11 diagnostic format
-src/format.js       AST -> indented s-expression; tokens -> table
-src/index.js        parse() / compile() / run()
-src/browser.js      the bundle entry point (everything on window.Crumb)
-bin/crumb.js        CLI
-web/                the playground page and its build
+src/tokens.js         token classes, the 24 reserved words, the 15 built-ins
+src/lexer.js          source text -> tokens              (spec section 2)
+src/parser.js         tokens      -> AST                 (spec section 13)
+src/diagnostics.js    CrumbError + the section 11 diagnostic format  [shared]
+src/format.js         AST -> indented s-expression; tokens -> table
+
+src/vm/compiler.js    AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
+src/vm/opcodes.js     the instruction set
+src/vm/values.js      runtime values and conversions     (sections 3, 10)
+src/vm/builtins.js    the 15 built-in functions          (section 10)
+src/vm/vm.js          the stack machine
+src/vm/disasm.js      bytecode listing
+
+src/index.js          parse() / compile() / run()
+src/browser.js        the bundle entry point (everything on window.Crumb)
+bin/crumb.js          CLI
+web/                  the playground page and its build
 ```
 
 ## Playground
@@ -31,9 +37,13 @@ The whole implementation is bundled into the page, so it runs entirely in the
 browser with no server and no network.
 
 ```
-node web/build.mjs --standalone   # web/crumb-playground.standalone.html, open it directly
-node web/build.mjs                # headless form, for embedding
+node web/build.mjs --standalone   # web/index.html, a complete document: open it directly
+node web/build.mjs                # web/crumb-playground.html, no doctype/head, for embedding
 ```
+
+The build stamps its date and time into the page footer, in UTC and labelled as
+such. Set `SOURCE_DATE_EPOCH` (Unix seconds) to pin it instead of reading the
+clock, so the output is reproducible.
 
 esbuild (fetched by `npx` at build time) is the only thing outside the
 runtime's zero dependencies. The page caps execution at 8 M instructions, so a

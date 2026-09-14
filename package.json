@@ -10,7 +10,9 @@
   "exports": {
     ".": "./src/index.js",
     "./lexer": "./src/lexer.js",
-    "./parser": "./src/parser.js"
+    "./parser": "./src/parser.js",
+    "./vm": "./src/vm/vm.js",
+    "./compiler": "./src/vm/compiler.js"
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\""
@@ -18,8 +20,5 @@
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT",
-  "devDependencies": {
-    "wrangler": "^4.131.2"
-  }
+  "license": "MIT"
 }

@@ -2,18 +2,18 @@
 
 import { tokenize } from './lexer.js';
 import { parseTokens } from './parser.js';
-import { compile as compileAst } from './compiler.js';
-import { run as runChunk } from './vm.js';
+import { compile as compileAst } from './vm/compiler.js';
+import { run as runChunk } from './vm/vm.js';
 import { formatDiagnostics, sortErrors, CrumbError } from './diagnostics.js';
 
 export { tokenize, Lexer } from './lexer.js';
 export { parseTokens, Parser } from './parser.js';
 export { formatAst, formatTokens } from './format.js';
-export { Compiler, compile as compileAst } from './compiler.js';
-export { VM, run as runChunk, CrumbRuntimeError } from './vm.js';
-export { disassemble } from './disasm.js';
-export { Op, OP_NAMES } from './opcodes.js';
-export { NOTHING, CrumbArray, toStr, typeName } from './values.js';
+export { Compiler, compile as compileAst } from './vm/compiler.js';
+export { VM, run as runChunk, CrumbRuntimeError } from './vm/vm.js';
+export { disassemble } from './vm/disasm.js';
+export { Op, OP_NAMES } from './vm/opcodes.js';
+export { NOTHING, CrumbArray, toStr, typeName } from './vm/values.js';
 export { formatDiagnostics, CrumbError } from './diagnostics.js';
 export { TokenType, KEYWORDS, BUILTINS } from './tokens.js';
 

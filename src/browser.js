@@ -2,7 +2,7 @@
 // hung off one global.
 
 import { parse, compile, run } from './index.js';
-import { disassemble } from './disasm.js';
+import { disassemble } from './vm/disasm.js';
 import { formatAst, formatTokens } from './format.js';
 import { formatDiagnostics } from './diagnostics.js';
 import { tokenize } from './lexer.js';
