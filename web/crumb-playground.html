@@ -1,0 +1,743 @@
+<title>Crumb Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap">
+<style>
+:root{
+  --bg:#EFF2F5; --surface:#FFFFFF; --surface-2:#F7F9FB; --surface-3:#E7ECF1;
+  --ink:#16202B; --ink-2:#485563; --muted:#6F7D8C;
+  --rule:#D5DDE5; --rule-strong:#B7C2CC;
+  --accent:#A96E06; --accent-ink:#FFFFFF; --accent-soft:#F5E8CC;
+  --code-bg:#F7F9FB; --gutter-bg:#EDF1F5;
+  --tok-kw:#1B4F9B; --tok-str:#1B6B46; --tok-num:#8A5200;
+  --tok-com:#76848F; --tok-fn:#6A3AA8; --tok-op:#5B6875;
+  --ok:#186B45; --ok-soft:#DCEFE4;
+  --bad:#A32A21; --bad-soft:#F7E0DE;
+  --warn:#8A5200; --warn-soft:#F6E8CE;
+  --mast-rule:#16202B;
+  --shadow:0 1px 2px rgba(22,32,43,.06);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1217; --surface:#151C24; --surface-2:#1A222B; --surface-3:#202A34;
+    --ink:#E5EBF1; --ink-2:#B4C0CB; --muted:#8B98A4;
+    --rule:#26303A; --rule-strong:#39454F;
+    --accent:#DFAA43; --accent-ink:#16202B; --accent-soft:#3A2E17;
+    --code-bg:#111820; --gutter-bg:#141C24;
+    --tok-kw:#90B7ED; --tok-str:#85D0A6; --tok-num:#E3BA6C;
+    --tok-com:#6E7C88; --tok-fn:#C5A7EF; --tok-op:#9AA8B4;
+    --ok:#85D0A6; --ok-soft:#17301F;
+    --bad:#F0938A; --bad-soft:#351B19;
+    --warn:#E3BA6C; --warn-soft:#332715;
+    --mast-rule:#39454F;
+    --shadow:0 1px 2px rgba(0,0,0,.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1217; --surface:#151C24; --surface-2:#1A222B; --surface-3:#202A34;
+  --ink:#E5EBF1; --ink-2:#B4C0CB; --muted:#8B98A4;
+  --rule:#26303A; --rule-strong:#39454F;
+  --accent:#DFAA43; --accent-ink:#16202B; --accent-soft:#3A2E17;
+  --code-bg:#111820; --gutter-bg:#141C24;
+  --tok-kw:#90B7ED; --tok-str:#85D0A6; --tok-num:#E3BA6C;
+  --tok-com:#6E7C88; --tok-fn:#C5A7EF; --tok-op:#9AA8B4;
+  --ok:#85D0A6; --ok-soft:#17301F;
+  --bad:#F0938A; --bad-soft:#351B19;
+  --warn:#E3BA6C; --warn-soft:#332715;
+  --mast-rule:#39454F;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}
+
+*{box-sizing:border-box}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"IBM Plex Sans Condensed","Arial Narrow",Helvetica,sans-serif;
+  font-size:15px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.page{max-width:1400px; margin:0 auto; padding-inline:16px; padding-block:0 28px}
+
+/* code metrics shared by the gutter, the highlight layer and the textarea */
+:root{ --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+       --code-size:13.5px; --code-leading:22px; --code-pad:12px; }
+
+/* ------------------------------------------------------------------ masthead */
+.mast{
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 16px;
+  padding-block:26px 14px; border-bottom:2px solid var(--mast-rule);
+}
+.mast h1{
+  margin:0; font-size:30px; font-weight:700; letter-spacing:-.01em; line-height:1;
+}
+.mast .sub{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--accent);
+}
+.mast .spacer{flex:1 1 auto; min-width:0}
+.mast .meta{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.06em}
+
+/* ------------------------------------------------------------------- toolbar */
+.toolbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  padding-block:14px;
+}
+button, select{
+  font-family:"IBM Plex Sans Condensed",Helvetica,sans-serif;
+  font-size:14px; font-weight:600; letter-spacing:.01em;
+  color:var(--ink); background:var(--surface);
+  border:1px solid var(--rule-strong); border-radius:4px;
+  padding:7px 13px; cursor:pointer; box-shadow:var(--shadow);
+  transition:background .12s ease, border-color .12s ease;
+}
+button:hover, select:hover{background:var(--surface-3); border-color:var(--muted)}
+button:active{transform:translateY(1px)}
+button:focus-visible, select:focus-visible, textarea:focus-visible, .tab:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+button.primary{
+  background:var(--accent); color:var(--accent-ink); border-color:var(--accent);
+  padding-inline:18px;
+}
+button.primary:hover{background:var(--accent); filter:brightness(1.08)}
+button.primary .kbd{opacity:.75; font-family:var(--mono); font-size:11px; margin-left:8px}
+select{font-weight:400; padding-block:7px}
+.toolbar .spacer{flex:1 1 auto}
+.hint{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.04em}
+
+/* --------------------------------------------------------------------- panes */
+.split{
+  display:grid; grid-template-columns:1fr; gap:16px;
+}
+@media(min-width:900px){ .split{grid-template-columns:minmax(0,1fr) minmax(0,1fr)} }
+
+.pane{
+  display:flex; flex-direction:column; min-width:0;
+  background:var(--surface); border:1px solid var(--rule); border-radius:5px;
+  overflow:hidden; box-shadow:var(--shadow);
+  height:clamp(340px, 56vh, 600px);
+}
+.pane-head{
+  display:flex; align-items:stretch; gap:0; flex:none;
+  border-bottom:1px solid var(--rule); background:var(--surface-2);
+  min-height:34px;
+}
+.pane-title{
+  display:flex; align-items:center; padding:0 12px;
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--muted);
+}
+.tabs{display:flex}
+.tab{
+  appearance:none; background:none; border:0; border-radius:0; box-shadow:none;
+  border-right:1px solid var(--rule);
+  padding:0 14px; font-family:var(--mono); font-size:10.5px; letter-spacing:.13em;
+  text-transform:uppercase; color:var(--muted); font-weight:500; cursor:pointer;
+}
+.tab:hover{background:var(--surface-3); color:var(--ink-2)}
+.tab[aria-selected="true"]{
+  color:var(--ink); background:var(--surface);
+  box-shadow:inset 0 2px 0 var(--accent);
+}
+.pane-head .spacer{flex:1 1 auto}
+.status{
+  display:flex; align-items:center; gap:7px; padding:0 12px;
+  font-family:var(--mono); font-size:11px; color:var(--muted); white-space:nowrap;
+}
+.status .dot{width:7px; height:7px; border-radius:50%; background:var(--muted); flex:none}
+.status[data-state="ok"]{color:var(--ok)}
+.status[data-state="ok"] .dot{background:var(--ok)}
+.status[data-state="bad"]{color:var(--bad)}
+.status[data-state="bad"] .dot{background:var(--bad)}
+.status[data-state="warn"]{color:var(--warn)}
+.status[data-state="warn"] .dot{background:var(--warn)}
+
+/* -------------------------------------------------------------------- editor */
+.editor{
+  position:relative; flex:1 1 auto; min-height:0; display:flex;
+  background:var(--code-bg);
+}
+.gutter{
+  flex:none; width:48px; overflow:hidden; background:var(--gutter-bg);
+  border-right:1px solid var(--rule);
+  font-family:var(--mono); font-size:var(--code-size); line-height:var(--code-leading);
+  padding-block:var(--code-pad); color:var(--muted); text-align:right;
+  user-select:none;
+}
+.gutter div{padding-right:8px}
+.gutter div.flagged{color:var(--bad); background:var(--bad-soft); font-weight:600}
+.surface{position:relative; flex:1 1 auto; min-width:0}
+.surface pre, .surface textarea{
+  position:absolute; inset:0; margin:0; border:0;
+  font-family:var(--mono); font-size:var(--code-size); line-height:var(--code-leading);
+  padding:var(--code-pad); tab-size:2;
+  white-space:pre; overflow:auto; word-wrap:normal;
+}
+.surface pre{color:var(--ink); pointer-events:none; background:transparent}
+.surface textarea{
+  color:transparent; caret-color:var(--ink); background:transparent;
+  resize:none; outline:none; -webkit-text-fill-color:transparent;
+}
+.surface textarea::selection{background:rgba(169,110,6,.28); -webkit-text-fill-color:transparent}
+
+/* -------------------------------------------------------------------- output */
+.out{
+  flex:1 1 auto; min-height:0; margin:0; overflow:auto;
+  background:var(--code-bg); padding:var(--code-pad);
+  font-family:var(--mono); font-size:var(--code-size); line-height:var(--code-leading);
+  white-space:pre; color:var(--ink);
+}
+.out .placeholder{color:var(--muted)}
+.out .err{color:var(--bad)}
+.out .echo{color:var(--muted)}
+.out .frame{color:var(--ink-2)}
+.out .jump{color:var(--bad); cursor:pointer; text-decoration:underline;
+  text-decoration-color:color-mix(in srgb, var(--bad) 40%, transparent); text-underline-offset:3px}
+.out .jump:hover{text-decoration-color:var(--bad)}
+.out .rule{color:var(--rule-strong)}
+
+/* syntax tokens, shared by the editor overlay and the bytecode listing */
+.tok-kw{color:var(--tok-kw); font-weight:500}
+.tok-str{color:var(--tok-str)}
+.tok-num{color:var(--tok-num)}
+.tok-com{color:var(--tok-com); font-style:italic}
+.tok-fn{color:var(--tok-fn)}
+.tok-op{color:var(--tok-op)}
+.dis-addr{color:var(--muted)}
+.dis-op{color:var(--tok-kw); font-weight:500}
+.dis-note{color:var(--tok-com)}
+.dis-head{color:var(--ink); font-weight:600}
+
+/* --------------------------------------------------------------------- notes */
+.footnote{
+  display:flex; flex-wrap:wrap; gap:6px 20px; margin-top:18px;
+  padding-top:14px; border-top:1px solid var(--rule);
+  font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.05em;
+}
+.footnote b{color:var(--ink-2); font-weight:500}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="page">
+
+  <header class="mast">
+    <h1>Crumb</h1>
+    <span class="sub">Playground &middot; v0.1</span>
+    <span class="spacer"></span>
+    <span class="meta">tokenizer &rarr; parser &rarr; bytecode &rarr; VM, all in this page</span>
+  </header>
+
+  <div class="toolbar">
+    <button id="run" class="primary" type="button">Run<span class="kbd">&#8984;&#9166;</span></button>
+    <button id="clear-input" type="button">Clear input</button>
+    <button id="clear-output" type="button">Clear output</button>
+    <span class="spacer"></span>
+    <label class="hint" for="example">Example</label>
+    <select id="example" aria-label="Load an example program">
+      <option value="fizzbuzz">FizzBuzz</option>
+      <option value="factorial">Recursion</option>
+      <option value="words">Strings &amp; arrays</option>
+      <option value="sieve">Sieve of Eratosthenes</option>
+      <option value="errors">A runtime error</option>
+    </select>
+  </div>
+
+  <div class="split">
+
+    <section class="pane" aria-label="Program">
+      <div class="pane-head">
+        <span class="pane-title">Program</span>
+        <span class="spacer"></span>
+        <span class="status" id="editor-status">0 lines</span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <div class="surface">
+          <pre id="highlight" aria-hidden="true"></pre>
+          <textarea id="source" spellcheck="false" autocomplete="off"
+            autocapitalize="off" autocorrect="off" wrap="off"
+            aria-label="Crumb source code"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" aria-label="Result">
+      <div class="pane-head">
+        <div class="tabs" role="tablist">
+          <button class="tab" id="tab-output" role="tab" aria-selected="true" type="button">Output</button>
+          <button class="tab" id="tab-bytecode" role="tab" aria-selected="false" type="button">Bytecode</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="status" id="status"><span class="dot"></span><span id="status-text">ready</span></span>
+      </div>
+      <pre class="out" id="output" role="tabpanel" tabindex="0"></pre>
+    </section>
+
+  </div>
+
+  <div class="footnote">
+    <span><b>24</b> reserved words</span>
+    <span><b>15</b> built-ins</span>
+    <span><b>37</b> opcodes</span>
+    <span><b>&#8984;&#9166;</b> to run</span>
+    <span>Errors are clickable &mdash; they jump to the line</span>
+  </div>
+
+</div>
+
+<script>
+var Crumb=(()=>{var j=Object.defineProperty;var ft=Object.getOwnPropertyDescriptor;var dt=Object.getOwnPropertyNames;var yt=Object.prototype.hasOwnProperty;var bt=(s,t)=>{for(var e in t)j(s,e,{get:t[e],enumerable:!0})},gt=(s,t,e,i)=>{if(t&&typeof t=="object"||typeof t=="function")for(let n of dt(t))!yt.call(s,n)&&n!==e&&j(s,n,{get:()=>t[n],enumerable:!(i=ft(t,n))||i.enumerable});return s};var wt=s=>gt(j({},"__esModule",{value:!0}),s);var vt={};bt(vt,{BUILTINS:()=>P,KEYWORDS:()=>B,compile:()=>rt,disassemble:()=>st,formatAst:()=>tt,formatDiagnostics:()=>G,formatTokens:()=>et,parse:()=>it,run:()=>mt,tokenize:()=>C});var h=Object.freeze({Newline:"NEWLINE",Ident:"IDENT",Number:"NUMBER",String:"STRING",Keyword:"KEYWORD",Operator:"OPERATOR",EOF:"EOF"}),B=Object.freeze(["And","Dim","Else","ElseIf","End","Exit","False","For","Function","If","Mod","Next","Not","Nothing","Or","Print","Return","Step","Sub","Then","To","True","Until","While"]),ot=new Map(B.map(s=>[s.toLowerCase(),s])),at=Object.freeze(["<>","<=",">=","+","-","*","/","\\","^","&","=","<",">","(",")",","]),P=Object.freeze(["Len","Mid","InStr","UCase","LCase","Trim","Str","Val","Int","Abs","Sqr","Rnd","Chr","Asc","UBound"]),_t=new Map(P.map(s=>[s.toLowerCase(),s]));function b(s){switch(s.type){case h.Newline:return"end of line";case h.EOF:return"end of file";case h.Keyword:return`'${s.canonical}'`;case h.Operator:return`'${s.value}'`;case h.Ident:return`identifier '${s.value}'`;case h.Number:return`number ${s.text}`;case h.String:return`string "${s.value.length>16?`${s.value.slice(0,16)}...`:s.value}"`;default:return`'${s.value}'`}}var w=class extends Error{constructor(t,{line:e=0,column:i=0,phase:n="load"}={}){super(t),this.name="CrumbError",this.line=e,this.column=i,this.phase=n}};function G(s,t,e="input.crumb"){let i=t.split(/\r\n|\n|\r/),n=[];for(let o of s){n.push(`${e}:${o.line}: error: ${o.message}`);let a=i[o.line-1];a!==void 0&&a.trim()!==""&&n.push(`${e}:${o.line}:   ${a.trimEnd()}`)}return n.join(`
+`)}function v(s){return[...s].sort((t,e)=>t.line-e.line||t.column-e.column)}var $t=/[A-Za-z_]/,ht=/[A-Za-z0-9_]/,Nt=/[0-9]/,ct=/[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g,R=class{constructor(t,{filename:e="input.crumb"}={}){this.source=t,this.filename=e,this.pos=0,this.line=1,this.lineStart=0,this.tokens=[],this.errors=[]}get column(){return this.pos-this.lineStart+1}error(t,e=this.line,i=this.column){this.errors.push(new w(t,{line:e,column:i,phase:"load"}))}push(t,e){this.tokens.push({type:t,...e})}atFreshLine(){return this.tokens.length===0?!0:this.tokens[this.tokens.length-1].type===h.Newline}tokenize(){let t=this.source;for(;this.pos<t.length;){let e=t[this.pos];if(e===" "||e==="	"){this.pos+=1;continue}if(e==="'"){for(;this.pos<t.length&&t[this.pos]!==`
+`&&t[this.pos]!=="\r";)this.pos+=1;continue}if(e===`
+`||e==="\r"){let o=this.line,a=this.column;e==="\r"&&t[this.pos+1]===`
+`?this.pos+=2:this.pos+=1,this.line+=1,this.lineStart=this.pos,this.atFreshLine()||this.push(h.Newline,{value:`
+`,line:o,column:a});continue}if(e==='"'){this.readString();continue}if(Nt.test(e)){this.readNumber();continue}if($t.test(e)){this.readWord();continue}let i=at.find(o=>t.startsWith(o,this.pos));if(i!==void 0){let o=this.column;this.pos+=i.length,this.push(h.Operator,{value:i,line:this.line,column:o});continue}let n=this.column;e==="."?this.error("unexpected '.': Crumb has no member access, and a number needs a digit before the point",this.line,n):e==="$"||e==="%"||e==="!"||e==="#"||e==="@"?this.error(`unexpected '${e}': type suffixes were removed in v0.1 (see spec section 15)`,this.line,n):this.error(`unexpected character '${e}'`,this.line,n),this.pos+=1}return this.atFreshLine()||this.push(h.Newline,{value:`
+`,line:this.line,column:this.column}),this.push(h.EOF,{value:"",line:this.line,column:this.column}),{tokens:this.tokens,errors:this.errors}}readString(){let t=this.source,e=this.line,i=this.column,n=this.pos,o="";for(this.pos+=1;;){if(this.pos>=t.length||t[this.pos]===`
+`||t[this.pos]==="\r"){this.error("unterminated string literal: a string cannot span lines",e,i),this.push(h.String,{value:o,text:t.slice(n,this.pos),line:e,column:i,malformed:!0});return}if(t[this.pos]==='"'){if(t[this.pos+1]==='"'){o+='"',this.pos+=2;continue}this.pos+=1;break}o+=t[this.pos],this.pos+=1}this.push(h.String,{value:o,text:t.slice(n,this.pos),line:e,column:i})}readNumber(){let t=this.line,e=this.column;ct.lastIndex=this.pos;let n=ct.exec(this.source)[0];this.pos+=n.length;let o=this.source[this.pos];o==="."?(this.error(`malformed number '${n}.': a decimal point needs digits on both sides`,t,e),this.pos+=1):(o==="e"||o==="E")&&!ht.test(this.source[this.pos+1]??"")&&(this.error(`malformed number '${n}${o}': an exponent needs digits`,t,e),this.pos+=1),this.push(h.Number,{value:Number(n),text:n,line:t,column:e})}readWord(){let t=this.source,e=this.line,i=this.column,n=this.pos;for(;this.pos<t.length&&ht.test(t[this.pos]);)this.pos+=1;let o=t.slice(n,this.pos),a=o.toLowerCase(),c=ot.get(a);c!==void 0?this.push(h.Keyword,{value:o,lower:a,canonical:c,line:e,column:i}):this.push(h.Ident,{value:o,lower:a,line:e,column:i})}};function C(s,t={}){return new R(s,t).tokenize()}var T=class extends Error{},xt=new Set(["end","else","elseif","next"]),St=new Set(["=","<>","<","<=",">",">="]),Et=new Set(["*","/","\\"]),D=class{constructor(t,{filename:e="input.crumb"}={}){this.tokens=t,this.filename=e,this.pos=0,this.errors=[],this.loopStack=[],this.procStack=[],this.hoisted=[]}peek(t=0){let e=Math.min(this.pos+t,this.tokens.length-1);return this.tokens[e]}advance(){let t=this.peek();return this.pos<this.tokens.length-1&&(this.pos+=1),t}atEnd(){return this.peek().type===h.EOF}isOperator(t,e){return t.type===h.Operator&&t.value===e}isKeyword(t,e){return t.type===h.Keyword&&t.lower===e.toLowerCase()}atOperator(t){return this.isOperator(this.peek(),t)}atKeyword(t){return this.isKeyword(this.peek(),t)}matchOperator(t){return this.atOperator(t)?this.advance():null}matchKeyword(t){return this.atKeyword(t)?this.advance():null}error(t,e=this.peek()){let i=`${e.line}:${e.column}:${t}`;this.seen===void 0&&(this.seen=new Set),!this.seen.has(i)&&(this.seen.add(i),this.errors.push(new w(t,{line:e.line,column:e.column,phase:"load"})))}fail(t,e=this.peek()){throw this.error(t,e),new T(t)}expectOperator(t,e){return this.atOperator(t)?this.advance():this.fail(`expected '${t}'${e?` ${e}`:""}, found ${b(this.peek())}`)}expectKeyword(t,e){return this.atKeyword(t)?this.advance():this.fail(`expected '${t}'${e?` ${e}`:""}, found ${b(this.peek())}`)}expectIdent(t){if(this.peek().type===h.Ident)return this.advance();let e=this.peek();return e.type===h.Keyword?this.fail(`'${e.canonical}' is a reserved word and cannot be used as a name${t?` ${t}`:""}`):this.fail(`expected a name${t?` ${t}`:""}, found ${b(e)}`)}expectNewline(){if(this.peek().type===h.Newline){this.advance();return}this.atEnd()||this.fail(`expected end of line, found ${b(this.peek())}: Crumb allows one statement per line`)}skipNewlines(){for(;this.peek().type===h.Newline;)this.advance()}synchronize(){for(;!this.atEnd();){let t=this.peek();if(t.type===h.Newline){this.advance();return}if(t.type===h.Keyword&&xt.has(t.lower))return;this.advance()}}parseProgram(){let t=[],e=[];for(this.skipNewlines();!this.atEnd();){let i=this.pos;if(this.atKeyword("Sub")||this.atKeyword("Function")){let n=this.parseProcedure();n&&e.push(n)}else try{t.push(this.parseStatement()),this.expectNewline()}catch(n){if(!(n instanceof T))throw n;this.synchronize()}this.pos===i&&this.advance(),this.skipNewlines()}return e.push(...this.hoisted),this.checkDuplicateProcedures(e),{type:"Program",filename:this.filename,body:t,procedures:e}}checkDuplicateProcedures(t){let e=new Map;for(let i of t){let n=e.get(i.nameLower);n?this.error(`'${i.name}' is already declared on line ${n.line}: procedure names share one namespace`,{line:i.line,column:i.column}):e.set(i.nameLower,i)}}parseBlockBody(t){let e=[];for(this.skipNewlines();!this.atEnd();){let i=this.peek();if(i.type===h.Keyword&&t.has(i.lower))break;let n=this.pos;if(this.atKeyword("Sub")||this.atKeyword("Function")){let o=this.procStack.length>0?this.procStack[this.procStack.length-1]:null;this.error(o?`procedures cannot be nested: did you forget 'End ${o.kind}' for '${o.name}' on line ${o.line}?`:"procedures cannot be declared inside a block",i);let a=this.parseProcedure();a&&this.hoisted.push(a)}else try{e.push(this.parseStatement()),this.expectNewline()}catch(o){if(!(o instanceof T))throw o;this.synchronize()}this.pos===n&&this.advance(),this.skipNewlines()}return e}closeBlock(t,e){return this.isKeyword(this.peek(),"End")&&this.isKeyword(this.peek(1),t)?(this.advance(),this.advance(),!0):this.isKeyword(this.peek(),"End")?(this.error(`expected 'End ${t}' to close the '${t}' opened on line ${e.line}, found 'End ${this.peek(1).canonical??b(this.peek(1))}'`),this.advance(),this.peek().type===h.Keyword&&this.advance(),!1):(this.error(`unterminated '${t}' block: expected 'End ${t}'`,e),!1)}parseStatement(){let t=this.peek();if(t.type===h.Keyword)switch(t.lower){case"dim":return this.parseDim();case"print":return this.parsePrint();case"if":return this.parseIf();case"while":return this.parseWhile();case"for":return this.parseFor();case"exit":return this.parseExit();case"return":return this.parseReturn();case"sub":case"function":return this.fail("a procedure cannot be declared here");default:return this.fail(`${b(t)} cannot start a statement`)}return t.type===h.Ident?this.parseAssignOrCall():this.fail(`expected a statement, found ${b(t)}`)}parseDim(){let t=this.expectKeyword("Dim"),e=this.expectIdent("after 'Dim'"),i=null,n=null;return this.matchOperator("=")?i=this.parseExpression():this.matchOperator("(")&&(n=this.parseExpression(),this.expectOperator(")","after the array bound"),this.atOperator("=")&&this.fail("an array declaration cannot have an initialiser: assign elements after the 'Dim'")),{type:"DimStatement",name:e.value,nameLower:e.lower,init:i,size:n,line:t.line,column:t.column}}parsePrint(){let t=this.expectKeyword("Print"),e=[];if(this.peek().type!==h.Newline&&!this.atEnd())do e.push(this.parseExpression());while(this.matchOperator(","));return{type:"PrintStatement",args:e,line:t.line,column:t.column}}parseAssignOrCall(){let t=this.expectIdent(),e=null;if(this.matchOperator("(")){if(e=[],!this.atOperator(")"))do e.push(this.parseExpression());while(this.matchOperator(","));this.expectOperator(")",`after the arguments to '${t.value}'`)}if(this.atOperator("=")){this.advance();let i=this.parseExpression(),n;return e===null?n={type:"Variable",name:t.value,nameLower:t.lower,line:t.line,column:t.column}:e.length===1?n={type:"Index",name:t.value,nameLower:t.lower,index:e[0],line:t.line,column:t.column}:this.fail(e.length===0?`cannot assign to '${t.value}()': an array element needs exactly one index`:`cannot assign to '${t.value}(...)': an array element takes exactly one index, found ${e.length}`,t),{type:"AssignStatement",target:n,value:i,line:t.line,column:t.column}}return e===null&&this.fail(`expected '=' or an argument list after '${t.value}': a call statement needs parentheses, as in '${t.value}()'`,t),{type:"CallStatement",call:{type:"Apply",name:t.value,nameLower:t.lower,args:e,line:t.line,column:t.column},line:t.line,column:t.column}}parseIf(){let t=this.expectKeyword("If"),e=this.parseExpression();if(this.expectKeyword("Then","after the condition"),this.peek().type!==h.Newline&&!this.atEnd()){let a=this.parseStatement();return(this.atKeyword("Else")||this.atKeyword("ElseIf"))&&this.fail(`the single-line 'If' form takes no '${this.peek().canonical}': use the block form`),{type:"IfStatement",branches:[{condition:e,body:[a]}],elseBody:null,singleLine:!0,line:t.line,column:t.column}}let i=new Set(["elseif","else","end"]),n=[{condition:e,body:this.parseBlockBody(i)}];for(;this.atKeyword("ElseIf");){this.advance();let a=null;try{a=this.parseExpression(),this.expectKeyword("Then","after the condition"),this.expectNewline()}catch(c){if(!(c instanceof T))throw c;this.synchronize()}n.push({condition:a,body:this.parseBlockBody(i)})}let o=null;return this.matchKeyword("Else")&&(this.peek().type!==h.Newline&&!this.atEnd()&&(this.error(`expected end of line after 'Else', found ${b(this.peek())}`),this.synchronize()),o=this.parseBlockBody(new Set(["end"]))),this.closeBlock("If",t),{type:"IfStatement",branches:n,elseBody:o,singleLine:!1,line:t.line,column:t.column}}parseWhile(){let t=this.expectKeyword("While"),e=this.parseExpression();this.expectNewline(),this.loopStack.push("While");let i=this.parseBlockBody(new Set(["end"]));return this.loopStack.pop(),this.closeBlock("While",t),{type:"WhileStatement",condition:e,body:i,line:t.line,column:t.column}}parseFor(){let t=this.expectKeyword("For"),e=this.expectIdent("for the loop variable");this.expectOperator("=","after the loop variable");let i=this.parseExpression();this.expectKeyword("To","after the start value");let n=this.parseExpression(),o=this.matchKeyword("Step")?this.parseExpression():null;this.expectNewline(),this.loopStack.push("For");let a=this.parseBlockBody(new Set(["next","end"]));return this.loopStack.pop(),this.matchKeyword("Next")?this.peek().type===h.Ident&&(this.error(`'Next' takes no variable name in Crumb: drop '${this.peek().value}'`),this.advance()):this.isKeyword(this.peek(),"End")?this.error(`expected 'Next' to close the 'For' opened on line ${t.line}`):this.error("unterminated 'For' block: expected 'Next'",t),{type:"ForStatement",variable:e.value,variableLower:e.lower,start:i,limit:n,step:o,body:a,line:t.line,column:t.column}}parseExit(){let t=this.expectKeyword("Exit"),e;if(this.matchKeyword("For"))e="For";else if(this.matchKeyword("While"))e="While";else return this.fail(`expected 'For' or 'While' after 'Exit', found ${b(this.peek())}`);return this.loopStack.includes(e)||this.error(`'Exit ${e}' is not inside a '${e}' loop`,t),{type:"ExitStatement",kind:e,line:t.line,column:t.column}}parseReturn(){let t=this.expectKeyword("Return"),e=this.peek().type===h.Newline||this.atEnd(),i=e?null:this.parseExpression(),n=this.procStack[this.procStack.length-1];return n?n.kind==="Function"&&e?this.error(`'Return' in a Function must return a value ('${n.name}' on line ${n.line})`,t):n.kind==="Sub"&&!e&&this.error(`a Sub cannot return a value ('${n.name}' on line ${n.line})`,t):this.error("'Return' is only allowed inside a 'Sub' or 'Function'",t),{type:"ReturnStatement",value:i,line:t.line,column:t.column}}parseProcedure(){let t=this.advance(),e=t.canonical,i,n=[];try{if(i=this.expectIdent(`after '${e}'`),this.expectOperator("(",`after the ${e.toLowerCase()} name`),!this.atOperator(")"))do{let c=this.expectIdent("for a parameter"),y=n.find(x=>x.lower===c.lower);y&&this.error(`parameter '${c.value}' is already declared on line ${y.line}`,c),n.push(c)}while(this.matchOperator(","));this.expectOperator(")","after the parameter list"),this.expectNewline()}catch(c){if(!(c instanceof T))throw c;if(this.synchronize(),!i)return null}let o=this.loopStack;this.loopStack=[],this.procStack.push({kind:e,name:i.value,line:t.line});let a=this.parseBlockBody(new Set(["end"]));return this.procStack.pop(),this.loopStack=o,this.closeBlock(e,t),{type:e==="Sub"?"SubDeclaration":"FunctionDeclaration",kind:e,name:i.value,nameLower:i.lower,params:n.map(c=>({name:c.value,nameLower:c.lower})),body:a,line:t.line,column:t.column}}parseExpression(){return this.parseOr()}parseOr(){let t=this.parseAnd(),e;for(;e=this.matchKeyword("Or");)t=this.binary("Or",t,this.parseAnd(),e,{shortCircuit:!0});return t}parseAnd(){let t=this.parseNot(),e;for(;e=this.matchKeyword("And");)t=this.binary("And",t,this.parseNot(),e,{shortCircuit:!0});return t}parseNot(){let t=this.matchKeyword("Not");return t?{type:"Unary",operator:"Not",operand:this.parseNot(),line:t.line,column:t.column}:this.parseCompare()}parseCompare(){let t=this.parseConcat();for(;this.peek().type===h.Operator&&St.has(this.peek().value);){let e=this.advance();t=this.binary(e.value,t,this.parseConcat(),e)}return t}parseConcat(){let t=this.parseAdd(),e;for(;e=this.matchOperator("&");)t=this.binary("&",t,this.parseAdd(),e);return t}parseAdd(){let t=this.parseMul();for(;this.peek().type===h.Operator&&(this.peek().value==="+"||this.peek().value==="-");){let e=this.advance();t=this.binary(e.value,t,this.parseMul(),e)}return t}parseMul(){let t=this.parseUnary();for(;;){let e=this.peek();if(e.type===h.Operator&&Et.has(e.value))this.advance(),t=this.binary(e.value,t,this.parseUnary(),e);else if(this.isKeyword(e,"Mod"))this.advance(),t=this.binary("Mod",t,this.parseUnary(),e);else return t}}parseUnary(){let t=this.peek();if(t.type===h.Operator&&(t.value==="-"||t.value==="+")){this.advance();let e=this.parseUnary();return{type:"Unary",operator:t.value,operand:e,line:t.line,column:t.column}}return this.parsePower()}parsePower(){let t=this.parsePrimary(),e=this.matchOperator("^");return e?this.binary("^",t,this.parseUnary(),e):t}parsePrimary(){let t=this.peek();if(t.type===h.Number)return this.advance(),{type:"NumberLiteral",value:t.value,text:t.text,line:t.line,column:t.column};if(t.type===h.String)return this.advance(),{type:"StringLiteral",value:t.value,line:t.line,column:t.column};if(t.type===h.Keyword)return t.lower==="true"||t.lower==="false"?(this.advance(),{type:"BooleanLiteral",value:t.lower==="true",line:t.line,column:t.column}):t.lower==="nothing"?(this.advance(),{type:"NothingLiteral",line:t.line,column:t.column}):this.fail(`${b(t)} cannot appear in an expression`);if(t.type===h.Ident){if(this.advance(),this.matchOperator("(")){let e=[];if(!this.atOperator(")"))do e.push(this.parseExpression());while(this.matchOperator(","));return this.expectOperator(")",`after the arguments to '${t.value}'`),{type:"Apply",name:t.value,nameLower:t.lower,args:e,line:t.line,column:t.column}}return{type:"Variable",name:t.value,nameLower:t.lower,line:t.line,column:t.column}}if(this.isOperator(t,"(")){this.advance();let e=this.parseExpression();return this.expectOperator(")","to close the group"),e}return this.isOperator(t,"=")?this.fail("unexpected '=': Crumb has no assignment inside an expression"):this.fail(`expected an expression, found ${b(t)}`)}binary(t,e,i,n,o={}){return{type:"Binary",operator:t,left:e,right:i,...o,line:n.line,column:n.column}}};function V(s,t={}){let e=new D(s,t);return{ast:e.parseProgram(),errors:v(e.errors)}}var kt=0,l=()=>kt++,r=Object.freeze({CONST:l(),NOTHING:l(),TRUE:l(),FALSE:l(),POP:l(),GET_GLOBAL:l(),SET_GLOBAL:l(),GET_LOCAL:l(),SET_LOCAL:l(),NEW_ARRAY:l(),GET_INDEX:l(),SET_INDEX:l(),ADD:l(),SUB:l(),MUL:l(),DIV:l(),IDIV:l(),MOD:l(),POW:l(),NEG:l(),CONCAT:l(),EQ:l(),NE:l(),LT:l(),LE:l(),GT:l(),GE:l(),NOT:l(),CHECK_BOOL:l(),AND_JUMP:l(),OR_JUMP:l(),JUMP:l(),JUMP_IF_FALSE:l(),CALL:l(),CALL_BUILTIN:l(),RETURN:l(),RETURN_NOTHING:l(),NO_RETURN:l(),PRINT:l(),HALT:l()}),lt=Object.freeze({[r.CONST]:1,[r.NOTHING]:0,[r.TRUE]:0,[r.FALSE]:0,[r.POP]:0,[r.GET_GLOBAL]:1,[r.SET_GLOBAL]:1,[r.GET_LOCAL]:1,[r.SET_LOCAL]:1,[r.NEW_ARRAY]:0,[r.GET_INDEX]:0,[r.SET_INDEX]:0,[r.ADD]:0,[r.SUB]:0,[r.MUL]:0,[r.DIV]:0,[r.IDIV]:0,[r.MOD]:0,[r.POW]:0,[r.NEG]:0,[r.CONCAT]:0,[r.EQ]:0,[r.NE]:0,[r.LT]:0,[r.LE]:0,[r.GT]:0,[r.GE]:0,[r.NOT]:0,[r.CHECK_BOOL]:0,[r.AND_JUMP]:1,[r.OR_JUMP]:1,[r.JUMP]:1,[r.JUMP_IF_FALSE]:1,[r.CALL]:2,[r.CALL_BUILTIN]:2,[r.RETURN]:0,[r.RETURN_NOTHING]:0,[r.NO_RETURN]:0,[r.PRINT]:1,[r.HALT]:0}),_=Object.freeze(Object.fromEntries(Object.entries(r).map(([s,t])=>[t,s]))),pt=Object.freeze({"+":r.ADD,"-":r.SUB,"*":r.MUL,"/":r.DIV,"\\":r.IDIV,Mod:r.MOD,"^":r.POW,"&":r.CONCAT,"=":r.EQ,"<>":r.NE,"<":r.LT,"<=":r.LE,">":r.GT,">=":r.GE});var $=Symbol("Crumb.Nothing"),I=class{constructor(t){this.bound=t,this.elements=new Array(t+1).fill($)}};function m(s){if(s===$)return"Nothing";if(s instanceof I)return"Array";switch(typeof s){case"number":return"Number";case"string":return"String";case"boolean":return"Boolean";default:return"Unknown"}}var g=s=>typeof s=="number",L=s=>typeof s=="string",Y=s=>typeof s=="boolean",A=s=>s instanceof I;function N(s){return Number.isInteger(s)?String(s===0?0:s):String(s)}function S(s){return s===$?"":g(s)?N(s):L(s)?s:Y(s)?s?"True":"False":A(s)?`<array 0..${s.bound}>`:String(s)}var M=class extends Error{},E=s=>{throw new M(s)};function K(s,t,e){return g(e)||E(`${s} expects a Number as argument ${t}, got ${m(e)}`),e}function O(s,t,e){return L(e)||E(`${s} expects a String as argument ${t}, got ${m(e)}`),e}function X(s,t,e){return K(s,t,e),Number.isInteger(e)||E(`${s} expects a whole Number as argument ${t}, got ${N(e)}`),e}var q=[{name:"Len",arity:1,fn:([s])=>O("Len",1,s).length},{name:"Mid",arity:3,fn:([s,t,e])=>(O("Mid",1,s),X("Mid",2,t),X("Mid",3,e),t<1&&E(`Mid expects a start position of 1 or more, got ${N(t)}`),e<0&&E(`Mid expects a count of 0 or more, got ${N(e)}`),s.slice(t-1,t-1+e))},{name:"InStr",arity:2,fn:([s,t])=>(O("InStr",1,s),O("InStr",2,t),s.indexOf(t)+1)},{name:"UCase",arity:1,fn:([s])=>O("UCase",1,s).toUpperCase()},{name:"LCase",arity:1,fn:([s])=>O("LCase",1,s).toLowerCase()},{name:"Trim",arity:1,fn:([s])=>O("Trim",1,s).trim()},{name:"Str",arity:1,fn:([s])=>S(s)},{name:"Val",arity:1,fn:([s])=>(O("Val",1,s),/^[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(s)||E(`Val expects a numeric String, got "${s.length>20?`${s.slice(0,20)}...`:s}"`),Number(s))},{name:"Int",arity:1,fn:([s])=>Math.trunc(K("Int",1,s))},{name:"Abs",arity:1,fn:([s])=>Math.abs(K("Abs",1,s))},{name:"Sqr",arity:1,fn:([s])=>(K("Sqr",1,s),s<0&&E(`Sqr expects a Number of 0 or more, got ${N(s)}`),Math.sqrt(s))},{name:"Rnd",arity:0,fn:(s,t)=>t.random()},{name:"Chr",arity:1,fn:([s])=>(X("Chr",1,s),(s<0||s>1114111)&&E(`Chr expects a code point in 0..1114111, got ${N(s)}`),String.fromCodePoint(s))},{name:"Asc",arity:1,fn:([s])=>(O("Asc",1,s),s.length===0&&E('Asc expects a String of at least one character, got ""'),s.codePointAt(0))},{name:"UBound",arity:1,fn:([s])=>(A(s)||E(`UBound expects an Array, got ${m(s)}`),s.bound)}],F=new Map(q.map((s,t)=>[s.name.toLowerCase(),{index:t,...s}]));var J=class{constructor(t){this.kind=t,this.names=new Map,this.declaredAt=new Map,this.count=0}allocate(t,e,i,n=!1){let o=this.names.get(e);if(o)return o;let a={name:t,slot:this.count,line:i,hidden:n};return this.count+=1,this.names.set(e,a),a}},W=class{constructor({filename:t="input.crumb"}={}){this.filename=t,this.code=[],this.lines=[],this.constants=[],this.constantIndex=new Map,this.errors=[],this.seen=new Set,this.module=new J("module"),this.scope=this.module,this.visible=new Set,this.procs=[],this.procIndex=new Map,this.loops=[],this.hiddenCounter=0}emit(t,...e){let i=this.code.length;for(this.code.push(t,...e);this.lines.length<this.code.length;)this.lines.push(this.line);return i}emitJump(t){return this.emit(t,0),this.code.length-1}patch(t,e=this.code.length){this.code[t]=e}constant(t){let e=`${typeof t}:${t}`;if(this.constantIndex.has(e))return this.constantIndex.get(e);let i=this.constants.length;return this.constants.push(t),this.constantIndex.set(e,i),i}error(t,e){let i=e?.line??this.line??0,n=e?.column??0,o=`${i}:${n}:${t}`;this.seen.has(o)||(this.seen.add(o),this.errors.push(new w(t,{line:i,column:n,phase:"load"})))}isBuiltin(t){return F.has(t)}resolve(t){if(this.scope!==this.module){let i=this.scope.names.get(t);if(i)return{where:"local",entry:i}}let e=this.module.names.get(t);return!e||this.scope===this.module&&!this.visible.has(t)?null:{where:"global",entry:e}}emitGet(t){this.emit(t.where==="local"?r.GET_LOCAL:r.GET_GLOBAL,t.entry.slot)}emitSet(t){this.emit(t.where==="local"?r.SET_LOCAL:r.SET_GLOBAL,t.entry.slot)}declare(t,e,i,{hidden:n=!1}={}){let o=i?.line??this.line;if(!n)if(this.isBuiltin(e))this.error(`'${t}' is a built-in function and cannot be redeclared`,i);else if(this.procIndex.has(e)){let c=this.procs[this.procIndex.get(e)];this.error(`'${t}' is already the name of a ${c.kind} declared on line ${c.line}: procedures and variables share one namespace`,i)}else this.scope.declaredAt.has(e)&&this.error(`'${t}' is already declared on line ${this.scope.declaredAt.get(e)}`,i);let a=this.scope.allocate(t,e,o,n);return this.scope.declaredAt.has(e)||this.scope.declaredAt.set(e,o),this.scope===this.module&&this.visible.add(e),{where:this.scope===this.module?"global":"local",entry:a}}hidden(t){this.hiddenCounter+=1;let e=`${t}$${this.hiddenCounter}`;return this.declare(e,e,null,{hidden:!0})}compileProgram(t){this.line=1;for(let e of t.procedures){if(this.isBuiltin(e.nameLower)){this.error(`'${e.name}' is a built-in function and cannot be redeclared`,e);continue}this.procIndex.has(e.nameLower)||(this.procIndex.set(e.nameLower,this.procs.length),this.procs.push({name:e.name,kind:e.kind,arity:e.params.length,line:e.line,entry:-1,slotCount:0,node:e}))}this.collectModuleNames(t.body),this.visible=new Set;for(let e of t.body)this.statement(e);this.emit(r.HALT);for(let e of this.procs)this.procedure(e);return{filename:this.filename,code:this.code,lines:this.lines,constants:this.constants,globalCount:this.module.count,globalNames:[...this.module.names.values()].map(e=>e.name),procedures:this.procs.map(({node:e,...i})=>i),entry:0}}collectModuleNames(t){for(let e of t)switch(e.type){case"DimStatement":this.module.allocate(e.name,e.nameLower,e.line);break;case"ForStatement":this.module.allocate(e.variable,e.variableLower,e.line),this.collectModuleNames(e.body);break;case"WhileStatement":this.collectModuleNames(e.body);break;case"IfStatement":for(let i of e.branches)this.collectModuleNames(i.body);e.elseBody&&this.collectModuleNames(e.elseBody);break;default:break}}procedure(t){let e=t.node;t.entry=this.code.length,this.line=e.line;let i=new J("procedure");this.scope=i;let n=this.loops;this.loops=[];for(let o of e.params)this.isBuiltin(o.nameLower)&&this.error(`'${o.name}' is a built-in function and cannot be used as a parameter name`,e),i.allocate(o.name,o.nameLower,e.line),i.declaredAt.has(o.nameLower)||i.declaredAt.set(o.nameLower,e.line);for(let o of e.body)this.statement(o);this.line=e.line,this.emit(t.kind==="Sub"?r.RETURN_NOTHING:r.NO_RETURN),t.slotCount=i.count,this.loops=n,this.scope=this.module}statement(t){switch(this.line=t.line??this.line,t.type){case"DimStatement":return this.dim(t);case"AssignStatement":return this.assign(t);case"CallStatement":return this.callStatement(t);case"PrintStatement":return this.print(t);case"IfStatement":return this.ifStatement(t);case"WhileStatement":return this.whileStatement(t);case"ForStatement":return this.forStatement(t);case"ExitStatement":return this.exit(t);case"ReturnStatement":return this.returnStatement(t);default:this.error(`cannot compile ${t.type}`,t);return}}dim(t){let e=this.declare(t.name,t.nameLower,t);t.size?(this.expression(t.size),this.emit(r.NEW_ARRAY)):t.init?this.expression(t.init):this.emit(r.NOTHING),this.emitSet(e)}assign(t){let e=t.target;if(e.type==="Variable"){let n=this.lvalue(e);if(!n)return;this.expression(t.value),this.emitSet(n);return}let i=this.lvalue(e);i&&(this.emitGet(i),this.expression(e.index),this.expression(t.value),this.emit(r.SET_INDEX))}lvalue(t){if(this.isBuiltin(t.nameLower))return this.error(`'${t.name}' is a built-in function and cannot be assigned to`,t),null;if(this.procIndex.has(t.nameLower)){let i=this.procs[this.procIndex.get(t.nameLower)];return this.error(`'${t.name}' is a ${i.kind} and cannot be assigned to`,t),null}let e=this.resolve(t.nameLower);return e||(this.error(this.undeclaredMessage(t),t),null)}undeclaredMessage(t){let e=t.name;if(this.module.names.has(t.nameLower)&&this.scope===this.module){let i=this.module.names.get(t.nameLower);return`'${e}' is used before its 'Dim' on line ${i.line}`}return`'${e}' is not declared`}callStatement(t){this.apply(t.call,{statement:!0}),this.emit(r.POP)}print(t){for(let e of t.args)this.expression(e);this.emit(r.PRINT,t.args.length)}ifStatement(t){let e=[];for(let i of t.branches){if(!i.condition)continue;this.line=i.condition.line??this.line,this.expression(i.condition);let n=this.emitJump(r.JUMP_IF_FALSE);for(let o of i.body)this.statement(o);e.push(this.emitJump(r.JUMP)),this.patch(n)}if(t.elseBody)for(let i of t.elseBody)this.statement(i);for(let i of e)this.patch(i)}whileStatement(t){let e=this.code.length;this.expression(t.condition);let i=this.emitJump(r.JUMP_IF_FALSE);this.loops.push({kind:"While",breaks:[]});for(let o of t.body)this.statement(o);let n=this.loops.pop();this.emit(r.JUMP,e),this.patch(i);for(let o of n.breaks)this.patch(o)}forStatement(t){let e=null;if(this.scope===this.module?e=this.resolve(t.variableLower):this.scope.names.has(t.variableLower)&&(e={where:"local",entry:this.scope.names.get(t.variableLower)}),!e){if(this.isBuiltin(t.variableLower)||this.procIndex.has(t.variableLower)){this.error(`'${t.variable}' cannot be used as a loop variable: the name is already taken`,t);return}e=this.declare(t.variable,t.variableLower,t)}let i=t.step===null?1:t.step.type==="NumberLiteral"?t.step.value:t.step.type==="Unary"&&t.step.operator==="-"&&t.step.operand.type==="NumberLiteral"?-t.step.operand.value:null,n=this.hidden("for$limit"),o=i===null?this.hidden("for$step"):null,a=i===null?this.hidden("for$up"):null;this.expression(t.start),this.expression(t.limit),this.emitSet(n),i===null&&(this.expression(t.step),this.emitSet(o),this.emitGet(o),this.emit(r.CONST,this.constant(0)),this.emit(r.GE),this.emitSet(a)),this.emitSet(e);let c=this.code.length,y;if(i===null){this.emitGet(a);let k=this.emitJump(r.JUMP_IF_FALSE);this.emitGet(e),this.emitGet(n),this.emit(r.LE);let H=this.emitJump(r.JUMP);this.patch(k),this.emitGet(e),this.emitGet(n),this.emit(r.GE),this.patch(H),y=this.emitJump(r.JUMP_IF_FALSE)}else this.emitGet(e),this.emitGet(n),this.emit(i<0?r.GE:r.LE),y=this.emitJump(r.JUMP_IF_FALSE);this.loops.push({kind:"For",breaks:[]});for(let k of t.body)this.statement(k);let x=this.loops.pop();this.emitGet(e),i===null?this.emitGet(o):this.emit(r.CONST,this.constant(i)),this.emit(r.ADD),this.emitSet(e),this.emit(r.JUMP,c),this.patch(y);for(let k of x.breaks)this.patch(k)}exit(t){for(let e=this.loops.length-1;e>=0;e-=1)if(this.loops[e].kind===t.kind){this.loops[e].breaks.push(this.emitJump(r.JUMP));return}}returnStatement(t){t.value?(this.expression(t.value),this.emit(r.RETURN)):this.emit(r.RETURN_NOTHING)}expression(t){if(!t){this.emit(r.NOTHING);return}switch(this.line=t.line??this.line,t.type){case"NumberLiteral":this.emit(r.CONST,this.constant(t.value));return;case"StringLiteral":this.emit(r.CONST,this.constant(t.value));return;case"BooleanLiteral":this.emit(t.value?r.TRUE:r.FALSE);return;case"NothingLiteral":this.emit(r.NOTHING);return;case"Variable":return this.variable(t);case"Apply":return this.apply(t,{statement:!1});case"Unary":return this.unary(t);case"Binary":return this.binary(t);default:this.error(`cannot compile ${t.type}`,t),this.emit(r.NOTHING);return}}variable(t){if(this.isBuiltin(t.nameLower)){let i=F.get(t.nameLower);this.error(`'${t.name}' is a built-in function: call it as '${i.name}(${"_, ".repeat(i.arity).slice(0,-2)})'`,t),this.emit(r.NOTHING);return}if(this.procIndex.has(t.nameLower)){let i=this.procs[this.procIndex.get(t.nameLower)];this.error(`'${t.name}' is a ${i.kind}: call it as '${i.name}(...)'`,t),this.emit(r.NOTHING);return}let e=this.resolve(t.nameLower);if(!e){this.error(this.undeclaredMessage(t),t),this.emit(r.NOTHING);return}this.emitGet(e)}apply(t,{statement:e}){let i=t.nameLower;if(this.isBuiltin(i)){let o=F.get(i);t.args.length!==o.arity&&this.error(`'${o.name}' takes ${o.arity} argument${o.arity===1?"":"s"}, found ${t.args.length}`,t);for(let a of t.args)this.expression(a);this.emit(r.CALL_BUILTIN,o.index,t.args.length);return}if(this.procIndex.has(i)){let o=this.procIndex.get(i),a=this.procs[o];t.args.length!==a.arity&&this.error(`'${a.name}' takes ${a.arity} argument${a.arity===1?"":"s"}, found ${t.args.length}`,t),a.kind==="Sub"&&!e&&this.error(`'${a.name}' is a Sub and has no value: it cannot be used in an expression`,t);for(let c of t.args)this.expression(c);this.emit(r.CALL,o,t.args.length);return}let n=this.resolve(i);if(!n){this.error(this.undeclaredMessage(t),t),this.emit(r.NOTHING);return}if(e){this.error(`'${t.name}' is a variable, not a procedure`,t),this.emit(r.NOTHING);return}if(t.args.length!==1){this.error(`'${t.name}' is an array subscript and takes exactly one index, found ${t.args.length}`,t);for(let o of t.args)this.expression(o);this.emit(r.NOTHING);return}this.emitGet(n),this.expression(t.args[0]),this.emit(r.GET_INDEX)}unary(t){this.expression(t.operand),t.operator==="-"?this.emit(r.NEG):t.operator==="Not"?this.emit(r.NOT):t.operator==="+"&&(this.emit(r.NEG),this.emit(r.NEG))}binary(t){if(t.operator==="And"||t.operator==="Or"){this.expression(t.left);let i=this.emitJump(t.operator==="And"?r.AND_JUMP:r.OR_JUMP);this.expression(t.right),this.emit(r.CHECK_BOOL),this.patch(i);return}let e=pt[t.operator];if(e===void 0){this.error(`unknown operator '${t.operator}'`,t),this.emit(r.NOTHING);return}this.expression(t.left),this.expression(t.right),this.emit(e)}};function Q(s,t={}){let e=new W(t);return{chunk:e.compileProgram(s),errors:v(e.errors)}}var U=class extends w{constructor(t,{line:e,column:i=0,traceback:n=[]}={}){super(t,{line:e,column:i,phase:"runtime"}),this.name="CrumbRuntimeError",this.traceback=n}},Lt=new Set([r.LT,r.LE,r.GT,r.GE]),z=class{constructor(t,{out:e=a=>process.stdout.write(`${a}
+`),maxDepth:i=1e4,maxSteps:n=1/0,random:o=Math.random}={}){this.chunk=t,this.out=e,this.maxDepth=i,this.maxSteps=n,this.random=o,this.globals=new Array(t.globalCount).fill($),this.stack=[],this.frames=[],this.ip=t.entry,this.opIp=t.entry,this.steps=0}push(t){this.stack.push(t)}pop(){return this.stack.pop()}fail(t){throw new U(t,{line:this.chunk.lines[this.opIp]??0,traceback:this.traceback()})}traceback(){return this.frames.map(t=>({name:t.proc.name,kind:t.proc.kind,line:this.chunk.lines[t.callIp]??0})).reverse()}numbers(t,e,i){(!g(e)||!g(i))&&this.fail(`operator ${t} expects Number, Number but got ${m(e)}, ${m(i)}`)}bool(t,e){return Y(t)||this.fail(`${e} expects a Boolean, got ${m(t)}`),t}run(){let{code:t,constants:e}=this.chunk;for(;;){this.steps+=1,this.steps>this.maxSteps&&this.fail(`instruction budget of ${this.maxSteps} exhausted: the program may not terminate`),this.opIp=this.ip;let i=t[this.ip];switch(this.ip+=1,i){case r.CONST:this.push(e[t[this.ip]]),this.ip+=1;break;case r.NOTHING:this.push($);break;case r.TRUE:this.push(!0);break;case r.FALSE:this.push(!1);break;case r.POP:this.pop();break;case r.GET_GLOBAL:this.push(this.globals[t[this.ip]]),this.ip+=1;break;case r.SET_GLOBAL:this.globals[t[this.ip]]=this.pop(),this.ip+=1;break;case r.GET_LOCAL:this.push(this.frame().slots[t[this.ip]]),this.ip+=1;break;case r.SET_LOCAL:this.frame().slots[t[this.ip]]=this.pop(),this.ip+=1;break;case r.NEW_ARRAY:{let n=this.pop();(!g(n)||!Number.isInteger(n))&&this.fail(`an array bound must be a whole Number, got ${g(n)?N(n):m(n)}`),n<0&&this.fail(`an array bound must be 0 or more, got ${N(n)}`),this.push(new I(n));break}case r.GET_INDEX:{let n=this.pop(),o=this.pop();this.push(o.elements[this.checkIndex(o,n)]);break}case r.SET_INDEX:{let n=this.pop(),o=this.pop(),a=this.pop();a.elements[this.checkIndex(a,o)]=n;break}case r.ADD:case r.SUB:case r.MUL:case r.DIV:case r.IDIV:case r.MOD:case r.POW:this.arithmetic(i);break;case r.NEG:{let n=this.pop();g(n)||this.fail(`unary '-' expects a Number, got ${m(n)}`),this.push(-n);break}case r.CONCAT:{let n=this.pop(),o=this.pop();(A(o)||A(n))&&this.fail("operator & cannot convert an Array to a String"),this.push(S(o)+S(n));break}case r.EQ:case r.NE:case r.LT:case r.LE:case r.GT:case r.GE:this.compare(i);break;case r.NOT:this.push(!this.bool(this.pop(),"operator 'Not'"));break;case r.CHECK_BOOL:this.bool(this.stack[this.stack.length-1],"a logical operand");break;case r.AND_JUMP:{this.bool(this.stack[this.stack.length-1],"operator 'And'")===!1?this.ip=t[this.ip]:(this.pop(),this.ip+=1);break}case r.OR_JUMP:{this.bool(this.stack[this.stack.length-1],"operator 'Or'")===!0?this.ip=t[this.ip]:(this.pop(),this.ip+=1);break}case r.JUMP:this.ip=t[this.ip];break;case r.JUMP_IF_FALSE:{this.bool(this.pop(),"a condition")===!1?this.ip=t[this.ip]:this.ip+=1;break}case r.CALL:{let n=t[this.ip],o=t[this.ip+1],a=this.ip+2,c=this.chunk.procedures[n];this.frames.length>=this.maxDepth&&this.fail(`call stack exhausted at ${this.maxDepth} frames: '${c.name}' may not terminate`);let y=new Array(c.slotCount).fill($);for(let x=o-1;x>=0;x-=1)y[x]=this.pop();this.frames.push({proc:c,slots:y,returnIp:a,callIp:this.opIp,stackBase:this.stack.length}),this.ip=c.entry;break}case r.CALL_BUILTIN:{let n=q[t[this.ip]],o=t[this.ip+1];this.ip+=2;let a=o===0?[]:this.stack.splice(this.stack.length-o,o);try{this.push(n.fn(a,this))}catch(c){throw c instanceof M&&this.fail(c.message),c}break}case r.RETURN:{let n=this.pop(),o=this.frames.pop();this.stack.length=o.stackBase,this.push(n),this.ip=o.returnIp;break}case r.RETURN_NOTHING:{let n=this.frames.pop();this.stack.length=n.stackBase,this.push($),this.ip=n.returnIp;break}case r.NO_RETURN:{let n=this.frame();this.fail(`Function '${n.proc.name}' ended without returning a value`);break}case r.PRINT:{let n=t[this.ip];this.ip+=1;let o=n===0?[]:this.stack.splice(this.stack.length-n,n);this.out(o.map(S).join(" "));break}case r.HALT:return;default:this.fail(`unknown opcode ${i} (${_[i]??"?"}) at ${this.opIp}`)}}}frame(){let t=this.frames[this.frames.length-1];return t||this.fail("no active procedure frame"),t}checkIndex(t,e){return A(t)||this.fail(`only an Array can be subscripted, got ${m(t)}`),(!g(e)||!Number.isInteger(e))&&this.fail(`an array index must be a whole Number, got ${g(e)?N(e):m(e)}`),(e<0||e>t.bound)&&this.fail(`index ${N(e)} is out of range 0..${t.bound}`),e}arithmetic(t){let e=this.pop(),i=this.pop();switch(t){case r.ADD:this.numbers("+",i,e),this.push(i+e);return;case r.SUB:this.numbers("-",i,e),this.push(i-e);return;case r.MUL:this.numbers("*",i,e),this.push(i*e);return;case r.POW:this.numbers("^",i,e),this.push(i**e);return;case r.DIV:this.numbers("/",i,e),e===0&&this.fail("division by zero"),this.push(i/e);return;case r.IDIV:this.numbers("\\",i,e),e===0&&this.fail("division by zero"),this.push(Math.trunc(i/e));return;case r.MOD:this.numbers("Mod",i,e),e===0&&this.fail("division by zero"),this.push(i%e);return;default:this.fail(`not an arithmetic opcode: ${t}`)}}compare(t){let e=this.pop(),i=this.pop(),n={[r.EQ]:"=",[r.NE]:"<>",[r.LT]:"<",[r.LE]:"<=",[r.GT]:">",[r.GE]:">="}[t];if(Lt.has(t))switch(g(i)&&g(e)||L(i)&&L(e)||this.fail(`operator ${n} expects two Numbers or two Strings, got ${m(i)}, ${m(e)}`),t){case r.LT:this.push(i<e);return;case r.LE:this.push(i<=e);return;case r.GT:this.push(i>e);return;default:this.push(i>=e);return}!(m(i)===m(e))&&!(i===$||e===$)&&this.fail(`operator ${n} expects the same type on both sides, got ${m(i)}, ${m(e)}`);let c=i===e;this.push(t===r.EQ?c:!c)}};function Z(s,t={}){let e=[],i=t.out??(o=>e.push(o)),n=new z(s,{...t,out:i});try{return n.run(),{output:e,error:null,steps:n.steps}}catch(o){if(o instanceof U)return{output:e,error:o,steps:n.steps};throw o}}var f="(",d=")";function p(s){switch(s.type){case"Program":{let t=[];for(let e of s.procedures)t.push(...p(e));for(let e of s.body)t.push(...p(e));return u("program",t)}case"SubDeclaration":case"FunctionDeclaration":{let t=`${s.kind.toLowerCase()} ${s.name}(${s.params.map(e=>e.name).join(", ")})`;return u(t,s.body.flatMap(p))}case"DimStatement":return s.size?u(`dim ${s.name} size`,p(s.size)):s.init?u(`dim ${s.name} =`,p(s.init)):[`${f}dim ${s.name}${d}`];case"AssignStatement":return u("assign",[...p(s.target),...p(s.value)]);case"CallStatement":return u("call",p(s.call));case"PrintStatement":return s.args.length===0?[`${f}print${d}`]:u("print",s.args.flatMap(p));case"IfStatement":{let t=[];return s.branches.forEach((e,i)=>{t.push(...u(i===0?"when":"else-when",[...e.condition?p(e.condition):["<error>"],...u("then",e.body.flatMap(p))]))}),s.elseBody&&t.push(...u("otherwise",s.elseBody.flatMap(p))),u(s.singleLine?"if-inline":"if",t)}case"WhileStatement":return u("while",[...p(s.condition),...u("do",s.body.flatMap(p))]);case"ForStatement":return u(`for ${s.variable}`,[...u("from",p(s.start)),...u("to",p(s.limit)),...s.step?u("step",p(s.step)):[],...u("do",s.body.flatMap(p))]);case"ExitStatement":return[`${f}exit ${s.kind.toLowerCase()}${d}`];case"ReturnStatement":return s.value?u("return",p(s.value)):[`${f}return${d}`];case"Binary":return u(s.operator.toLowerCase(),[...p(s.left),...p(s.right)]);case"Unary":return u(`unary ${s.operator.toLowerCase()}`,p(s.operand));case"Apply":return s.args.length===0?[`${f}apply ${s.name}${d}`]:u(`apply ${s.name}`,s.args.flatMap(p));case"Index":return u(`index ${s.name}`,p(s.index));case"Variable":return[`${f}var ${s.name}${d}`];case"NumberLiteral":return[`${f}num ${s.text??s.value}${d}`];case"StringLiteral":return[`${f}str ${JSON.stringify(s.value)}${d}`];case"BooleanLiteral":return[`${f}bool ${s.value}${d}`];case"NothingLiteral":return[`${f}nothing${d}`];default:return[`${f}?${s.type}${d}`]}}function u(s,t){return t.length===0?[`${f}${s}${d}`]:t.length===1&&!t[0].includes(`
+`)&&(s+t[0]).length<56?[`${f}${s} ${t[0]}${d}`]:[`${f}${s}`,...t.map(e=>`  ${e}`),d]}function tt(s){return p(s).join(`
+`)}function et(s){return s.map(t=>{let e=`${String(t.line).padStart(4)}:${String(t.column).padEnd(3)}`,i=t.type==="NEWLINE"||t.type==="EOF"?"":t.text??t.value;return`${e} ${t.type.padEnd(8)} ${i}`}).join(`
+`)}var Ot=new Set([r.JUMP,r.JUMP_IF_FALSE,r.AND_JUMP,r.OR_JUMP]),It=new Set([r.GET_GLOBAL,r.SET_GLOBAL]),Tt=new Set([r.GET_LOCAL,r.SET_LOCAL]);function At(s,t,e,i){if(t===r.CONST){let n=s.constants[e[0]];return L(n)?JSON.stringify(n):S(n)}if(Ot.has(t))return`-> ${e[0]}`;if(It.has(t))return s.globalNames?.[e[0]]??"";if(Tt.has(t))return i?`${i.name}:${e[0]}`:"";if(t===r.CALL){let n=s.procedures[e[0]];return`${n?n.name:"?"}/${e[1]}`}return t===r.CALL_BUILTIN?`builtin ${e[0]}/${e[1]}`:t===r.PRINT?`${e[0]} value${e[0]===1?"":"s"}`:""}function ut(s,t,e,i,n){let o=t,a=-1;for(;o<e;){let c=s.code[o],y=lt[c]??0,x=s.code.slice(o+1,o+1+y),k=s.lines[o],H=k===a?"    |":String(k).padStart(5);a=k;let nt=At(s,c,x,i);n.push(`${H}  ${String(o).padStart(5)}  ${(_[c]??`?${c}`).padEnd(15)}`+`${x.join(" ").padEnd(7)}${nt?` ; ${nt}`:""}`.trimEnd()),o+=1+y}}function st(s){let t=[];t.push(`; ${s.filename}`),t.push(`; ${s.code.length} words, ${s.constants.length} constants, ${s.globalCount} globals, ${s.procedures.length} procedures`),t.push(""),s.constants.length&&(t.push("constants"),s.constants.forEach((n,o)=>{t.push(`  ${String(o).padStart(4)}  ${L(n)?JSON.stringify(n):S(n)}`)}),t.push("")),s.globalCount&&(t.push("globals"),(s.globalNames??[]).forEach((n,o)=>{t.push(`  ${String(o).padStart(4)}  ${n}`)}),t.push(""));let e=s.procedures.reduce((n,o)=>o.entry>=0?Math.min(n,o.entry):n,s.code.length);t.push(`module            ; ${s.entry}..${e-1}`),t.push("line     addr  op             args    ; note"),ut(s,s.entry,e,null,t);let i=[...s.procedures].filter(n=>n.entry>=0).sort((n,o)=>n.entry-o.entry);return i.forEach((n,o)=>{let a=o+1<i.length?i[o+1].entry:s.code.length;t.push(""),t.push(`${n.kind} ${n.name}  ; arity ${n.arity}, ${n.slotCount} slots, ${n.entry}..${a-1}`),ut(s,n.entry,a,n,t)}),t.join(`
+`)}function it(s,{filename:t="input.crumb"}={}){let{tokens:e,errors:i}=C(s,{filename:t}),{ast:n,errors:o}=V(e,{filename:t}),a=v([...i,...o]);return{ast:n,tokens:e,errors:a,ok:a.length===0}}function rt(s,{filename:t="input.crumb"}={}){let{ast:e,tokens:i,errors:n}=it(s,{filename:t});if(n.length>0)return{chunk:null,ast:e,tokens:i,errors:n,ok:!1};let{chunk:o,errors:a}=Q(e,{filename:t});return{chunk:o,ast:e,tokens:i,errors:a,ok:a.length===0}}function mt(s,{filename:t="input.crumb",...e}={}){let{chunk:i,errors:n}=rt(s,{filename:t});if(!i||n.length>0)return{output:[],loadErrors:n,error:null,ok:!1,steps:0};let o=Z(i,e);return{output:o.output,loadErrors:[],error:o.error,ok:o.error===null,steps:o.steps}}return wt(vt);})();
+
+</script>
+<script>
+(function () {
+  'use strict';
+
+  var EXAMPLES = {
+    fizzbuzz: [
+      "' FizzBuzz, 1 to 20",
+      'For n = 1 To 20',
+      '  If n Mod 15 = 0 Then',
+      '    Print "FizzBuzz"',
+      '  ElseIf n Mod 3 = 0 Then',
+      '    Print "Fizz"',
+      '  ElseIf n Mod 5 = 0 Then',
+      '    Print "Buzz"',
+      '  Else',
+      '    Print n',
+      '  End If',
+      'Next',
+      '',
+    ].join('\n'),
+
+    factorial: [
+      "' A Function may be called before the line it is declared on.",
+      'For i = 0 To 9',
+      '  Print "Factorial(" & i & ") = " & Factorial(i)',
+      'Next',
+      '',
+      'Function Factorial(n)',
+      '  If n <= 1 Then Return 1',
+      '  Return n * Factorial(n - 1)',
+      'End Function',
+      '',
+    ].join('\n'),
+
+    words: [
+      "' Split on single spaces and report the longest word.",
+      'Function Reverse(s)',
+      '  Dim out = ""',
+      '  For i = Len(s) To 1 Step -1',
+      '    out = out & Mid(s, i, 1)',
+      '  Next',
+      '  Return out',
+      'End Function',
+      '',
+      'Sub Report(label, value)',
+      '  Print UCase(label) & ": " & value',
+      'End Sub',
+      '',
+      'Dim words(31)',
+      'Dim count = 0',
+      'Dim text = "the quick brown fox jumps over the lazy dog"',
+      'Dim start = 1',
+      '',
+      'While start <= Len(text)',
+      '  Dim gap = InStr(Mid(text, start, Len(text)), " ")',
+      '  If gap = 0 Then',
+      '    words(count) = Mid(text, start, Len(text))',
+      '    start = Len(text) + 1',
+      '  Else',
+      '    words(count) = Mid(text, start, gap - 1)',
+      '    start = start + gap',
+      '  End If',
+      '  count = count + 1',
+      'End While',
+      '',
+      'Dim longest = ""',
+      'For i = 0 To count - 1',
+      '  If Len(words(i)) > Len(longest) Then longest = words(i)',
+      'Next',
+      '',
+      'Report("words", count)',
+      'Report("longest", longest)',
+      'Report("backwards", Reverse(longest))',
+      '',
+    ].join('\n'),
+
+    sieve: [
+      "' Primes below 100. Arrays run 0..n and start as Nothing.",
+      'Dim n = 100',
+      'Dim flags(n)',
+      '',
+      'For i = 0 To n',
+      '  flags(i) = True',
+      'Next',
+      '',
+      'Dim line = ""',
+      'Dim count = 0',
+      'For i = 2 To n',
+      '  If flags(i) Then',
+      '    count = count + 1',
+      '    line = line & i & " "',
+      '    Dim j = i * i',
+      '    While j <= n',
+      '      flags(j) = False',
+      '      j = j + i',
+      '    End While',
+      '  End If',
+      'Next',
+      '',
+      'Print line',
+      'Print count & " primes below " & n',
+      '',
+    ].join('\n'),
+
+    errors: [
+      "' Crumb does no coercion: + is Numbers only, & is how you join text.",
+      "' Run it to see the traceback, then change the + on line 10 to &.",
+      'Function Depth(n)',
+      '  If n = 0 Then Return Boom(1)',
+      '  Return Depth(n - 1)',
+      'End Function',
+      '',
+      'Function Boom(k)',
+      '  Dim label = "total"',
+      '  Return label + k',
+      'End Function',
+      '',
+      'Print "before"',
+      'Print Depth(2)',
+      '',
+    ].join('\n'),
+  };
+
+  var MAX_STEPS = 8000000;
+  var STORAGE_KEY = 'crumb.playground.source';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var source = $('source');
+  var highlight = $('highlight');
+  var gutter = $('gutter');
+  var output = $('output');
+  var statusEl = $('status');
+  var statusText = $('status-text');
+  var editorStatus = $('editor-status');
+  var tabOutput = $('tab-output');
+  var tabBytecode = $('tab-bytecode');
+
+  var view = 'output';          // 'output' | 'bytecode'
+  var flagged = [];             // source lines carrying a load error
+  var lastRun = null;           // the rendered Output pane, kept across tab switches
+
+  // ---------------------------------------------------------------- utilities
+
+  function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function plural(n, word) {
+    return n + ' ' + word + (n === 1 ? '' : 's');
+  }
+
+  function setStatus(state, text) {
+    statusEl.setAttribute('data-state', state);
+    statusText.textContent = text;
+  }
+
+  // ----------------------------------------------------- syntax highlighting
+  // The word lists come from the bundled implementation, so the editor can
+  // never disagree with the lexer about what is a keyword.
+
+  var KEYWORDS = {};
+  var BUILTINS = {};
+  (window.Crumb.KEYWORDS || []).forEach(function (word) { KEYWORDS[word.toLowerCase()] = true; });
+  (window.Crumb.BUILTINS || []).forEach(function (word) { BUILTINS[word.toLowerCase()] = true; });
+
+  var TOKEN_RE = /('[^\n]*)|("(?:""|[^"\n])*")|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([+\-*/\\^&=<>(),]+)/g;
+
+  function span(cls, text) {
+    return '<span class="tok-' + cls + '">' + escapeHtml(text) + '</span>';
+  }
+
+  function paint(code) {
+    var out = '';
+    var last = 0;
+    var previous = '';
+    var match;
+    TOKEN_RE.lastIndex = 0;
+    while ((match = TOKEN_RE.exec(code)) !== null) {
+      if (match.index > last) out += escapeHtml(code.slice(last, match.index));
+      last = match.index + match[0].length;
+      if (match[1]) { out += span('com', match[1]); previous = ''; }
+      else if (match[2]) { out += span('str', match[2]); previous = ''; }
+      else if (match[3]) { out += span('num', match[3]); previous = ''; }
+      else if (match[4]) {
+        var lower = match[4].toLowerCase();
+        if (previous === 'sub' || previous === 'function') out += span('fn', match[4]);
+        else if (KEYWORDS[lower]) out += span('kw', match[4]);
+        else if (BUILTINS[lower]) out += span('fn', match[4]);
+        else out += escapeHtml(match[4]);
+        previous = lower;
+      } else if (match[5]) { out += span('op', match[5]); previous = ''; }
+    }
+    out += escapeHtml(code.slice(last));
+    return out;
+  }
+
+  // ------------------------------------------------------------ editor chrome
+
+  function refreshEditor() {
+    var code = source.value;
+    // The trailing newline keeps the overlay's last line in step with the
+    // textarea, which always reserves a line after a final newline.
+    highlight.innerHTML = paint(code) + '\n';
+
+    var count = code.split('\n').length;
+    var marks = {};
+    flagged.forEach(function (line) { marks[line] = true; });
+    var rows = '';
+    for (var i = 1; i <= count; i += 1) {
+      rows += '<div' + (marks[i] ? ' class="flagged"' : '') + '>' + i + '</div>';
+    }
+    gutter.innerHTML = rows;
+
+    editorStatus.textContent = plural(count, 'line') + ' · ' + plural(code.length, 'char');
+    syncScroll();
+  }
+
+  function syncScroll() {
+    highlight.scrollTop = source.scrollTop;
+    highlight.scrollLeft = source.scrollLeft;
+    gutter.scrollTop = source.scrollTop;
+  }
+
+  function jumpToLine(line) {
+    var lines = source.value.split('\n');
+    var start = 0;
+    for (var i = 0; i < line - 1 && i < lines.length; i += 1) start += lines[i].length + 1;
+    var end = start + (lines[line - 1] === undefined ? 0 : lines[line - 1].length);
+    source.focus();
+    source.setSelectionRange(start, end);
+    // Put the target line roughly a third of the way down the visible area.
+    var leading = parseFloat(getComputedStyle(source).lineHeight) || 22;
+    source.scrollTop = Math.max(0, (line - 1) * leading - source.clientHeight / 3);
+    syncScroll();
+  }
+
+  // ------------------------------------------------------------------ running
+
+  function renderDiagnostics(errors, sourceLines, heading) {
+    var html = '<span class="err">' + escapeHtml(heading) + '</span>\n\n';
+    errors.forEach(function (error) {
+      html += '<span class="jump" data-line="' + error.line + '">'
+        + escapeHtml('line ' + error.line + ': ' + error.message) + '</span>\n';
+      var text = sourceLines[error.line - 1];
+      if (text !== undefined && text.trim() !== '') {
+        html += '<span class="echo">' + escapeHtml('  ' + text.replace(/\s+$/, '')) + '</span>\n';
+      }
+    });
+    return html;
+  }
+
+  function runProgram() {
+    var code = source.value;
+    var lines = code.split('\n');
+    var started = performance.now();
+    var result = window.Crumb.run(code, { filename: 'program.crumb', maxSteps: MAX_STEPS });
+    var elapsed = performance.now() - started;
+
+    flagged = [];
+
+    if (result.loadErrors.length > 0) {
+      result.loadErrors.forEach(function (error) { flagged.push(error.line); });
+      lastRun = renderDiagnostics(
+        result.loadErrors, lines,
+        plural(result.loadErrors.length, 'load error') + ' — nothing ran',
+      );
+      setStatus('bad', plural(result.loadErrors.length, 'load error'));
+    } else {
+      var html = '';
+      if (result.output.length > 0) {
+        html += escapeHtml(result.output.join('\n')) + '\n';
+      }
+
+      if (result.error) {
+        flagged.push(result.error.line);
+        if (result.output.length > 0) html += '<span class="rule">' + '─'.repeat(46) + '</span>\n';
+        html += '<span class="jump" data-line="' + result.error.line + '">'
+          + escapeHtml('line ' + result.error.line + ': ' + result.error.message) + '</span>\n';
+        var text = lines[result.error.line - 1];
+        if (text !== undefined && text.trim() !== '') {
+          html += '<span class="echo">' + escapeHtml('  ' + text.replace(/\s+$/, '')) + '</span>\n';
+        }
+        result.error.traceback.forEach(function (frame) {
+          html += '<span class="frame">'
+            + escapeHtml('  in ' + frame.kind + ' ' + frame.name + ', called at line ' + frame.line)
+            + '</span>\n';
+        });
+        setStatus('bad', 'runtime error');
+      } else if (result.output.length === 0) {
+        html = '<span class="placeholder">'
+          + escapeHtml('The program ran and printed nothing.') + '</span>';
+        setStatus('ok', elapsed.toFixed(1) + ' ms · ' + result.steps.toLocaleString() + ' ops');
+      } else {
+        setStatus('ok', elapsed.toFixed(1) + ' ms · ' + result.steps.toLocaleString() + ' ops');
+      }
+      lastRun = html;
+    }
+
+    refreshEditor();
+    if (view === 'bytecode') renderBytecode();
+    else output.innerHTML = lastRun;
+    save();
+  }
+
+  // ----------------------------------------------------------------- bytecode
+
+  function paintListing(text) {
+    return escapeHtml(text)
+      .replace(/^(\s*\S*\s+)(\d+)(\s\s)([A-Z_]+)/gm, function (_all, gutterText, address, gap, mnemonic) {
+        return gutterText + '<span class="dis-addr">' + address + '</span>' + gap
+          + '<span class="dis-op">' + mnemonic + '</span>';
+      })
+      .replace(/;.*$/gm, function (comment) { return '<span class="dis-note">' + comment + '</span>'; })
+      .replace(/^(module|Sub .*|Function .*|constants|globals|line .*)$/gm, function (head) {
+        return '<span class="dis-head">' + head + '</span>';
+      });
+  }
+
+  function renderBytecode() {
+    var code = source.value;
+    var compiled = window.Crumb.compile(code, { filename: 'program.crumb' });
+
+    if (!compiled.ok) {
+      flagged = compiled.errors.map(function (error) { return error.line; });
+      refreshEditor();
+      output.innerHTML = renderDiagnostics(
+        compiled.errors, code.split('\n'),
+        plural(compiled.errors.length, 'load error') + ' — nothing to disassemble',
+      );
+      setStatus('bad', plural(compiled.errors.length, 'load error'));
+      return;
+    }
+
+    var words = compiled.chunk.code.length;
+    output.innerHTML = paintListing(window.Crumb.disassemble(compiled.chunk));
+    setStatus('ok', words.toLocaleString() + ' words · '
+      + plural(compiled.chunk.procedures.length, 'procedure'));
+  }
+
+  function showView(next) {
+    view = next;
+    tabOutput.setAttribute('aria-selected', String(next === 'output'));
+    tabBytecode.setAttribute('aria-selected', String(next === 'bytecode'));
+    output.scrollTop = 0;
+    if (next === 'bytecode') {
+      renderBytecode();
+    } else {
+      output.innerHTML = lastRun !== null ? lastRun
+        : '<span class="placeholder">Press Run to execute the program.</span>';
+      setStatus(statusEl.getAttribute('data-state') || '', statusText.textContent);
+    }
+  }
+
+  // ------------------------------------------------------------------ storage
+
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, source.value); } catch (err) { /* private mode */ }
+  }
+
+  function load() {
+    try { return localStorage.getItem(STORAGE_KEY); } catch (err) { return null; }
+  }
+
+  // ------------------------------------------------------------------- events
+
+  $('run').addEventListener('click', function () { showView('output'); runProgram(); });
+
+  $('clear-input').addEventListener('click', function () {
+    source.value = '';
+    flagged = [];
+    refreshEditor();
+    source.focus();
+    save();
+  });
+
+  $('clear-output').addEventListener('click', function () {
+    lastRun = null;
+    flagged = [];
+    refreshEditor();
+    output.innerHTML = '<span class="placeholder">Press Run to execute the program.</span>';
+    setStatus('', 'ready');
+    if (view === 'bytecode') showView('output');
+  });
+
+  $('example').addEventListener('change', function (event) {
+    var chosen = EXAMPLES[event.target.value];
+    if (!chosen) return;
+    source.value = chosen;
+    flagged = [];
+    refreshEditor();
+    showView('output');
+    runProgram();
+  });
+
+  tabOutput.addEventListener('click', function () { showView('output'); });
+  tabBytecode.addEventListener('click', function () { showView('bytecode'); });
+
+  source.addEventListener('input', function () { refreshEditor(); save(); });
+  source.addEventListener('scroll', syncScroll);
+
+  source.addEventListener('keydown', function (event) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      event.preventDefault();
+      showView('output');
+      runProgram();
+      return;
+    }
+    if (event.key === 'Tab' && !event.shiftKey) {
+      event.preventDefault();
+      var start = source.selectionStart;
+      var end = source.selectionEnd;
+      source.value = source.value.slice(0, start) + '  ' + source.value.slice(end);
+      source.selectionStart = source.selectionEnd = start + 2;
+      refreshEditor();
+      save();
+    }
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter'
+        && document.activeElement !== source) {
+      event.preventDefault();
+      showView('output');
+      runProgram();
+    }
+  });
+
+  output.addEventListener('click', function (event) {
+    var target = event.target.closest('.jump');
+    if (!target) return;
+    jumpToLine(Number(target.getAttribute('data-line')));
+  });
+
+  // --------------------------------------------------------------------- boot
+
+  var saved = load();
+  source.value = saved !== null && saved !== '' ? saved : EXAMPLES.fizzbuzz;
+  refreshEditor();
+  runProgram();
+})();
+
+</script>
