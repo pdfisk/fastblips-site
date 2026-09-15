@@ -13,14 +13,21 @@ import { Viewport } from './widgets/viewport.js';
 import { HPanel } from './widgets/hpanel.js';
 import { Menu } from './widgets/menu.js';
 import { Navbar } from './widgets/navbar.js';
+import { Button } from './widgets/button.js';
+import { ButtonBar } from './widgets/button-bar.js';
+import { SplitPanel } from './widgets/split-panel.js';
+import { HSplitPanel } from './widgets/hsplit-panel.js';
 import { Window } from './windows/window.js';
+import { HSplitWindow } from './windows/hsplit-window.js';
+import { ConsoleWindow } from './windows/console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { start } from './app.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, Navbar, Menu, Window, TextPanel,
-  TranscriptWindow, start,
+  Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar,
+  SplitPanel, HSplitPanel, TextPanel,
+  Window, HSplitWindow, ConsoleWindow, TranscriptWindow, start,
 };
 
 export {

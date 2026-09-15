@@ -2,6 +2,7 @@
 // be moved, resized or closed (see docs/widgets.txt).
 
 import { Panel } from '../widgets/panel.js';
+import { ButtonBar, BUTTON_BAR_HEIGHT } from '../widgets/button-bar.js';
 
 const TITLE_HEIGHT = 24;
 const GRIP = 6;   // thickness of the resize edges, in pixels
@@ -19,6 +20,7 @@ const STYLE = `
   width:20px;height:20px;cursor:pointer;border-radius:3px}
 .cr-window-close:hover{background:rgba(255,255,255,.25)}
 .cr-window-content{flex:1;position:relative;overflow:hidden}
+.cr-window-buttons{flex:0 0 ${BUTTON_BAR_HEIGHT}px;position:relative}
 .cr-window-grip{position:absolute}
 .cr-window[hidden]{display:none}
 `;
@@ -49,7 +51,7 @@ export class Window extends Panel {
    *          height?: number, minWidth?: number, minHeight?: number}} options
    */
   constructor({ title = '', x = 0, y = 0, width = 300, height = 200,
-    minWidth = 120, minHeight = 60 } = {}) {
+    minWidth = 120, minHeight = 90 } = {}) {
     super();
     installStyle();
     this.minWidth = minWidth;
@@ -69,7 +71,14 @@ export class Window extends Panel {
 
     this.contentElement = document.createElement('div');
     this.contentElement.className = 'cr-window-content';
-    this.element.append(this.titleBar, this.contentElement);
+    // Every window has a ButtonBar along its bottom edge. It is laid out by
+    // the window but is not one of its children (the child is the content).
+    this.buttonBar = new ButtonBar();
+    this.buttonBar.parent = this;
+    this.buttonBarElement = document.createElement('div');
+    this.buttonBarElement.className = 'cr-window-buttons';
+    this.buttonBarElement.appendChild(this.buttonBar.element);
+    this.element.append(this.titleBar, this.contentElement, this.buttonBarElement);
 
     for (const grip of GRIPS) {
       const handle = document.createElement('div');
@@ -103,6 +112,8 @@ export class Window extends Panel {
   }
 
   layout() {
+    this.buttonBar.setBounds(0, 0, this.buttonBarElement.clientWidth, BUTTON_BAR_HEIGHT);
+    this.buttonBar.layout();
     const child = this.content;
     if (child) {
       child.setBounds(0, 0, this.contentElement.clientWidth, this.contentElement.clientHeight);

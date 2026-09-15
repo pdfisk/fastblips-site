@@ -14,14 +14,19 @@ Class hierarchy
       Viewport (singleton)
       HPanel
         Navbar (singleton)
+        ButtonBar
       VPanel
       SplitPanel (abstract)
         HSplitPanel
         VSplitPanel
       Window
+        HSplitWindow
+          ConsoleWindow
+        TranscriptWindow (singleton)
       TextPanel
       ListPanel
     Menu
+    Button
 
 
 Widget (abstract)
@@ -105,6 +110,8 @@ A top-level panel that floats above the Viewport's content.
     first, and a handler may cancel it (for example, to confirm unsaved
     changes).
   - Clicking anywhere in a window brings it to the front.
+  - Has a ButtonBar (window.buttonBar) along its bottom edge, 30px high,
+    below the content area. Subclasses add their buttons to it.
 
 
 TextPanel
@@ -166,8 +173,51 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with a single Views menu, and the TranscriptWindow is open.
+with a Views menu and a Console button, and the TranscriptWindow is open.
 
   - Views > Transcript toggles the TranscriptWindow: it opens the window if
     it is closed or hidden, and hides it otherwise. The item is checked
     while the window is showing.
+  - The Console button opens a new ConsoleWindow.
+
+
+Button
+------
+A clickable, labelled Widget.
+
+  - new Button(label, action); clicking it runs action().
+  - label and enabled properties.
+  - Used on the Navbar and in ButtonBars.
+
+
+ButtonBar
+---------
+A row of Buttons along the bottom of a Window. ButtonBar is a subclass of
+HPanel.
+
+  - Is 30px high and spans the full width of the Window.
+  - addButton(label, action) creates a Button, adds it and returns it.
+  - Buttons are right-aligned, in the order they were added.
+
+
+HSplitWindow
+------------
+A Window whose content is an HSplitPanel.
+
+  - left and right properties get or set the two sides of the split.
+  - Accepts the usual Window options plus left, right and position (the
+    fraction of the width given to the left side).
+
+
+ConsoleWindow
+-------------
+An HSplitWindow for running Crumb code. Any number can be open at once.
+
+  - The left side is an editable TextPanel holding the source; the right
+    side is a read-only TextPanel showing the output.
+  - Its ButtonBar has Clear (empties the output) and Run (runs the source)
+    buttons. Ctrl+Enter in the source also runs it.
+  - Load and runtime errors are shown in the output, in the section 11
+    diagnostic format.
+  - Each new console is titled Console, Console 2, ... and opens slightly
+    below and to the right of the previous one.
