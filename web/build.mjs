@@ -1,5 +1,5 @@
-// Builds the single-file playground: bundles src/ui/browser.js with esbuild and
-// inlines it between the page's markup and its script.
+// Builds the single-file page: bundles src/ui/browser.js with esbuild and
+// inlines it, followed by the call that starts the widget UI.
 //
 //   node web/build.mjs              -> web/crumb-playground.html  (artifact form:
 //                                        no doctype/head, the host supplies one)
@@ -32,12 +32,13 @@ const buildIso = builtAt.toISOString().replace(/\.\d+Z$/, 'Z');   // 2026-09-14T
 // the build tells the reader nothing.
 const buildStamp = `${buildIso.slice(0, 10)} ${buildIso.slice(11, 19)} UTC`;
 
-const read = (name) => readFileSync(join(here, name), 'utf8');
+// The page is now just the widget UI: the bundle, then a call that builds the
+// Viewport. (The old playground.* files are no longer included.)
 const page = [
-  read('playground.head.html'),
-  read('playground.body.html'),
+  `<meta name="crumb-build" content="__BUILD_ISO__">`,
+  '<style>html,body{margin:0;height:100%}</style>',
   '<script>', readFileSync(bundlePath, 'utf8'), '</script>',
-  '<script>', read('playground.script.js'), '</script>',
+  '<script>Crumb.ui.start();</script>',
 ].join('\n')
   .replaceAll('__BUILD_ISO__', buildIso)
   .replaceAll('__BUILD_STAMP__', buildStamp);
