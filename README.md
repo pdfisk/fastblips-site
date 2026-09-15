@@ -10,7 +10,7 @@ entry points sit above it.
 
 ```
 src/index.js          parse() / compile() / run()
-src/browser.js        the bundle entry point (everything on window.Crumb)
+src/ui/browser.js     the bundle entry point (everything on window.Crumb)
 
 src/vm/tokens.js      token classes, the 24 reserved words, the 15 built-ins
 src/vm/lexer.js       source text -> tokens              (spec section 2)

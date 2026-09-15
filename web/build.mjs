@@ -1,4 +1,4 @@
-// Builds the single-file playground: bundles src/browser.js with esbuild and
+// Builds the single-file playground: bundles src/ui/browser.js with esbuild and
 // inlines it between the page's markup and its script.
 //
 //   node web/build.mjs              -> web/crumb-playground.html  (artifact form:
@@ -16,7 +16,7 @@ const standalone = process.argv.includes('--standalone');
 const scratch = mkdtempSync(join(tmpdir(), 'crumb-'));
 const bundlePath = join(scratch, 'crumb.min.js');
 
-execFileSync('npx', ['--yes', 'esbuild@0.23.1', join(here, '..', 'src', 'browser.js'),
+execFileSync('npx', ['--yes', 'esbuild@0.23.1', join(here, '..', 'src', 'ui', 'browser.js'),
   '--bundle', '--format=iife', '--global-name=Crumb', '--target=es2020', '--minify',
   `--outfile=${bundlePath}`], {
   stdio: 'inherit',
