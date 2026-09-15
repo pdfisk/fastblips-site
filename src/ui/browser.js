@@ -7,15 +7,15 @@ import { formatAst, formatTokens } from '../vm/format.js';
 import { formatDiagnostics } from '../vm/diagnostics.js';
 import { tokenize } from '../vm/lexer.js';
 import { KEYWORDS, BUILTINS } from '../vm/tokens.js';
-import { Widget } from './widget.js';
-import { Panel } from './panel.js';
-import { Viewport } from './viewport.js';
-import { HPanel } from './hpanel.js';
-import { Menu } from './menu.js';
-import { Navbar } from './navbar.js';
-import { Window } from './window.js';
-import { TextPanel } from './text-panel.js';
-import { TranscriptWindow } from './transcript-window.js';
+import { Widget } from './widgets/widget.js';
+import { Panel } from './widgets/panel.js';
+import { Viewport } from './widgets/viewport.js';
+import { HPanel } from './widgets/hpanel.js';
+import { Menu } from './widgets/menu.js';
+import { Navbar } from './widgets/navbar.js';
+import { Window } from './windows/window.js';
+import { TextPanel } from './widgets/text-panel.js';
+import { TranscriptWindow } from './windows/transcript-window.js';
 import { start } from './app.js';
 
 const ui = {

@@ -1,9 +1,9 @@
 // Application start-up: builds the initial widget tree.
 
-import { Viewport } from './viewport.js';
-import { Navbar } from './navbar.js';
-import { Menu } from './menu.js';
-import { TranscriptWindow } from './transcript-window.js';
+import { Viewport } from './widgets/viewport.js';
+import { Navbar } from './widgets/navbar.js';
+import { Menu } from './widgets/menu.js';
+import { TranscriptWindow } from './windows/transcript-window.js';
 
 export function start() {
   const viewport = Viewport.instance.mount(document.body);
