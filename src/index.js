@@ -1,21 +1,21 @@
 // Public entry point: source text in, AST plus load errors out.
 
-import { tokenize } from './lexer.js';
-import { parseTokens } from './parser.js';
+import { tokenize } from './vm/lexer.js';
+import { parseTokens } from './vm/parser.js';
 import { compile as compileAst } from './vm/compiler.js';
 import { run as runChunk } from './vm/vm.js';
-import { formatDiagnostics, sortErrors, CrumbError } from './diagnostics.js';
+import { formatDiagnostics, sortErrors, CrumbError } from './vm/diagnostics.js';
 
-export { tokenize, Lexer } from './lexer.js';
-export { parseTokens, Parser } from './parser.js';
-export { formatAst, formatTokens } from './format.js';
+export { tokenize, Lexer } from './vm/lexer.js';
+export { parseTokens, Parser } from './vm/parser.js';
+export { formatAst, formatTokens } from './vm/format.js';
 export { Compiler, compile as compileAst } from './vm/compiler.js';
 export { VM, run as runChunk, CrumbRuntimeError } from './vm/vm.js';
 export { disassemble } from './vm/disasm.js';
 export { Op, OP_NAMES } from './vm/opcodes.js';
 export { NOTHING, CrumbArray, toStr, typeName } from './vm/values.js';
-export { formatDiagnostics, CrumbError } from './diagnostics.js';
-export { TokenType, KEYWORDS, BUILTINS } from './tokens.js';
+export { formatDiagnostics, CrumbError } from './vm/diagnostics.js';
+export { TokenType, KEYWORDS, BUILTINS } from './vm/tokens.js';
 
 /**
  * Loads a Crumb program: tokenize, then parse.

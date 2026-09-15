@@ -9,7 +9,7 @@
 
 import { Op, BINARY_OPS } from './opcodes.js';
 import { BUILTINS } from './builtins.js';
-import { CrumbError, sortErrors } from '../diagnostics.js';
+import { CrumbError, sortErrors } from './diagnostics.js';
 
 class Scope {
   constructor(kind) {

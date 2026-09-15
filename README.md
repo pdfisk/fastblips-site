@@ -5,26 +5,25 @@ Visual-Basic-flavoured language specified in `crumb-v0.1-spec.md`.
 
 Zero dependencies, ES modules, Node 18+.
 
-The front end lives at the top of `src/`; everything from the AST onwards is
-under `src/vm/`. Only `diagnostics.js` is shared by both, and the dependency
-runs one way: `src/vm/` never imports the lexer or the parser.
+`src/vm/` holds the whole implementation, front end to back. Only the two
+entry points sit above it.
 
 ```
-src/tokens.js         token classes, the 24 reserved words, the 15 built-ins
-src/lexer.js          source text -> tokens              (spec section 2)
-src/parser.js         tokens      -> AST                 (spec section 13)
-src/diagnostics.js    CrumbError + the section 11 diagnostic format  [shared]
-src/format.js         AST -> indented s-expression; tokens -> table
+src/index.js          parse() / compile() / run()
+src/browser.js        the bundle entry point (everything on window.Crumb)
 
+src/vm/tokens.js      token classes, the 24 reserved words, the 15 built-ins
+src/vm/lexer.js       source text -> tokens              (spec section 2)
+src/vm/parser.js      tokens      -> AST                 (spec section 13)
 src/vm/compiler.js    AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
 src/vm/opcodes.js     the instruction set
 src/vm/values.js      runtime values and conversions     (sections 3, 10)
 src/vm/builtins.js    the 15 built-in functions          (section 10)
 src/vm/vm.js          the stack machine
 src/vm/disasm.js      bytecode listing
+src/vm/diagnostics.js CrumbError + the section 11 diagnostic format
+src/vm/format.js      AST -> indented s-expression; tokens -> table
 
-src/index.js          parse() / compile() / run()
-src/browser.js        the bundle entry point (everything on window.Crumb)
 bin/crumb.js          CLI
 web/                  the playground page and its build
 ```

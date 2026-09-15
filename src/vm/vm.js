@@ -10,7 +10,7 @@ import {
   isNumber, isString, isBoolean, isArray,
 } from './values.js';
 import { BUILTIN_LIST, BuiltinError } from './builtins.js';
-import { CrumbError } from '../diagnostics.js';
+import { CrumbError } from './diagnostics.js';
 
 export class CrumbRuntimeError extends CrumbError {
   constructor(message, { line, column = 0, traceback = [] } = {}) {

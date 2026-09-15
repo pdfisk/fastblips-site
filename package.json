@@ -9,10 +9,10 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./lexer": "./src/lexer.js",
-    "./parser": "./src/parser.js",
-    "./vm": "./src/vm/vm.js",
-    "./compiler": "./src/vm/compiler.js"
+    "./lexer": "./src/vm/lexer.js",
+    "./parser": "./src/vm/parser.js",
+    "./compiler": "./src/vm/compiler.js",
+    "./vm": "./src/vm/vm.js"
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\""
