@@ -1,5 +1,5 @@
 // ConsoleWindow: an HSplitWindow for running Crumb code - source on the
-// left, output on the right, with Run and Clear buttons.
+// left, output on the right, with Run, Clear Output and Clear Input buttons.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
@@ -24,8 +24,9 @@ export class ConsoleWindow extends HSplitWindow {
     this.left = this.input;
     this.right = this.output;
 
-    this.buttonBar.addButton('Clear', () => { this.output.text = ''; });
     this.buttonBar.addButton('Run', () => this.run());
+    this.buttonBar.addButton('Clear Output', () => { this.output.text = ''; });
+    this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.textArea.focus(); });
 
     // Ctrl+Enter runs the code.
     this.input.textArea.addEventListener('keydown', (e) => {

@@ -3,13 +3,8 @@
 
 import { HPanel } from './hpanel.js';
 import { Button } from './button.js';
-import { Widget } from './widget.js';
 
 export const BUTTON_BAR_HEIGHT = 30;
-
-class Spacer extends Widget {
-  constructor() { super(); this.flex = 1; }
-}
 
 export class ButtonBar extends HPanel {
   constructor() {
@@ -18,8 +13,6 @@ export class ButtonBar extends HPanel {
     this.element.classList.add('cr-button-bar');
     this.element.style.cssText += ';background:#e6e6e6;border-top:1px solid #c8c8c8;'
       + 'box-sizing:border-box';
-    // Buttons are right-aligned: the spacer takes the free space on the left.
-    super.add(new Spacer());
   }
 
   /** Adds a Button with the given label and action, and returns it. */

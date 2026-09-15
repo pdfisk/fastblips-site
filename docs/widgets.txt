@@ -27,6 +27,7 @@ Class hierarchy
       ListPanel
     Menu
     Button
+    Spacer
 
 
 Widget (abstract)
@@ -54,6 +55,7 @@ of the widget tree.
     their stacking order and brings a window to the front when it is
     clicked.
   - Listens for browser resize events and lays out the whole tree again.
+  - windows returns the open Windows, back to front.
 
 
 Panel (abstract)
@@ -109,7 +111,8 @@ A top-level panel that floats above the Viewport's content.
   - close() removes the window from the Viewport. A close event is fired
     first, and a handler may cancel it (for example, to confirm unsaved
     changes).
-  - Clicking anywhere in a window brings it to the front.
+  - Clicking anywhere in a window brings it to the front; isFront tells
+    whether it is the front-most window.
   - Has a ButtonBar (window.buttonBar) along its bottom edge, 30px high,
     below the content area. Subclasses add their buttons to it.
 
@@ -167,18 +170,24 @@ Menu is a Widget, not a Panel; its items are not widgets.
     a check mark is shown next to the item while it returns true.
   - Only one menu is open at a time. Clicking outside the menu or pressing
     Escape closes it.
-  - The list is drawn above all Windows.
+  - The list is drawn above all Windows, and kept inside the browser window.
+  - Setting itemsProvider to a function makes the menu dynamic: the function
+    is called each time the menu opens and returns the items to show, in the
+    same {label, action, checked} shape. "(none)" is shown for an empty list.
 
 
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with a Views menu and a Console button, and the TranscriptWindow is open.
+with a Console button followed by a Windows menu, which is always the last
+item, and the TranscriptWindow is open.
 
-  - Views > Transcript toggles the TranscriptWindow: it opens the window if
-    it is closed or hidden, and hides it otherwise. The item is checked
-    while the window is showing.
   - The Console button opens a new ConsoleWindow.
+  - The Windows menu lists every open window by title, front-most first,
+    with a check mark on the front-most one. Choosing a window shows it (if
+    hidden) and brings it to the front.
+  - The TranscriptWindow is always listed, so choosing it reopens it after
+    it has been closed.
 
 
 Button
@@ -197,7 +206,7 @@ HPanel.
 
   - Is 30px high and spans the full width of the Window.
   - addButton(label, action) creates a Button, adds it and returns it.
-  - Buttons are right-aligned, in the order they were added.
+  - Buttons are left-aligned, in the order they were added.
 
 
 HSplitWindow
@@ -215,9 +224,16 @@ An HSplitWindow for running Crumb code. Any number can be open at once.
 
   - The left side is an editable TextPanel holding the source; the right
     side is a read-only TextPanel showing the output.
-  - Its ButtonBar has Clear (empties the output) and Run (runs the source)
-    buttons. Ctrl+Enter in the source also runs it.
+  - Its ButtonBar has, from the left, Run (runs the source), Clear Output
+    (empties the output) and Clear Input (empties the source) buttons.
+    Ctrl+Enter in the source also runs it.
   - Load and runtime errors are shown in the output, in the section 11
     diagnostic format.
   - Each new console is titled Console, Console 2, ... and opens slightly
     below and to the right of the previous one.
+
+
+Spacer
+------
+An empty Widget with a flex weight (1 by default). Placed in an HPanel, it
+takes up the free space, pushing the widgets after it to the right.

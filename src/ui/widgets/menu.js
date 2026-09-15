@@ -18,6 +18,7 @@ const STYLE = `
   cursor:pointer;white-space:nowrap}
 .cr-menu-item:hover,.cr-menu-item:focus{background:#3a5f8f;color:#fff;outline:0}
 .cr-menu-check{width:14px;text-align:center}
+.cr-menu-empty{color:#888;cursor:default;pointer-events:none}
 `;
 
 function installStyle() {
@@ -74,14 +75,33 @@ export class Menu extends Widget {
     return item;
   }
 
+  /**
+   * Optional function returning the items to show, called each time the menu
+   * opens (for menus whose contents change). Its items take the same shape
+   * as addItem's arguments: {label, action, checked}. When set, it replaces
+   * the items added with addItem.
+   */
+  set itemsProvider(fn) { this._itemsProvider = fn; }
+  get itemsProvider() { return this._itemsProvider ?? null; }
+
   open() {
     if (openMenu && openMenu !== this) openMenu.close();
     openMenu = this;
-    this.list.replaceChildren(...this.items.map((item) => this._renderItem(item)));
-    const r = this.button.getBoundingClientRect();
-    this.list.style.left = `${r.left}px`;
-    this.list.style.top = `${r.bottom}px`;
+    const items = this._itemsProvider ? this._itemsProvider() : this.items;
+    if (items.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'cr-menu-item cr-menu-empty';
+      empty.textContent = '(none)';
+      this.list.replaceChildren(empty);
+    } else {
+      this.list.replaceChildren(...items.map((item) => this._renderItem(item)));
+    }
     this.list.hidden = false;
+    // Place below the button, keeping the list inside the window.
+    const r = this.button.getBoundingClientRect();
+    const w = this.list.offsetWidth;
+    this.list.style.left = `${Math.max(0, Math.min(r.left, window.innerWidth - w))}px`;
+    this.list.style.top = `${r.bottom}px`;
     this.element.classList.add('open');
     this.button.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', this._onOutside, true);

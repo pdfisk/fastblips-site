@@ -15,6 +15,7 @@ import { Menu } from './widgets/menu.js';
 import { Navbar } from './widgets/navbar.js';
 import { Button } from './widgets/button.js';
 import { ButtonBar } from './widgets/button-bar.js';
+import { Spacer } from './widgets/spacer.js';
 import { SplitPanel } from './widgets/split-panel.js';
 import { HSplitPanel } from './widgets/hsplit-panel.js';
 import { Window } from './windows/window.js';
@@ -25,7 +26,7 @@ import { TranscriptWindow } from './windows/transcript-window.js';
 import { start } from './app.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar,
+  Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
   SplitPanel, HSplitPanel, TextPanel,
   Window, HSplitWindow, ConsoleWindow, TranscriptWindow, start,
 };

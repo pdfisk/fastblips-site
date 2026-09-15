@@ -47,6 +47,13 @@ export class Viewport extends Panel {
   /** Height taken by the Navbar; content and windows start below it. */
   get top() { return this._navbar && this._navbar.visible ? this._navbar.height : 0; }
 
+  /** Open windows (children with a title bar), back to front. */
+  get windows() {
+    return this._children
+      .filter((c) => typeof c.bringToFront === 'function')
+      .sort((a, b) => (Number(a.element.style.zIndex) || 0) - (Number(b.element.style.zIndex) || 0));
+  }
+
   layout() {
     if (this._navbar) this._navbar.setBounds(0, 0, this.width, this._navbar.height);
     super.layout();

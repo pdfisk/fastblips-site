@@ -136,8 +136,12 @@ export class Window extends Panel {
   }
 
   bringToFront() {
+    if (this.isFront) return;
     this.element.style.zIndex = String(++topZ);
   }
+
+  /** True when this is the frontmost window. */
+  get isFront() { return this.element.style.zIndex === String(topZ); }
 
   /**
    * Closes the window. A cancelable 'close' event is dispatched on the
