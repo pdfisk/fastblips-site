@@ -1,0 +1,143 @@
+Crumb UI Widgets
+================
+
+This document describes the widget classes used to build the Crumb user
+interface. All widgets derive from a common Widget base, and are arranged in
+a tree whose root is the single Viewport.
+
+
+Class hierarchy
+---------------
+
+  Widget (abstract)
+    Panel (abstract)
+      Viewport (singleton)
+      HPanel
+        Navbar
+      VPanel
+      SplitPanel (abstract)
+        HSplitPanel
+        VSplitPanel
+      Window
+      TextPanel
+      ListPanel
+
+
+Widget (abstract)
+-----------------
+The abstract base class of every UI element. Widget is never instantiated
+directly; only its concrete subclasses are.
+
+  - Owns a DOM element and knows its parent widget (null for the Viewport).
+  - Has a position and size, set by its parent during layout.
+  - Can be shown or hidden; a hidden widget takes no space.
+  - Provides layout() to size and position itself, and dispose() to remove
+    itself and release any event listeners.
+
+
+Viewport (singleton)
+--------------------
+The outermost container. It fills the whole browser window and is the root
+of the widget tree.
+
+  - Exactly one instance exists; obtain it with Viewport.instance. Calling
+    the constructor a second time is an error.
+  - Holds an optional Navbar docked at the top, and one content widget that
+    fills the space below it.
+  - Hosts Windows, which float above the content area. The Viewport keeps
+    their stacking order and brings a window to the front when it is
+    clicked.
+  - Listens for browser resize events and lays out the whole tree again.
+
+
+Panel (abstract)
+----------------
+A widget that contains other widgets. Panel is never instantiated directly;
+subclasses decide how the children are arranged.
+
+  - add(child), remove(child), and a read-only children list.
+  - Adding a child sets the child's parent; a widget can belong to only one
+    panel at a time.
+  - Subclasses implement layout() to place their children, then ask each
+    child to lay itself out.
+  - Optional padding around the children and spacing between them.
+
+
+HPanel and VPanel
+-----------------
+Panels that arrange their children in a single row or column.
+
+  - HPanel places children left to right; VPanel places them top to bottom.
+  - Each child has either a fixed size or a flex weight along the main axis.
+    Fixed-size children are placed first, and the remaining space is shared
+    among flex children in proportion to their weights.
+  - On the cross axis, children stretch to fill the panel by default.
+  - Nesting HPanels and VPanels builds grid-like layouts.
+
+
+HSplitPanel and VSplitPanel
+---------------------------
+Panels with exactly two children separated by a divider the user can drag.
+Both share an abstract SplitPanel base.
+
+  - HSplitPanel places its children side by side with a vertical divider;
+    VSplitPanel stacks them with a horizontal divider.
+  - The divider position is stored as a fraction (0.0 to 1.0) so the split
+    keeps its proportions when the panel is resized.
+  - Each side can have a minimum size; the divider cannot be dragged past
+    it.
+  - Fires a change event when the divider moves, so the position can be
+    saved and restored.
+  - Double-clicking the divider may reset it to its default position.
+
+
+Window
+------
+A top-level panel that floats above the Viewport's content.
+
+  - Has a title bar showing a title and a close button, and a content area
+    that holds a single child widget.
+  - Moved by dragging the title bar; it is kept within the Viewport so the
+    title bar can always be reached.
+  - Resized by dragging its edges or corners, down to a minimum size.
+  - close() removes the window from the Viewport. A close event is fired
+    first, and a handler may cancel it (for example, to confirm unsaved
+    changes).
+  - Clicking anywhere in a window brings it to the front.
+
+
+TextPanel
+---------
+A Panel that contains a single text area filling its entire area.
+
+  - The text area is created by the panel and always sized to match it; no
+    other children can be added.
+  - Exposes the text through a text property (get and set), and fires a
+    change event when the user edits it.
+  - Can be made read-only, e.g. for program output.
+
+
+ListPanel
+---------
+A Panel that is filled by a single List element.
+
+  - The List is created by the panel and always sized to match it; no other
+    children can be added.
+  - Items are added, removed or replaced through the panel, and the List
+    scrolls when they do not fit.
+  - Tracks the selected item and fires a select event when the user picks
+    one (by click or keyboard).
+
+
+Navbar
+------
+The navigation strip docked along the top of the Viewport. Navbar is a
+subclass of HPanel, so its contents are laid out left to right using the
+same fixed-size and flex rules.
+
+  - Has a fixed height and spans the full width of the Viewport.
+  - Its children are a title or logo on the left and the navigation items;
+    a flex spacer can push items to the right-hand end.
+  - Each item has a label and an action; the active item is highlighted.
+  - Items that do not fit may collapse into an overflow menu on narrow
+    screens.
