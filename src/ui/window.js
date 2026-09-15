@@ -20,6 +20,7 @@ const STYLE = `
 .cr-window-close:hover{background:rgba(255,255,255,.25)}
 .cr-window-content{flex:1;position:relative;overflow:hidden}
 .cr-window-grip{position:absolute}
+.cr-window[hidden]{display:none}
 `;
 
 function installStyle() {
@@ -139,6 +140,21 @@ export class Window extends Panel {
     return true;
   }
 
+  // Lowest y a window may be dragged to (below the parent's Navbar, if any).
+  _top() {
+    return this.parent && typeof this.parent.top === 'number' ? this.parent.top : 0;
+  }
+
+  /** True when the window is in a Viewport and not hidden. */
+  get isOpen() { return Boolean(this.parent) && this.visible; }
+
+  /** Opens the window if it is closed or hidden, otherwise hides it. */
+  toggle(viewport) {
+    if (this.isOpen) this.visible = false;
+    else this.open(viewport);
+    return this.isOpen;
+  }
+
   // Drag helper: 'move' moves the window, otherwise dirs is a combination of
   // n/s/e/w naming the edges being dragged.
   _drag(handle, dirs) {
@@ -159,7 +175,7 @@ export class Window extends Panel {
         if (dirs === 'move') {
           // Keep the title bar reachable.
           x = Math.min(Math.max(x + dx, 40 - width), vw - 40);
-          y = Math.min(Math.max(y + dy, 0), vh - TITLE_HEIGHT);
+          y = Math.min(Math.max(y + dy, this._top()), vh - TITLE_HEIGHT);
         } else {
           if (dirs.includes('e')) width = Math.max(this.minWidth, width + dx);
           if (dirs.includes('s')) height = Math.max(this.minHeight, height + dy);
@@ -169,7 +185,7 @@ export class Window extends Panel {
           }
           if (dirs.includes('n')) {
             const h = Math.max(this.minHeight, height - dy);
-            const ny = Math.max(0, y + height - h);
+            const ny = Math.max(this._top(), y + height - h);
             height = y + height - ny; y = ny;
           }
         }

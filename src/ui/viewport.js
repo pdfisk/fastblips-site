@@ -32,6 +32,26 @@ export class Viewport extends Panel {
     return this;
   }
 
+  /** The Navbar docked at the top of the Viewport, or null. */
+  get navbar() { return this._navbar ?? null; }
+  set navbar(bar) {
+    if (this._navbar) this.remove(this._navbar);
+    this._navbar = bar ?? null;
+    if (bar) {
+      this.add(bar);
+      this.element.insertBefore(bar.element, this.element.firstChild);
+    }
+    this.layout();
+  }
+
+  /** Height taken by the Navbar; content and windows start below it. */
+  get top() { return this._navbar && this._navbar.visible ? this._navbar.height : 0; }
+
+  layout() {
+    if (this._navbar) this._navbar.setBounds(0, 0, this.width, this._navbar.height);
+    super.layout();
+  }
+
   get width() { return this.element.clientWidth; }
   get height() { return this.element.clientHeight; }
 

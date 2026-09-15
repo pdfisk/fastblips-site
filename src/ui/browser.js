@@ -10,12 +10,18 @@ import { KEYWORDS, BUILTINS } from '../vm/tokens.js';
 import { Widget } from './widget.js';
 import { Panel } from './panel.js';
 import { Viewport } from './viewport.js';
+import { HPanel } from './hpanel.js';
+import { Menu } from './menu.js';
+import { Navbar } from './navbar.js';
 import { Window } from './window.js';
 import { TextPanel } from './text-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
 import { start } from './app.js';
 
-const ui = { Widget, Panel, Viewport, Window, TextPanel, TranscriptWindow, start };
+const ui = {
+  Widget, Panel, Viewport, HPanel, Navbar, Menu, Window, TextPanel,
+  TranscriptWindow, start,
+};
 
 export {
   parse, compile, run, disassemble, formatAst, formatTokens,

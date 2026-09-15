@@ -13,7 +13,7 @@ Class hierarchy
     Panel (abstract)
       Viewport (singleton)
       HPanel
-        Navbar
+        Navbar (singleton)
       VPanel
       SplitPanel (abstract)
         HSplitPanel
@@ -21,6 +21,7 @@ Class hierarchy
       Window
       TextPanel
       ListPanel
+    Menu
 
 
 Widget (abstract)
@@ -129,15 +130,44 @@ A Panel that is filled by a single List element.
     one (by click or keyboard).
 
 
-Navbar
-------
+Navbar (singleton)
+------------------
 The navigation strip docked along the top of the Viewport. Navbar is a
 subclass of HPanel, so its contents are laid out left to right using the
 same fixed-size and flex rules.
 
-  - Has a fixed height and spans the full width of the Viewport.
-  - Its children are a title or logo on the left and the navigation items;
-    a flex spacer can push items to the right-hand end.
+  - Exactly one instance exists; obtain it with Navbar.instance. Calling
+    the constructor a second time is an error.
+  - Added to the Viewport (viewport.navbar = Navbar.instance), which docks
+    it at the top of the page.
+  - Is 35px high and spans the full width of the Viewport. Windows cannot
+    be dragged above it.
+  - Its children are a title or logo on the left and the navigation items,
+    typically Menus; a flex spacer can push items to the right-hand end.
   - Each item has a label and an action; the active item is highlighted.
   - Items that do not fit may collapse into an overflow menu on narrow
     screens.
+
+
+Menu
+----
+A pulldown menu: a labelled button that opens a list of items when clicked.
+Menu is a Widget, not a Panel; its items are not widgets.
+
+  - addItem(label, action, { checked }) adds an item. Choosing the item
+    closes the menu and runs action().
+  - If checked is given, it is a function called each time the menu opens;
+    a check mark is shown next to the item while it returns true.
+  - Only one menu is open at a time. Clicking outside the menu or pressing
+    Escape closes it.
+  - The list is drawn above all Windows.
+
+
+Startup
+-------
+When the program starts, the Navbar is docked at the top of the Viewport
+with a single Views menu, and the TranscriptWindow is open.
+
+  - Views > Transcript toggles the TranscriptWindow: it opens the window if
+    it is closed or hidden, and hides it otherwise. The item is checked
+    while the window is showing.

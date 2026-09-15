@@ -33,6 +33,11 @@ export class Widget {
     s.height = `${height}px`;
   }
 
+  /** Natural width, used by HPanel for children without a fixed size. */
+  preferredWidth() {
+    return Math.ceil(this.element.scrollWidth);
+  }
+
   /** Sizes and positions this widget's contents. Subclasses override. */
   layout() {}
 
