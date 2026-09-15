@@ -18,7 +18,10 @@ const bundlePath = join(scratch, 'crumb.min.js');
 
 execFileSync('npx', ['--yes', 'esbuild@0.23.1', join(here, '..', 'src', 'browser.js'),
   '--bundle', '--format=iife', '--global-name=Crumb', '--target=es2020', '--minify',
-  `--outfile=${bundlePath}`], { stdio: 'inherit' });
+  `--outfile=${bundlePath}`], {
+  stdio: 'inherit',
+  shell: process.platform === 'win32',   // npx is npx.cmd on Windows
+});
 
 // Stamped into the page at build time. SOURCE_DATE_EPOCH (seconds) overrides
 // it, so a reproducible build can pin the date instead of reading the clock.

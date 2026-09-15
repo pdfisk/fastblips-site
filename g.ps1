@@ -1,4 +1,8 @@
 # g.ps1 - open web/index.html in Google Chrome
+# Rebuild first so the page (and its Built timestamp) matches the current source.
+node (Join-Path $PSScriptRoot 'web\build.mjs') --standalone
+if ($LASTEXITCODE -ne 0) { Write-Error 'Build failed'; exit 1 }
+
 $page = Join-Path $PSScriptRoot 'web\index.html'
 if (-not (Test-Path $page)) { Write-Error "Not found: $page"; exit 1 }
 $url = ([System.Uri](Resolve-Path $page).Path).AbsoluteUri

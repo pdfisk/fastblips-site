@@ -12,10 +12,13 @@
     "./lexer": "./src/vm/lexer.js",
     "./parser": "./src/vm/parser.js",
     "./compiler": "./src/vm/compiler.js",
-    "./vm": "./src/vm/vm.js"
+    "./vm": "./src/vm/vm.js",
+    "./loader": "./src/vm/loader.js"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.js\""
+    "test": "node --test \"test/*.test.js\"",
+    "build": "node web/build.mjs --standalone && node web/build.mjs",
+    "watch": "node web/watch.mjs"
   },
   "engines": {
     "node": ">=18"
