@@ -1,6 +1,7 @@
 // TranscriptWindow: the singleton window that shows the transcript.
 
 import { Window } from './window.js';
+import { TextPanel } from './text-panel.js';
 
 let instance = null;
 
@@ -16,6 +17,8 @@ export class TranscriptWindow extends Window {
     super({ title: 'Transcript', x: 35, y: 55, width: 375, height: 275 });
     instance = this;
     this.element.classList.add('cr-transcript-window');
+    this.textPanel = new TextPanel();
+    this.content = this.textPanel;
   }
 
   dispose() {

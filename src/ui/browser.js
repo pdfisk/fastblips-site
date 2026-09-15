@@ -11,10 +11,11 @@ import { Widget } from './widget.js';
 import { Panel } from './panel.js';
 import { Viewport } from './viewport.js';
 import { Window } from './window.js';
+import { TextPanel } from './text-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
 import { start } from './app.js';
 
-const ui = { Widget, Panel, Viewport, Window, TranscriptWindow, start };
+const ui = { Widget, Panel, Viewport, Window, TextPanel, TranscriptWindow, start };
 
 export {
   parse, compile, run, disassemble, formatAst, formatTokens,
