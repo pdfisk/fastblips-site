@@ -41,6 +41,7 @@ export class VM {
     this.ip = chunk.entry;
     this.opIp = chunk.entry;
     this.steps = 0;
+    this.halted = false;
   }
 
   // ------------------------------------------------------------------ helpers
@@ -85,12 +86,20 @@ export class VM {
     this.runSlice();
   }
 
- // ---------------------------------------------------------------------- runSlice
+  // ---------------------------------------------------------------- runSlice
 
-  runSlice() {
+  /**
+   * Executes up to `budget` instructions, then returns so another program can
+   * take a turn. All execution state (ip, stack, frames, globals) lives on the
+   * VM, so calling runSlice again resumes exactly where this call stopped.
+   * @param {number} budget  instructions to run in this slice
+   * @returns {boolean} true once the program has halted
+   */
+  runSlice(budget = Infinity) {
+    if (this.halted) return true;
     const { code, constants } = this.chunk;
 
-    for (;;) {
+    for (let used = 0; used < budget; used += 1) {
       this.steps += 1;
       if (this.steps > this.maxSteps) {
         this.fail(`instruction budget of ${this.maxSteps} exhausted: the program may not terminate`);
@@ -255,12 +264,14 @@ export class VM {
           break;
         }
         case Op.HALT:
-          return;
+          this.halted = true;
+          return true;
 
         default:
           this.fail(`unknown opcode ${op} (${OP_NAMES[op] ?? '?'}) at ${this.opIp}`);
       }
     }
+    return false;
   }
 
   frame() {
