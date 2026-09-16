@@ -248,6 +248,8 @@ A Window showing the transcript: a log shared by every console.
   - Its content is a TextPanel (transcriptWindow.textPanel). Each call to
     the Transcript built-in from a ConsoleWindow appends one line to it and
     scrolls it into view.
+  - Its ButtonBar has a Clear button, which empties the transcript
+    (transcriptWindow.clear()).
   - Open at startup and always listed in the Windows menu (see Startup).
   - Closing it only hides it: the instance and its text are kept, and the
     Windows menu reopens it. dispose() discards the instance, and the next

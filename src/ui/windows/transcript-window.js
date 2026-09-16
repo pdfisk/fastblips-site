@@ -19,6 +19,12 @@ export class TranscriptWindow extends Window {
     this.element.classList.add('cr-transcript-window');
     this.textPanel = new TextPanel();
     this.content = this.textPanel;
+    this.buttonBar.addButton('Clear', () => this.clear());
+  }
+
+  /** Empties the transcript. */
+  clear() {
+    this.textPanel.text = '';
   }
 
   dispose() {
