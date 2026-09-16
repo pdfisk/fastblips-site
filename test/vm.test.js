@@ -349,3 +349,25 @@ test('Transcript takes exactly one argument', () => {
   const result = run('Transcript("a", "b")');
   assert.deepEqual(result.loadErrors.map((e) => e.message), ["'Transcript' takes 1 argument, found 2"]);
 });
+
+test('Sleep: a whole Number is seconds, a fractional one is milliseconds', () => {
+  const sleeps = [];
+  const lines = [];
+  const result = run('Print "a"\nSleep(2)\nPrint "b"\nSleep(2.5)\nSleep(0)\nPrint "c"', {
+    sleep: (ms) => { sleeps.push(ms); lines.push(`sleep ${ms}`); },
+    out: (t) => lines.push(t),
+  });
+  assert.equal(result.error, null, result.error?.message);
+  assert.deepEqual(sleeps, [2000, 2.5, 0]);
+  assert.deepEqual(lines, ['a', 'sleep 2000', 'b', 'sleep 2.5', 'sleep 0', 'c']);
+});
+
+test('Sleep inside a procedure resumes in the right frame', () => {
+  const result = run('Function F(n)\n  Sleep(0.5)\n  Return n * 2\nEnd Function\nPrint F(21)', { sleep: () => {} });
+  assert.deepEqual(result.output, ['42']);
+});
+
+test('Sleep rejects negative and non-Number arguments', () => {
+  assert.equal(boom('Sleep(-1)', { sleep: () => {} }), '1: Sleep expects a Number of 0 or more, got -1');
+  assert.equal(boom('Sleep("1")', { sleep: () => {} }), '1: Sleep expects a Number as argument 1, got String');
+});

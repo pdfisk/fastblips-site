@@ -22,6 +22,21 @@ export class CrumbRuntimeError extends CrumbError {
 
 const ORDERED = new Set([Op.LT, Op.LE, Op.GT, Op.GE]);
 
+/**
+ * Blocks the thread for `ms` milliseconds. Used only by VM.run(), which is
+ * synchronous; a Scheduler never blocks and instead requeues the process.
+ * Atomics.wait is unavailable on a browser's main thread, hence the fallback.
+ */
+function blockingSleep(ms) {
+  if (ms <= 0) return;
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    const end = Date.now() + ms;
+    while (Date.now() < end) { /* busy-wait */ }
+  }
+}
+
 export class VM {
   constructor(chunk, {
     out = (text) => process.stdout.write(`${text}\n`),
@@ -29,6 +44,7 @@ export class VM {
     maxDepth = 10000,
     maxSteps = Infinity,
     random = Math.random,
+    sleep = blockingSleep,   // (ms) => void, used by run() for the Sleep built-in
   } = {}) {
     this.chunk = chunk;
     this.out = out;
@@ -36,6 +52,7 @@ export class VM {
     this.maxDepth = maxDepth;
     this.maxSteps = maxSteps;
     this.random = random;
+    this.sleep = sleep;
 
     this.globals = new Array(chunk.globalCount).fill(NOTHING);
     this.stack = [];
@@ -44,6 +61,7 @@ export class VM {
     this.opIp = chunk.entry;
     this.steps = 0;
     this.halted = false;
+    this.sleepMs = null;   // set by the Sleep built-in; makes runSlice yield
   }
 
   // ------------------------------------------------------------------ helpers
@@ -84,8 +102,19 @@ export class VM {
 
   // ---------------------------------------------------------------------- run
 
+  /** Runs to completion, blocking for each Sleep. */
   run() {
-    this.runSlice();
+    while (!this.runSlice()) {
+      const ms = this.takeSleep();
+      if (ms !== null) this.sleep(ms);
+    }
+  }
+
+  /** Returns and clears a pending Sleep request (milliseconds), or null. */
+  takeSleep() {
+    const ms = this.sleepMs;
+    this.sleepMs = null;
+    return ms;
   }
 
   // ---------------------------------------------------------------- runSlice
@@ -94,6 +123,7 @@ export class VM {
    * Executes up to `budget` instructions, then returns so another program can
    * take a turn. All execution state (ip, stack, frames, globals) lives on the
    * VM, so calling runSlice again resumes exactly where this call stopped.
+   * A Sleep also ends the slice early; the caller reads it with takeSleep().
    * @param {number} budget  instructions to run in this slice
    * @returns {boolean} true once the program has halted
    */
@@ -234,6 +264,7 @@ export class VM {
             if (err instanceof BuiltinError) this.fail(err.message);
             throw err;
           }
+          if (this.sleepMs !== null) return false;   // yield for Sleep
           break;
         }
         case Op.RETURN: {

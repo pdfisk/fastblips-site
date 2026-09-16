@@ -121,12 +121,12 @@ fixed — no `ReDim`, no `Option Base`, one dimension only. Index must be an int
 Number in range. Arrays are references (assignment aliases). `a(i)` and `f(i)` share
 syntax; resolved when the name is resolved.
 
-## 10. Built-ins (16, not reserved words, not shadowable)
+## 10. Built-ins (17, not reserved words, not shadowable)
 
 `Len(s)` · `Mid(s, start, count)` (1-based, truncates past end) · `InStr(hay, needle)`
 (1-based or 0) · `UCase(s)` · `LCase(s)` · `Trim(s)` · `Str(v)` · `Val(s)` · `Int(n)` ·
 `Abs(n)` · `Sqr(n)` · `Rnd()` → `[0,1)` · `Chr(n)` · `Asc(s)` · `UBound(a)` ·
-`Transcript(v)`
+`Transcript(v)` · `Sleep(n)`
 
 `Transcript(v)` writes `v`, converted as by `Str`, as one line to the transcript — a
 host-provided log separate from `Print` output (in the playground, the Transcript
@@ -138,6 +138,20 @@ For i = 1 To 3
   Transcript("step " & i)   ' to the transcript
 Next
 Print "done"                 ' to program output
+```
+
+`Sleep(n)` pauses the program. A whole Number is **seconds**, a fractional one is
+**milliseconds**: `Sleep(2)` waits 2 s, `Sleep(2.5)` waits 2.5 ms. Since Crumb has one
+Number type, `Sleep(2.0)` is the whole number 2 and waits 2 s. `n` must be 0 or more.
+Returns `Nothing`. Under a scheduler, other programs keep running while one sleeps.
+
+```vb
+For i = 3 To 1 Step -1
+  Print i
+  Sleep(1)                   ' one second
+Next
+Sleep(500.5)                 ' half a second (500.5 ms)
+Print "go"
 ```
 
 ## 11. Errors

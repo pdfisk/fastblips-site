@@ -1,4 +1,4 @@
-// The built-ins: the 15 of spec section 10, plus Transcript. Fixed arity, checked at compile time;
+// The 17 built-ins of spec section 10. Fixed arity, checked at compile time;
 // argument types checked here, at the call.
 //
 // String positions are 1-based throughout, following VB.
@@ -127,6 +127,21 @@ export const BUILTIN_LIST = [
     arity: 1,
     fn: ([v], vm) => {
       vm.transcript(toStr(v));
+      return NOTHING;
+    },
+  },
+  {
+    // Sleep(n): pauses the program. A whole Number is seconds, a fractional
+    // one is milliseconds: Sleep(2) is 2 s, Sleep(2.5) is 2.5 ms. The VM
+    // yields; whoever is running it (VM.run or a Scheduler) does the waiting.
+    name: 'Sleep',
+    arity: 1,
+    fn: ([n], vm) => {
+      wantNumber('Sleep', 1, n);
+      if (!Number.isFinite(n) || n < 0) {
+        fail(`Sleep expects a Number of 0 or more, got ${formatNumber(n)}`);
+      }
+      vm.sleepMs = Number.isInteger(n) ? n * 1000 : n;
       return NOTHING;
     },
   },

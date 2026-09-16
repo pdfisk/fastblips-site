@@ -13,13 +13,13 @@ browser UI.
 src/index.js          parse() / compile() / run()
 src/ui/browser.js     the bundle entry point (everything on window.Crumb)
 
-src/vm/tokens.js      token classes, the 24 reserved words, the 16 built-ins
+src/vm/tokens.js      token classes, the 24 reserved words, the 17 built-ins
 src/vm/lexer.js       source text -> tokens              (spec section 2)
 src/vm/parser.js      tokens      -> AST                 (spec section 13)
 src/vm/compiler.js    AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
 src/vm/opcodes.js     the instruction set
 src/vm/values.js      runtime values and conversions     (sections 3, 10)
-src/vm/builtins.js    the 16 built-in functions          (section 10)
+src/vm/builtins.js    the 17 built-in functions          (section 10)
 src/vm/vm.js          the stack machine
 src/vm/disasm.js      bytecode listing
 src/vm/diagnostics.js CrumbError + the section 11 diagnostic format
@@ -77,8 +77,15 @@ $ crumb json   examples/words.crumb      # AST as JSON
 
 `run` takes VM options: `out` (a line sink), `transcript` (the line sink for
 the `Transcript` built-in; defaults to `out`), `maxSteps` (an instruction
-budget), `maxDepth` (frame limit), and `random` (the source `Rnd` draws from,
-so tests are deterministic).
+budget), `maxDepth` (frame limit), `random` (the source `Rnd` draws from,
+so tests are deterministic), and `sleep` (a blocking `(ms) => void` that
+`run` calls for the `Sleep` built-in; tests pass a no-op).
+
+`Sleep(n)` takes seconds for a whole Number and milliseconds for a fractional
+one. The VM never waits itself: the built-in records the request and
+`runSlice` returns early. `run()` then blocks (with `Atomics.wait`, or a
+busy-wait where that is unavailable); a `Scheduler` instead parks the
+process and runs the others.
 
 ## Scheduling
 
@@ -95,24 +102,30 @@ await scheduler.runToCompletion();
 
 `VM.runSlice(budget)` runs at most `budget` instructions and returns `true`
 once the program has halted; calling it again resumes where it stopped, since
-all execution state lives on the VM. `run()` is `runSlice()` with no budget.
+all execution state lives on the VM. A `Sleep` also ends the slice early;
+`takeSleep()` returns the requested milliseconds. `run()` loops `runSlice()`
+with no budget, blocking for each sleep.
 
 A `Process` wraps one VM with a `pid`, a `name`, a `startAt` time and a state:
-`scheduled` -> `ready` <-> `running` -> `done` | `failed` | `killed`. A
-runtime error is captured on the process (`error`) and does not stop the
-others.
+`scheduled` -> `ready` <-> `running` <-> `sleeping` -> `done` | `failed` |
+`killed`. A runtime error is captured on the process (`error`) and does not
+stop the others. An `onExit(process)` option is called once when it finishes
+for any reason.
 
 The `Scheduler` keeps two queues:
 
 - `activeQueue` — ready processes in run order. `tick()` gives the next one a
   turn of `quantum` instructions and requeues it if it has not finished.
-- `scheduledQueue` — processes spawned with a `delay`, sorted by `startAt`
-  (ties keep spawn order). Each `tick()` first moves the ones that are due to
-  `activeQueue`.
+- `scheduledQueue` — processes spawned with a `delay`, or sleeping, sorted
+  by `startAt` (the time each next becomes ready; ties keep insertion order).
+  Each `tick()` first moves the ones that are due to `activeQueue`.
 
 `runAll()` ticks until nothing is ready; processes not yet due keep waiting.
 `runToCompletion()` also sleeps until the next start time and returns when
-both queues are empty. `kill(pid)`, `get(pid)`, `idle`, `empty` and
+both queues are empty. `start({ sliceMs })` does the same in the background
+for a page: it ticks for at most `sliceMs` (16) of wall-clock time before
+yielding to the event loop, and a second call while running returns the same
+promise, so processes can be spawned and `start()`ed at any time. `kill(pid)`, `get(pid)`, `idle`, `empty` and
 `nextStartAt` round it out. The clock is injectable (`new Scheduler({ now })`)
 so tests can control time. A process cannot yet block on input.
 
@@ -241,11 +254,12 @@ exhausted by runaway recursion, and the instruction budget.
 npm test
 ```
 
-126 tests: lexer behaviour; every precedence rule and associativity in section
+132 tests: lexer behaviour; every precedence rule and associativity in section
 8; each statement form; the procedure rules; error collection and recovery;
 resolution, arity and slot allocation; the VM's arithmetic, comparison,
 short-circuiting, control flow, arrays, procedures and built-ins; and the
-scheduler's time slicing, delayed starts, failure isolation and kill.
+scheduler's time slicing, delayed starts, sleeping, background running,
+failure isolation and kill.
 `examples/broken.crumb` plants 14 load errors and the suite asserts exactly 14
 diagnostics, so a recovery regression that starts cascading fails the build;
 `examples/errors.crumb` asserts the runtime traceback.

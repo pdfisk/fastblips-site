@@ -4,10 +4,15 @@
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
-import { run } from '../../index.js';
+import { compile } from '../../index.js';
 import { formatDiagnostics } from '../../vm/diagnostics.js';
+import { Scheduler } from '../../scheduling/scheduler.js';
 
 let count = 0;
+
+// One scheduler shared by every console, so programs in different consoles
+// take turns, and a Sleep in one never blocks the page or the others.
+export const scheduler = new Scheduler({ quantum: 1000 });
 
 export class ConsoleWindow extends HSplitWindow {
   constructor(options = {}) {
@@ -35,19 +40,46 @@ export class ConsoleWindow extends HSplitWindow {
     });
   }
 
-  /** Runs the source in the left pane and shows the result on the right. */
+  /**
+   * Compiles the source in the left pane and starts it on the shared
+   * scheduler; output appears on the right as the program runs. Running again
+   * stops this console's previous program. Returns the Process, or null if
+   * there were load errors.
+   */
   run() {
     const source = this.input.text;
     const filename = 'console.crumb';
-    const transcript = (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`);
-    const result = run(source, { filename, transcript });
-    const lines = [...result.output];
-    if (result.loadErrors.length > 0) {
-      lines.push(formatDiagnostics(result.loadErrors, source, filename));
-    } else if (result.error) {
-      lines.push(formatDiagnostics([result.error], source, filename));
+    this.stop();
+    this.output.text = '';
+
+    const { chunk, errors } = compile(source, { filename });
+    if (!chunk || errors.length > 0) {
+      this.output.text = formatDiagnostics(errors, source, filename);
+      return null;
     }
-    this.output.text = lines.join('\n');
-    return result;
+
+    const output = this.output;
+    this.process = scheduler.spawn(chunk, {
+      name: this.title,
+      out: (text) => output.append(`${text}\n`),
+      transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
+      onExit: (process) => {
+        if (process.error) output.append(`${formatDiagnostics([process.error], source, filename)}\n`);
+      },
+    });
+    scheduler.start();
+    return this.process;
+  }
+
+  /** Stops this console's program, if one is running. */
+  stop() {
+    if (this.process && !this.process.finished) scheduler.kill(this.process.pid);
+    this.process = null;
+  }
+
+  close() {
+    const closed = super.close();
+    if (closed) this.stop();
+    return closed;
   }
 }

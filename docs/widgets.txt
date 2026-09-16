@@ -224,6 +224,10 @@ An HSplitWindow for running Crumb code. Any number can be open at once.
 
   - The left side is an editable TextPanel holding the source; the right
     side is a read-only TextPanel showing the output.
+  - Run compiles the source and starts it on a Scheduler shared by all
+    consoles, so programs run in the background, take turns, and a Sleep
+    never freezes the page. Output appears as it is printed. Running again,
+    or closing the console, stops its previous program.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
     (empties the output) and Clear Input (empties the source) buttons.
     Ctrl+Enter in the source also runs it.

@@ -106,3 +106,55 @@ test('kill removes a scheduled process', () => {
   assert.equal(p.state, ProcessState.KILLED);
   assert.ok(scheduler.empty);
 });
+
+test('a sleeping process waits in scheduledQueue while others run', () => {
+  let clock = 0;
+  const lines = [];
+  const out = (text) => lines.push(text);
+  const scheduler = new Scheduler({ quantum: 1000, now: () => clock });
+  const sleeper = scheduler.spawn(chunkOf('Print "s1"\nSleep(1)\nPrint "s2"'), { out });
+  const other = scheduler.spawn(counter('o'), { out });
+
+  scheduler.runAll();
+  assert.deepEqual(lines, ['s1', 'o1', 'o2', 'o3']);
+  assert.equal(sleeper.state, ProcessState.SLEEPING);
+  assert.equal(sleeper.startAt, 1000);
+  assert.deepEqual(scheduler.scheduledQueue, [sleeper]);
+  assert.equal(other.state, ProcessState.DONE);
+
+  clock = 999;
+  scheduler.runAll();
+  assert.equal(sleeper.state, ProcessState.SLEEPING);
+
+  clock = 1000;
+  scheduler.runAll();
+  assert.deepEqual(lines, ['s1', 'o1', 'o2', 'o3', 's2']);
+  assert.equal(sleeper.state, ProcessState.DONE);
+});
+
+test('start() runs in the background, sleeping until processes wake', async () => {
+  let clock = 0;
+  const waits = [];
+  const exits = [];
+  const scheduler = new Scheduler({ now: () => clock });
+  scheduler.spawn(chunkOf('Sleep(0.25)\nSleep(3)'), { out: () => {}, onExit: (p) => exits.push(p.state) });
+  const sleep = async (ms) => { waits.push(ms); clock += ms; };
+  const first = scheduler.start({ sleep });
+  assert.equal(scheduler.start({ sleep }), first, 'a second start() joins the running one');
+  await first;
+  assert.deepEqual(waits, [0.25, 3000, 0]);
+  assert.deepEqual(exits, [ProcessState.DONE]);
+  assert.equal(scheduler.running, null);
+});
+
+test('onExit fires once for failed and killed processes', () => {
+  const exits = [];
+  const onExit = (p) => exits.push(`${p.name}:${p.state}`);
+  const scheduler = new Scheduler({ now: () => 0 });
+  scheduler.spawn(chunkOf('Print 1 + "x"'), { name: 'bad', out: () => {}, onExit });
+  const k = scheduler.spawn(chunkOf('Sleep(5)'), { name: 'k', out: () => {}, onExit });
+  scheduler.runAll();
+  scheduler.kill(k.pid);
+  scheduler.kill(k.pid);
+  assert.deepEqual(exits, ['bad:failed', 'k:killed']);
+});
