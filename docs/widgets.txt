@@ -23,6 +23,7 @@ Class hierarchy
         HSplitWindow
           ConsoleWindow
         TranscriptWindow (singleton)
+        SchedulerWindow (singleton)
       TextPanel
       ListPanel
     Menu
@@ -138,6 +139,12 @@ A Panel that is filled by a single List element.
     scrolls when they do not fit.
   - Tracks the selected item and fires a select event when the user picks
     one (by click or keyboard).
+  - Items are {label, value} objects: items (get and set), addItem(item),
+    removeItem(index) and replaceItem(index, item). The selection follows
+    the item's value, so replacing all the items keeps the same row
+    selected. selectedIndex, selectedItem and select(index) give access to
+    it; Up, Down, Home and End move it.
+  - An optional emptyText is shown when there are no items.
 
 
 Navbar (singleton)
@@ -179,10 +186,12 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with a Console button followed by a Windows menu, which is always the last
-item, and the TranscriptWindow is open.
+with Console and Scheduler buttons followed by a Windows menu, which is
+always the last item, and the TranscriptWindow is open.
 
   - The Console button opens a new ConsoleWindow.
+  - The Scheduler button opens the SchedulerWindow (or brings it to the
+    front).
   - The Windows menu lists every open window by title, front-most first,
     with a check mark on the front-most one. Choosing a window shows it (if
     hidden) and brings it to the front.
@@ -224,8 +233,8 @@ An HSplitWindow for running Crumb code. Any number can be open at once.
 
   - The left side is an editable TextPanel holding the source; the right
     side is a read-only TextPanel showing the output.
-  - Run compiles the source and starts it on a Scheduler shared by all
-    consoles, so programs run in the background, take turns, and a Sleep
+  - Run compiles the source and starts it on the Scheduler shared by all
+    consoles (src/ui/runtime.js), so programs run in the background, take turns, and a Sleep
     never freezes the page. Output appears as it is printed. Running again,
     or closing the console, stops its previous program.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
@@ -254,6 +263,25 @@ A Window showing the transcript: a log shared by every console.
   - Closing it only hides it: the instance and its text are kept, and the
     Windows menu reopens it. dispose() discards the instance, and the next
     use creates a new one.
+
+
+SchedulerWindow (singleton)
+---------------------------
+A Window listing the programs on the UI's shared Scheduler, so they can be
+suspended, resumed or killed.
+
+  - There is only one; SchedulerWindow.instance creates it on first use,
+    and constructing a second one throws.
+  - Its content is a ListPanel with one row per unfinished process: pid,
+    name (the title of the console that started it), state (ready,
+    running, sleeping, scheduled or suspended) and instructions executed.
+    The list is refreshed every 250ms while the window is open, keeping
+    the selection.
+  - Its ButtonBar has Suspend and Kill buttons, which act on the selected
+    process and are disabled when nothing is selected. When the selected
+    process is suspended, Suspend reads Resume.
+  - A suspended process gets no turns; a sleeping one keeps the rest of its
+    sleep for when it is resumed.
 
 
 Spacer

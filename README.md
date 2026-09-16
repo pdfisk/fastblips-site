@@ -29,6 +29,7 @@ src/scheduling/process.js    Process: one running program (a VM + state)
 src/scheduling/scheduler.js  Scheduler: round-robin time slicing, delayed starts
 
 src/ui/               widgets and windows (see docs/widgets.txt)
+src/ui/runtime.js     the Scheduler the browser UI runs programs on
 
 bin/crumb.js          CLI
 web/                  the playground page and its build
@@ -108,7 +109,7 @@ with no budget, blocking for each sleep.
 
 A `Process` wraps one VM with a `pid`, a `name`, a `startAt` time and a state:
 `scheduled` -> `ready` <-> `running` <-> `sleeping` -> `done` | `failed` |
-`killed`. A runtime error is captured on the process (`error`) and does not
+`killed`; any unfinished process can also be `suspended`. A runtime error is captured on the process (`error`) and does not
 stop the others. An `onExit(process)` option is called once when it finishes
 for any reason.
 
@@ -125,7 +126,14 @@ The `Scheduler` keeps two queues:
 both queues are empty. `start({ sliceMs })` does the same in the background
 for a page: it ticks for at most `sliceMs` (16) of wall-clock time before
 yielding to the event loop, and a second call while running returns the same
-promise, so processes can be spawned and `start()`ed at any time. `kill(pid)`, `get(pid)`, `idle`, `empty` and
+promise after waking the loop, so a process spawned or resumed while every
+other one is asleep runs at once.
+
+`suspend(pid)` takes a process out of both queues and `resume(pid)` puts it
+back; a delayed or sleeping process keeps what remained of its wait.
+Suspended processes do not count towards `empty`, so a background loop ends
+when everything left is suspended; call `start()` after `resume`. `list()`
+returns every unfinished process, suspended ones included. `kill(pid)`, `get(pid)`, `idle`, `empty` and
 `nextStartAt` round it out. The clock is injectable (`new Scheduler({ now })`)
 so tests can control time. A process cannot yet block on input.
 
@@ -254,12 +262,12 @@ exhausted by runaway recursion, and the instruction budget.
 npm test
 ```
 
-132 tests: lexer behaviour; every precedence rule and associativity in section
+136 tests: lexer behaviour; every precedence rule and associativity in section
 8; each statement form; the procedure rules; error collection and recovery;
 resolution, arity and slot allocation; the VM's arithmetic, comparison,
 short-circuiting, control flow, arrays, procedures and built-ins; and the
 scheduler's time slicing, delayed starts, sleeping, background running,
-failure isolation and kill.
+suspend and resume, failure isolation and kill.
 `examples/broken.crumb` plants 14 load errors and the suite asserts exactly 14
 diagnostics, so a recovery regression that starts cascading fails the build;
 `examples/errors.crumb` asserts the runtime traceback.

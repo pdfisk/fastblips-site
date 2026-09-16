@@ -22,13 +22,17 @@ import { Window } from './windows/window.js';
 import { HSplitWindow } from './windows/hsplit-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
+import { ListPanel } from './widgets/list-panel.js';
+import { SchedulerWindow } from './windows/scheduler-window.js';
+import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { start } from './app.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
-  SplitPanel, HSplitPanel, TextPanel,
-  Window, HSplitWindow, ConsoleWindow, TranscriptWindow, start,
+  SplitPanel, HSplitPanel, TextPanel, ListPanel,
+  Window, HSplitWindow, ConsoleWindow, TranscriptWindow, SchedulerWindow,
+  scheduler, start,
 };
 
 export {

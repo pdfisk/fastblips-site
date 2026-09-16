@@ -6,6 +6,7 @@ import { Menu } from './widgets/menu.js';
 import { Button } from './widgets/button.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
+import { SchedulerWindow } from './windows/scheduler-window.js';
 
 export function start() {
   const viewport = Viewport.instance.mount(document.body);
@@ -13,6 +14,7 @@ export function start() {
   const transcript = TranscriptWindow.instance;
 
   navbar.add(new Button('Console', () => new ConsoleWindow().open(viewport)));
+  navbar.add(new Button('Scheduler', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;
 

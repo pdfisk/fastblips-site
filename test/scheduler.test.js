@@ -158,3 +158,71 @@ test('onExit fires once for failed and killed processes', () => {
   scheduler.kill(k.pid);
   assert.deepEqual(exits, ['bad:failed', 'k:killed']);
 });
+
+test('suspend takes a process out of turn; resume puts it back', () => {
+  const lines = [];
+  const out = (text) => lines.push(text);
+  const scheduler = new Scheduler({ quantum: 1, now: () => 0 });
+  const a = scheduler.spawn(counter('a'), { out });
+  const b = scheduler.spawn(counter('b'), { out });
+
+  assert.ok(scheduler.suspend(a.pid));
+  assert.equal(scheduler.suspend(a.pid), false, 'already suspended');
+  assert.equal(a.state, ProcessState.SUSPENDED);
+  scheduler.runAll();
+  assert.deepEqual(lines, ['b1', 'b2', 'b3']);
+  assert.ok(scheduler.empty, 'a suspended process does not keep the scheduler busy');
+  assert.deepEqual(scheduler.list(), [a]);
+
+  assert.ok(scheduler.resume(a.pid));
+  assert.equal(scheduler.resume(a.pid), false, 'not suspended any more');
+  scheduler.runAll();
+  assert.deepEqual(lines, ['b1', 'b2', 'b3', 'a1', 'a2', 'a3']);
+  assert.equal(a.state, ProcessState.DONE);
+  assert.equal(b.state, ProcessState.DONE);
+  assert.deepEqual(scheduler.list(), []);
+});
+
+test('a suspended sleeper keeps the rest of its sleep', () => {
+  let clock = 0;
+  const scheduler = new Scheduler({ now: () => clock });
+  const p = scheduler.spawn(chunkOf('Sleep(1)\nPrint "woke"'), { out: () => {} });
+  scheduler.runAll();                    // now sleeping until 1000
+  clock = 400;
+  scheduler.suspend(p.pid);
+  clock = 5000;                          // time passes while suspended
+  scheduler.resume(p.pid);
+  assert.equal(p.state, ProcessState.SLEEPING);
+  assert.equal(p.startAt, 5600);         // the remaining 600 ms
+  clock = 5600;
+  scheduler.runAll();
+  assert.equal(p.state, ProcessState.DONE);
+});
+
+test('a suspended process can be killed', () => {
+  const scheduler = new Scheduler({ now: () => 0 });
+  const p = scheduler.spawn(counter('x'), { out: () => {} });
+  scheduler.suspend(p.pid);
+  scheduler.kill(p.pid);
+  assert.equal(p.state, ProcessState.KILLED);
+  assert.equal(scheduler.resume(p.pid), false);
+  assert.deepEqual(scheduler.list(), []);
+});
+
+test('start() while sleeping wakes the loop for a new process', async () => {
+  const lines = [];
+  const scheduler = new Scheduler();
+  const long = scheduler.spawn(chunkOf('Sleep(60)'), { out: () => {} });
+  const done = scheduler.start();
+  await new Promise((r) => setTimeout(r, 20));        // the loop is now sleeping ~60 s
+  const t0 = Date.now();
+  const quick = scheduler.spawn(chunkOf('Print "hi"'), { out: (t) => lines.push(t) });
+  assert.equal(scheduler.start(), done);
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(lines, ['hi']);
+  assert.equal(quick.state, ProcessState.DONE);
+  assert.ok(Date.now() - t0 < 1000);
+  scheduler.kill(long.pid);
+  scheduler.start();                                    // wake so the loop sees it is empty
+  await done;
+});

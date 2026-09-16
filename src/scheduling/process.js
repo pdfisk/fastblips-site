@@ -5,6 +5,7 @@
 //   [scheduled ->] ready -> running -> ready | sleeping ... -> done | failed | killed
 //
 // A process that calls Sleep goes to `sleeping`; the Scheduler wakes it later.
+// Any waiting or ready process can be `suspended`, and later resumed.
 
 import { VM } from '../vm/vm.js';
 
@@ -13,6 +14,7 @@ export const ProcessState = Object.freeze({
   READY: 'ready',
   RUNNING: 'running',
   SLEEPING: 'sleeping',
+  SUSPENDED: 'suspended',
   DONE: 'done',
   FAILED: 'failed',
   KILLED: 'killed',

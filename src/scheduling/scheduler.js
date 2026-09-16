@@ -25,6 +25,8 @@ export class Scheduler {
     this.scheduledQueue = [];     // waiting processes, sorted by startAt
     this.nextPid = 1;
     this.running = null;          // promise while start() is driving
+    this.wake = null;             // cuts start()'s current sleep short
+    this.suspended = new Map();   // pid -> { state, remaining } to restore on resume
   }
 
   /**
@@ -65,13 +67,55 @@ export class Scheduler {
 
   get(pid) { return this.processes.get(pid); }
 
+  /** Every process that has not finished (ready, waiting or suspended), by pid. */
+  list() {
+    return [...this.processes.values()].filter((p) => !p.finished);
+  }
+
   kill(pid) {
     const process = this.processes.get(pid);
     if (!process) return false;
     process.kill();
+    this.unqueue(process);
+    this.suspended.delete(pid);
+    return true;
+  }
+
+  /**
+   * Takes a process out of the queues so it gets no more turns until resumed.
+   * A delayed or sleeping process keeps the rest of its wait for later.
+   * Returns false if the process is unknown, finished or already suspended.
+   */
+  suspend(pid) {
+    const process = this.processes.get(pid);
+    if (!process || process.finished || this.suspended.has(pid)) return false;
+    const waiting = this.scheduledQueue.includes(process);
+    this.suspended.set(pid, {
+      state: process.state,
+      remaining: waiting ? Math.max(0, process.startAt - this.now()) : 0,
+    });
+    this.unqueue(process);
+    process.state = ProcessState.SUSPENDED;
+    return true;
+  }
+
+  /**
+   * Puts a suspended process back: ready at once, or waiting out whatever
+   * remained of its delay or Sleep. Call start() again if the scheduler is
+   * running in the background and had gone quiet.
+   */
+  resume(pid) {
+    const saved = this.suspended.get(pid);
+    const process = this.processes.get(pid);
+    if (!saved || !process) return false;
+    this.suspended.delete(pid);
+    this.scheduleProcess(process, saved.remaining, saved.state);
+    return true;
+  }
+
+  unqueue(process) {
     this.activeQueue = this.activeQueue.filter((p) => p !== process);
     this.scheduledQueue = this.scheduledQueue.filter((p) => p !== process);
-    return true;
   }
 
   /** Moves every waiting process whose time has arrived to activeQueue. */
@@ -90,7 +134,7 @@ export class Scheduler {
     return this.activeQueue.length === 0;
   }
 
-  /** True when no process is ready or waiting. */
+  /** True when no process is ready or waiting (suspended ones do not count). */
   get empty() {
     return this.activeQueue.length === 0 && this.scheduledQueue.length === 0;
   }
@@ -135,21 +179,28 @@ export class Scheduler {
    * Runs in the background without freezing the page: ticks for at most
    * `sliceMs` of wall-clock time, then yields to the event loop, and sleeps
    * while every process is waiting. Returns a promise that settles when both
-   * queues are empty. Calling it while it is already running returns the same
-   * promise, so new processes can be spawned at any time and then start()ed.
+   * queues are empty. Calling it while it is already running wakes the loop
+   * (so a newly spawned or resumed process runs at once) and returns the same
+   * promise, so processes can be spawned at any time and then start()ed.
    */
   start({ sliceMs = 16, sleep = defaultSleep } = {}) {
-    if (this.running) return this.running;
+    if (this.running) {
+      this.wake?.();
+      return this.running;
+    }
     const loop = async () => {
       try {
         while (!this.empty) {
           const deadline = this.now() + sliceMs;
           while (!this.idle && this.now() < deadline) this.tick();
           const wait = this.idle ? Math.max(0, this.nextStartAt - this.now()) : 0;
-          await sleep(wait);
+          const woken = new Promise((resolve) => { this.wake = resolve; });
+          await Promise.race([sleep(wait), woken]);
+          this.wake = null;
         }
       } finally {
         this.running = null;
+        this.wake = null;
       }
     };
     this.running = loop();

@@ -6,13 +6,13 @@ import { TextPanel } from '../widgets/text-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
 import { compile } from '../../index.js';
 import { formatDiagnostics } from '../../vm/diagnostics.js';
-import { Scheduler } from '../../scheduling/scheduler.js';
+import { scheduler } from '../runtime.js';
+
+// Programs from every console share one scheduler (see ../runtime.js), so they
+// take turns, and a Sleep in one never blocks the page or the others.
+export { scheduler };
 
 let count = 0;
-
-// One scheduler shared by every console, so programs in different consoles
-// take turns, and a Sleep in one never blocks the page or the others.
-export const scheduler = new Scheduler({ quantum: 1000 });
 
 export class ConsoleWindow extends HSplitWindow {
   constructor(options = {}) {
