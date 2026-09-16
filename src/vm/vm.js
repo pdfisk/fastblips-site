@@ -25,12 +25,14 @@ const ORDERED = new Set([Op.LT, Op.LE, Op.GT, Op.GE]);
 export class VM {
   constructor(chunk, {
     out = (text) => process.stdout.write(`${text}\n`),
+    transcript = null,   // sink for the Transcript built-in; defaults to `out`
     maxDepth = 10000,
     maxSteps = Infinity,
     random = Math.random,
   } = {}) {
     this.chunk = chunk;
     this.out = out;
+    this.transcript = transcript ?? out;
     this.maxDepth = maxDepth;
     this.maxSteps = maxSteps;
     this.random = random;

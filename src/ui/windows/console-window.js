@@ -3,6 +3,7 @@
 
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
+import { TranscriptWindow } from './transcript-window.js';
 import { run } from '../../index.js';
 import { formatDiagnostics } from '../../vm/diagnostics.js';
 
@@ -38,7 +39,8 @@ export class ConsoleWindow extends HSplitWindow {
   run() {
     const source = this.input.text;
     const filename = 'console.crumb';
-    const result = run(source, { filename });
+    const transcript = (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`);
+    const result = run(source, { filename, transcript });
     const lines = [...result.output];
     if (result.loadErrors.length > 0) {
       lines.push(formatDiagnostics(result.loadErrors, source, filename));

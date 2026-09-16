@@ -1,4 +1,4 @@
-// The 15 built-ins of spec section 10. Fixed arity, checked at compile time;
+// The built-ins: the 15 of spec section 10, plus Transcript. Fixed arity, checked at compile time;
 // argument types checked here, at the call.
 //
 // String positions are 1-based throughout, following VB.
@@ -118,6 +118,16 @@ export const BUILTIN_LIST = [
     fn: ([a]) => {
       if (!isArray(a)) fail(`UBound expects an Array, got ${typeName(a)}`);
       return a.bound;
+    },
+  },
+  {
+    // Transcript(value): writes value as a line to the transcript (the
+    // Transcript window in the UI). Called as a statement; returns Nothing.
+    name: 'Transcript',
+    arity: 1,
+    fn: ([v], vm) => {
+      vm.transcript(toStr(v));
+      return NOTHING;
     },
   },
 ];

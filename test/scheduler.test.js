@@ -59,3 +59,50 @@ test('kill removes a process from the queue', () => {
   assert.equal(p.state, ProcessState.KILLED);
   assert.ok(scheduler.idle);
 });
+
+test('delayed processes wait in scheduledQueue, sorted by start time', () => {
+  let clock = 1000;
+  const lines = [];
+  const out = (text) => lines.push(text);
+  const scheduler = new Scheduler({ quantum: 5, now: () => clock });
+  const late = scheduler.spawn(counter('late'), { out, delay: 200 });
+  const soon = scheduler.spawn(counter('soon'), { out, delay: 100 });
+  const now = scheduler.spawn(counter('now'), { out });
+
+  assert.deepEqual(scheduler.activeQueue, [now]);
+  assert.deepEqual(scheduler.scheduledQueue, [soon, late]);
+  assert.equal(soon.state, ProcessState.SCHEDULED);
+  assert.equal(scheduler.nextStartAt, 1100);
+
+  scheduler.runAll();
+  assert.deepEqual(lines, ['now1', 'now2', 'now3']);
+  assert.equal(late.state, ProcessState.SCHEDULED);
+
+  clock = 1100;
+  scheduler.runAll();
+  assert.equal(soon.state, ProcessState.DONE);
+  assert.deepEqual(scheduler.scheduledQueue, [late]);
+
+  clock = 1200;
+  scheduler.runAll();
+  assert.equal(late.state, ProcessState.DONE);
+  assert.ok(scheduler.empty);
+});
+
+test('runToCompletion sleeps until scheduled processes are due', async () => {
+  let clock = 0;
+  const sleeps = [];
+  const scheduler = new Scheduler({ now: () => clock });
+  const p = scheduler.spawn(counter('d'), { out: () => {}, delay: 50 });
+  await scheduler.runToCompletion(async (ms) => { sleeps.push(ms); clock += ms; });
+  assert.deepEqual(sleeps, [50]);
+  assert.equal(p.state, ProcessState.DONE);
+});
+
+test('kill removes a scheduled process', () => {
+  const scheduler = new Scheduler({ now: () => 0 });
+  const p = scheduler.spawn(counter('x'), { out: () => {}, delay: 10 });
+  scheduler.kill(p.pid);
+  assert.equal(p.state, ProcessState.KILLED);
+  assert.ok(scheduler.empty);
+});

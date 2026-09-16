@@ -2,11 +2,12 @@
 // Scheduler needs (id, name, state, exit result).
 //
 // The VM does the work; the Process only tracks where it is in its life:
-//   ready -> running -> ready ... -> done | failed | killed
+//   [scheduled ->] ready -> running -> ready ... -> done | failed | killed
 
 import { VM } from '../vm/vm.js';
 
 export const ProcessState = Object.freeze({
+  SCHEDULED: 'scheduled',
   READY: 'ready',
   RUNNING: 'running',
   DONE: 'done',
@@ -29,6 +30,7 @@ export class Process {
     this.state = ProcessState.READY;
     this.error = null;
     this.slices = 0;
+    this.startAt = null;          // ms timestamp, set by the Scheduler
   }
 
   get finished() { return FINISHED.has(this.state); }

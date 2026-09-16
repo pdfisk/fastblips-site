@@ -332,3 +332,20 @@ test('FizzBuzz produces the expected 20 lines', () => {
   assert.deepEqual(lines.slice(0, 5), ['1', '2', 'Fizz', '4', 'Buzz']);
   assert.equal(lines[14], 'FizzBuzz');
 });
+
+test('Transcript writes a line to the transcript sink, not to Print output', () => {
+  const lines = [];
+  const result = run('Transcript("count: " & 3)\nPrint "done"', { transcript: (t) => lines.push(t) });
+  assert.equal(result.error, null, result.error?.message);
+  assert.deepEqual(lines, ['count: 3']);
+  assert.deepEqual(result.output, ['done']);
+});
+
+test('Transcript falls back to Print output when no sink is given', () => {
+  assert.deepEqual(out('Transcript(42)'), ['42']);
+});
+
+test('Transcript takes exactly one argument', () => {
+  const result = run('Transcript("a", "b")');
+  assert.deepEqual(result.loadErrors.map((e) => e.message), ["'Transcript' takes 1 argument, found 2"]);
+});
