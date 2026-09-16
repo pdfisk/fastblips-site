@@ -229,8 +229,25 @@ An HSplitWindow for running Crumb code. Any number can be open at once.
     Ctrl+Enter in the source also runs it.
   - Load and runtime errors are shown in the output, in the section 11
     diagnostic format.
+  - Lines written by the Transcript built-in are appended to the
+    TranscriptWindow rather than to the console's output.
   - Each new console is titled Console, Console 2, ... and opens slightly
     below and to the right of the previous one.
+
+
+TranscriptWindow (singleton)
+----------------------------
+A Window showing the transcript: a log shared by every console.
+
+  - There is only one; TranscriptWindow.instance creates it on first use,
+    and constructing a second one throws.
+  - Its content is a TextPanel (transcriptWindow.textPanel). Each call to
+    the Transcript built-in from a ConsoleWindow appends one line to it and
+    scrolls it into view.
+  - Open at startup and always listed in the Windows menu (see Startup).
+  - Closing it only hides it: the instance and its text are kept, and the
+    Windows menu reopens it. dispose() discards the instance, and the next
+    use creates a new one.
 
 
 Spacer
