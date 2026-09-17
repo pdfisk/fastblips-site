@@ -186,10 +186,10 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with Console and Scheduler buttons followed by a Windows menu, which is
+with Basic and Scheduler buttons followed by a Windows menu, which is
 always the last item, and the TranscriptWindow is open.
 
-  - The Console button opens a new ConsoleWindow.
+  - The Basic button opens a new ConsoleWindow.
   - The Scheduler button opens the SchedulerWindow (or brings it to the
     front).
   - The Windows menu lists every open window by title, front-most first,

@@ -13,7 +13,7 @@ export function start() {
   const navbar = Navbar.instance;
   const transcript = TranscriptWindow.instance;
 
-  navbar.add(new Button('Console', () => new ConsoleWindow().open(viewport)));
+  navbar.add(new Button('Basic', () => new ConsoleWindow().open(viewport)));
   navbar.add(new Button('Scheduler', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;
