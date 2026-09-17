@@ -1,6 +1,8 @@
-// BasicConsoleWindow: a ConsoleWindow that runs Crumb code.
+// BasicConsoleWindow: a ConsoleWindow that runs Crumb code, edited in a
+// Monaco editor with VB.NET syntax highlighting.
 
 import { ConsoleWindow } from './console-window.js';
+import { MonacoPanel } from '../widgets/monaco-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
 import { compile } from '../../index.js';
 import { formatDiagnostics } from '../../vm/diagnostics.js';
@@ -13,6 +15,11 @@ export { scheduler };
 export class BasicConsoleWindow extends ConsoleWindow {
   static get titlePrefix() { return 'Basic Console'; }
   static get defaultText() { return 'Print "Hello, world"\n'; }
+
+  /** The source is edited in Monaco, highlighted as VB.NET. */
+  createInput(text) {
+    return new MonacoPanel({ text, language: 'vb' });
+  }
 
   constructor(options = {}) {
     super(options);

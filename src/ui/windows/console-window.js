@@ -15,6 +15,14 @@ export class ConsoleWindow extends HSplitWindow {
   /** The title prefix, e.g. 'Basic Console'. Subclasses override. */
   static get titlePrefix() { return 'Console'; }
 
+  /**
+   * Creates the source pane. Subclasses may override to supply a different
+   * TextPanel, such as a MonacoPanel with syntax highlighting.
+   */
+  createInput(text) {
+    return new TextPanel({ text });
+  }
+
   /** The source a new console starts with. Subclasses override. */
   static get defaultText() { return ''; }
 
@@ -29,7 +37,7 @@ export class ConsoleWindow extends HSplitWindow {
       ...options,
     });
     this.element.classList.add('cr-console-window');
-    this.input = new TextPanel({ text: options.text ?? cls.defaultText });
+    this.input = this.createInput(options.text ?? cls.defaultText);
     this.output = new TextPanel({ readOnly: true });
     this.output.textArea.style.background = '#f7f7f7';
     this.left = this.input;
@@ -37,12 +45,10 @@ export class ConsoleWindow extends HSplitWindow {
 
     this.buttonBar.addButton('Run', () => this.run());
     this.buttonBar.addButton('Clear Output', () => { this.output.text = ''; });
-    this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.textArea.focus(); });
+    this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.focus(); });
 
-    // Ctrl+Enter runs the code.
-    this.input.textArea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); this.run(); }
-    });
+    // Ctrl+Enter in the source runs the code.
+    this.input.element.addEventListener('submit', () => this.run());
   }
 
   /** Runs the source in the left pane. The base class does nothing. */

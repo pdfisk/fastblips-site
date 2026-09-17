@@ -13,6 +13,13 @@ export class TextPanel extends Panel {
     this.textArea.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;'
       + 'box-sizing:border-box;margin:0;border:0;outline:0;resize:none;padding:6px 8px;'
       + 'font:13px/1.4 ui-monospace,Consolas,monospace;background:#fff;color:#111';
+    // Ctrl/Cmd+Enter is reported as a 'submit' event (a console runs on it).
+    this.textArea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        this.element.dispatchEvent(new CustomEvent('submit'));
+      }
+    });
     this.textArea.addEventListener('input', () => {
       this.element.dispatchEvent(new CustomEvent('change', { detail: { text: this.text } }));
     });
@@ -31,6 +38,11 @@ export class TextPanel extends Panel {
   append(value) {
     this.textArea.value += String(value);
     this.textArea.scrollTop = this.textArea.scrollHeight;
+  }
+
+  /** Moves the keyboard focus into the text. */
+  focus() {
+    this.textArea.focus();
   }
 
   /** A TextPanel holds only its text area. */

@@ -27,6 +27,7 @@ Class hierarchy
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
       TextPanel
+        MonacoPanel
       ListPanel
     Menu
     Button
@@ -129,6 +130,25 @@ A Panel that contains a single text area filling its entire area.
   - Exposes the text through a text property (get and set), and fires a
     change event when the user edits it.
   - Can be made read-only, e.g. for program output.
+  - focus() moves the keyboard focus into the text.
+  - Ctrl+Enter (Cmd+Enter on a Mac) fires a submit event.
+
+
+MonacoPanel
+-----------
+A TextPanel whose text is edited in a Monaco editor (the editor behind VS
+Code), highlighted for a Monaco language id: new MonacoPanel({ text,
+language }), e.g. language 'vb' for VB.NET.
+
+  - Monaco is loaded from cdn.jsdelivr.net the first time a MonacoPanel is
+    created, and shared by every later one. Until it arrives the panel works
+    as a plain TextPanel; the text typed meanwhile carries over into the
+    editor. If it cannot be loaded (e.g. offline), the panel stays a plain
+    TextPanel.
+  - The text and readOnly properties, focus(), append() and the change and
+    submit events work the same with or without the editor.
+  - ready is a promise that resolves once the editor is up (to the editor,
+    or null if Monaco could not be loaded).
 
 
 ListPanel
@@ -243,6 +263,8 @@ language consoles below. Any number of consoles can be open at once.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
     run() and stop() methods. In ConsoleWindow itself both do nothing.
+  - createInput(text) makes the source pane: a TextPanel unless a subclass
+    overrides it (e.g. with a MonacoPanel).
   - Each subclass numbers its own windows: the first is titled with the
     prefix alone, then '<prefix> 2', ... Every new console, of any kind,
     opens slightly below and to the right of the previous one.
@@ -253,6 +275,7 @@ BasicConsoleWindow
 ------------------
 A ConsoleWindow that runs Crumb code, titled Basic Console, Basic Console 2, ...
 
+  - The source pane is a MonacoPanel with VB.NET highlighting.
   - Run compiles the source and starts it on the Scheduler shared by all
     consoles (src/ui/runtime.js), so programs run in the background, take
     turns, and a Sleep never freezes the page. Output appears as it is

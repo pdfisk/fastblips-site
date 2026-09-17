@@ -24,6 +24,7 @@ import { ConsoleWindow } from './windows/console-window.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
+import { MonacoPanel } from './widgets/monaco-panel.js';
 import { ListPanel } from './widgets/list-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { scheduler } from './runtime.js';
@@ -32,7 +33,7 @@ import { start } from './app.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
-  SplitPanel, HSplitPanel, TextPanel, ListPanel,
+  SplitPanel, HSplitPanel, TextPanel, MonacoPanel, ListPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow,
   scheduler, start,
