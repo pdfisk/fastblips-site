@@ -19,7 +19,7 @@ export class ConsoleWindow extends HSplitWindow {
     const n = count++;
     const offset = (n % 8) * 24;   // cascade each new console
     super({
-      title: n === 0 ? 'Console' : `Console ${n + 1}`,
+      title: n === 0 ? 'Basic Console' : `Basic Console ${n + 1}`,
       x: 440 + offset, y: 55 + offset, width: 560, height: 320,
       ...options,
     });

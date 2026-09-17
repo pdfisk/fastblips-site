@@ -244,8 +244,8 @@ An HSplitWindow for running Crumb code. Any number can be open at once.
     diagnostic format.
   - Lines written by the Transcript built-in are appended to the
     TranscriptWindow rather than to the console's output.
-  - Each new console is titled Console, Console 2, ... and opens slightly
-    below and to the right of the previous one.
+  - Each new console is titled Basic Console, Basic Console 2, ... and
+    opens slightly below and to the right of the previous one.
 
 
 TranscriptWindow (singleton)
