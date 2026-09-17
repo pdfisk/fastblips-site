@@ -5,7 +5,8 @@ import { Navbar } from './widgets/navbar.js';
 import { Menu } from './widgets/menu.js';
 import { Button } from './widgets/button.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
-import { ConsoleWindow } from './windows/console-window.js';
+import { BasicConsoleWindow } from './windows/basic-console-window.js';
+import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 
 export function start() {
@@ -13,7 +14,8 @@ export function start() {
   const navbar = Navbar.instance;
   const transcript = TranscriptWindow.instance;
 
-  navbar.add(new Button('Basic', () => new ConsoleWindow().open(viewport)));
+  navbar.add(new Button('Basic', () => new BasicConsoleWindow().open(viewport)));
+  navbar.add(new Button('Python', () => new PythonConsoleWindow().open(viewport)));
   navbar.add(new Button('Scheduler', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;

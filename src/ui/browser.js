@@ -21,6 +21,8 @@ import { HSplitPanel } from './widgets/hsplit-panel.js';
 import { Window } from './windows/window.js';
 import { HSplitWindow } from './windows/hsplit-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
+import { BasicConsoleWindow } from './windows/basic-console-window.js';
+import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
 import { ListPanel } from './widgets/list-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
@@ -31,7 +33,8 @@ import { start } from './app.js';
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
   SplitPanel, HSplitPanel, TextPanel, ListPanel,
-  Window, HSplitWindow, ConsoleWindow, TranscriptWindow, SchedulerWindow,
+  Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
+  TranscriptWindow, SchedulerWindow,
   scheduler, start,
 };
 

@@ -1,4 +1,4 @@
-// The one Scheduler the browser UI runs programs on. Every ConsoleWindow
+// The one Scheduler the browser UI runs programs on. Every BasicConsoleWindow
 // spawns into it and the SchedulerWindow shows and controls it.
 
 import { Scheduler } from '../scheduling/scheduler.js';

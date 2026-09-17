@@ -22,6 +22,8 @@ Class hierarchy
       Window
         HSplitWindow
           ConsoleWindow
+            BasicConsoleWindow
+            PythonConsoleWindow
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
       TextPanel
@@ -186,10 +188,11 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with Basic and Scheduler buttons followed by a Windows menu, which is
+with Basic, Python and Scheduler buttons followed by a Windows menu, which is
 always the last item, and the TranscriptWindow is open.
 
-  - The Basic button opens a new ConsoleWindow.
+  - The Basic button opens a new BasicConsoleWindow.
+  - The Python button opens a new PythonConsoleWindow.
   - The Scheduler button opens the SchedulerWindow (or brings it to the
     front).
   - The Windows menu lists every open window by title, front-most first,
@@ -229,23 +232,44 @@ A Window whose content is an HSplitPanel.
 
 ConsoleWindow
 -------------
-An HSplitWindow for running Crumb code. Any number can be open at once.
+An HSplitWindow for editing and running code: the shared base of the
+language consoles below. Any number of consoles can be open at once.
 
   - The left side is an editable TextPanel holding the source; the right
     side is a read-only TextPanel showing the output.
-  - Run compiles the source and starts it on the Scheduler shared by all
-    consoles (src/ui/runtime.js), so programs run in the background, take turns, and a Sleep
-    never freezes the page. Output appears as it is printed. Running again,
-    or closing the console, stops its previous program.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
     (empties the output) and Clear Input (empties the source) buttons.
     Ctrl+Enter in the source also runs it.
+  - A subclass sets its language by overriding the static titlePrefix
+    (e.g. 'Basic Console') and defaultText (the starting source), and the
+    run() and stop() methods. In ConsoleWindow itself both do nothing.
+  - Each subclass numbers its own windows: the first is titled with the
+    prefix alone, then '<prefix> 2', ... Every new console, of any kind,
+    opens slightly below and to the right of the previous one.
+  - Closing a console calls stop().
+
+
+BasicConsoleWindow
+------------------
+A ConsoleWindow that runs Crumb code, titled Basic Console, Basic Console 2, ...
+
+  - Run compiles the source and starts it on the Scheduler shared by all
+    consoles (src/ui/runtime.js), so programs run in the background, take
+    turns, and a Sleep never freezes the page. Output appears as it is
+    printed. Running again, or closing the console, stops its previous
+    program.
   - Load and runtime errors are shown in the output, in the section 11
     diagnostic format.
   - Lines written by the Transcript built-in are appended to the
     TranscriptWindow rather than to the console's output.
-  - Each new console is titled Basic Console, Basic Console 2, ... and
-    opens slightly below and to the right of the previous one.
+
+
+PythonConsoleWindow
+-------------------
+A ConsoleWindow for Python code, titled Python Console, Python Console 2, ...
+
+  - Starts with print("Hello, world") as its source.
+  - There is no Python runtime yet: Run does nothing.
 
 
 TranscriptWindow (singleton)
@@ -255,7 +279,7 @@ A Window showing the transcript: a log shared by every console.
   - There is only one; TranscriptWindow.instance creates it on first use,
     and constructing a second one throws.
   - Its content is a TextPanel (transcriptWindow.textPanel). Each call to
-    the Transcript built-in from a ConsoleWindow appends one line to it and
+    the Transcript built-in from a BasicConsoleWindow appends one line to it and
     scrolls it into view.
   - Its ButtonBar has a Clear button, which empties the transcript
     (transcriptWindow.clear()).
