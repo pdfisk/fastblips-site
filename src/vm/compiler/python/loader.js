@@ -44,7 +44,7 @@ export function formatLoadErrors(errors, filename = '<program>') {
  *     in boom(), called at tally.py:4
  */
 export function formatFault(fault, source, filename = '<program>') {
-  const lines = source.split('\n');
+  const lines = source.split(/\r\n|\n|\r/);
   const code = (lines[fault.line - 1] ?? '').trim();
   const excType = fault.excType ?? 'Error';
   const out = [`${filename}:${fault.line}: ${excType}${fault.message ? `: ${fault.message}` : ''}`];

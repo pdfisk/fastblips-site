@@ -69,7 +69,8 @@ and the MiniPy compiler only `core` + `python`.
 - **Sleep and transcript.** MiniPy's `sleep(seconds)` sets the same pending
   sleep that Crumb's `Sleep` sets. `CALL_VALUE` yields exactly as
   `CALL_BUILTIN` does, and the Scheduler never knows which language is
-  running. `transcript(v)` writes to the same sink as `Transcript`.
+  running. `transcript(*values)` prints like `print` but to the same sink as
+  `Transcript`.
 
 ## Values
 

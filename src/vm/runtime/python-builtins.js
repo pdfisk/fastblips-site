@@ -125,8 +125,11 @@ const FUNCTIONS = {
     return NOTHING;
   }],
 
-  // transcript(value): one line to the transcript, like Crumb's Transcript.
-  transcript: [1, 1, (vm, [v]) => { vm.transcript(pyStr(v)); return NOTHING; }],
+  // transcript(*values): print() to the transcript instead of the program's
+  // output. The values are written space-separated as one line, converted as
+  // str() does; with no values it writes an empty line. Like Crumb's
+  // Transcript, a host without a transcript sends it to the output.
+  transcript: [0, Infinity, (vm, args) => { vm.transcript(args.map(pyStr).join(' ')); return NOTHING; }],
 };
 
 export const FUNCTION_NAMES = Object.keys(FUNCTIONS);

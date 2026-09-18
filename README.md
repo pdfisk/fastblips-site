@@ -63,8 +63,8 @@ single inheritance, exceptions (`try`/`except`/`else`/`finally`, `raise`),
 f-strings, slices and list comprehensions. `int` is arbitrary precision and
 `float` is a double, as in Python. It compiles to the same bytecode as Crumb
 and runs on the same VM, so a MiniPy program also runs on the scheduler,
-yields for `sleep(seconds)`, and writes to the transcript with
-`transcript(value)`:
+yields for `sleep(seconds)`, and prints to the transcript with
+`transcript(*values)`, which takes the same arguments as `print`:
 
 ```js
 import { run, compile } from './src/vm/compiler/python/loader.js';

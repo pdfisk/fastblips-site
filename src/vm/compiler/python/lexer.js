@@ -12,7 +12,11 @@ class LexError {
   }
 }
 
-function lex(source) {
+function lex(text) {
+  // Windows editors (and Monaco on Windows) save \r\n; old Macs saved a bare
+  // \r. Both are a line break, so fold them to \n before scanning. Line
+  // numbers are unchanged.
+  const source = text.replace(/\r\n?/g, '\n');
   const tokens = [];
   const errors = [];
   const indentStack = [0];

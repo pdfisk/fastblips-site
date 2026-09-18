@@ -196,6 +196,15 @@ test('break and continue drop the handlers of try blocks they leave', () => {
   assert.deepEqual(out(source), ['outer handler still right 3']);
 });
 
+test('Windows (\\r\\n) and old Mac (\\r) line endings are line breaks', () => {
+  const source = 'def f(x):\n    if x:\n        return "yes"\n    return "no"\nprint(f(1), f(0))\n';
+  assert.deepEqual(out(source.replace(/\n/g, '\r\n')), ['yes no']);
+  assert.deepEqual(out(source.replace(/\n/g, '\r')), ['yes no']);
+  const r = failure('x = 1\r\ny = x + "a"\r\n');
+  assert.equal(r.fault.line, 2);
+  assert.match(r.error, /test\.py:2:     y = x \+ "a"$/m);
+});
+
 test('load errors are collected', () => {
   let r = failure('return 1\n');
   assert.match(r.loadErrors[0], /test\.py:1: error: 'return' outside function/);
@@ -256,8 +265,13 @@ test('an uncaught MiniPy exception fails only its own process', () => {
   assert.deepEqual(lines, ['fine']);
 });
 
-test('transcript() writes to the transcript sink', () => {
+test('transcript() prints to the transcript sink the way print() prints', () => {
   const transcript = [];
-  assert.deepEqual(out('transcript("log")\nprint("out")\n', { transcript: (t) => transcript.push(t) }), ['out']);
-  assert.deepEqual(transcript, ['log']);
+  const source = 'transcript("log")\ntranscript("n =", 3, 2.0, None, [1])\ntranscript()\nprint("out")\n';
+  assert.deepEqual(out(source, { transcript: (t) => transcript.push(t) }), ['out']);
+  assert.deepEqual(transcript, ['log', 'n = 3 2.0 None [1]', '']);
+});
+
+test('without a transcript sink, transcript() goes to the output', () => {
+  assert.deepEqual(out('transcript("a", 1)\nprint("b")\n'), ['a 1', 'b']);
 });
