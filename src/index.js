@@ -1,20 +1,20 @@
 // Public entry point: source text in, AST plus load errors out.
-// The load/compile/run pipeline lives in vm/loader.js; the functions below
+// The load/compile/run pipeline lives in vm/compiler/basic/loader.js; the functions below
 // are convenience wrappers around a shared default Loader.
 
-import { Loader } from './vm/loader.js';
+import { Loader } from './vm/compiler/basic/loader.js';
 
-export { Loader } from './vm/loader.js';
-export { tokenize, Lexer } from './vm/lexer.js';
-export { parseTokens, Parser } from './vm/parser.js';
-export { formatAst, formatTokens } from './vm/format.js';
-export { Compiler, compile as compileAst } from './vm/compiler.js';
+export { Loader } from './vm/compiler/basic/loader.js';
+export { tokenize, Lexer } from './vm/compiler/basic/lexer.js';
+export { parseTokens, Parser } from './vm/compiler/basic/parser.js';
+export { formatAst, formatTokens } from './vm/compiler/basic/format.js';
+export { Compiler, compile as compileAst } from './vm/compiler/basic/compiler.js';
 export { VM, run as runChunk, CrumbRuntimeError } from './vm/vm.js';
-export { disassemble } from './vm/disasm.js';
-export { Op, OP_NAMES } from './vm/opcodes.js';
-export { NOTHING, CrumbArray, toStr, typeName } from './vm/values.js';
-export { formatDiagnostics, CrumbError } from './vm/diagnostics.js';
-export { TokenType, KEYWORDS, BUILTINS } from './vm/tokens.js';
+export { disassemble } from './vm/compiler/basic/disasm.js';
+export { Op, OP_NAMES } from './vm/compiler/basic/opcodes.js';
+export { NOTHING, CrumbArray, toStr, typeName } from './vm/compiler/basic/values.js';
+export { formatDiagnostics, CrumbError } from './vm/compiler/basic/diagnostics.js';
+export { TokenType, KEYWORDS, BUILTINS } from './vm/compiler/basic/tokens.js';
 
 const loader = new Loader();
 

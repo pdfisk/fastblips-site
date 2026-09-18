@@ -2,11 +2,11 @@
 // hung off one global (window.Crumb).
 
 import { parse, compile, run } from '../index.js';
-import { disassemble } from '../vm/disasm.js';
-import { formatAst, formatTokens } from '../vm/format.js';
-import { formatDiagnostics } from '../vm/diagnostics.js';
-import { tokenize } from '../vm/lexer.js';
-import { KEYWORDS, BUILTINS } from '../vm/tokens.js';
+import { disassemble } from '../vm/compiler/basic/disasm.js';
+import { formatAst, formatTokens } from '../vm/compiler/basic/format.js';
+import { formatDiagnostics } from '../vm/compiler/basic/diagnostics.js';
+import { tokenize } from '../vm/compiler/basic/lexer.js';
+import { KEYWORDS, BUILTINS } from '../vm/compiler/basic/tokens.js';
 import { Widget } from './widgets/widget.js';
 import { Panel } from './widgets/panel.js';
 import { Viewport } from './widgets/viewport.js';

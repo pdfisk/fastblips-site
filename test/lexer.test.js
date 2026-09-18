@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { tokenize } from '../src/vm/lexer.js';
-import { TokenType } from '../src/vm/tokens.js';
+import { tokenize } from '../src/vm/compiler/basic/lexer.js';
+import { TokenType } from '../src/vm/compiler/basic/tokens.js';
 
 /** Token type/text pairs, with the trailing NEWLINE and EOF dropped. */
 function shape(source) {

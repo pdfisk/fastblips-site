@@ -5,7 +5,7 @@ import { ConsoleWindow } from './console-window.js';
 import { MonacoPanel } from '../widgets/monaco-panel.js';
 import { TranscriptWindow } from './transcript-window.js';
 import { compile } from '../../index.js';
-import { formatDiagnostics } from '../../vm/diagnostics.js';
+import { formatDiagnostics } from '../../vm/compiler/basic/diagnostics.js';
 import { scheduler } from '../runtime.js';
 
 // Programs from every console share one scheduler (see ../runtime.js), so they

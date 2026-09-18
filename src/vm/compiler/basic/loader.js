@@ -4,7 +4,7 @@
 import { tokenize } from './lexer.js';
 import { parseTokens } from './parser.js';
 import { compile as compileAst } from './compiler.js';
-import { run as runChunk } from './vm.js';
+import { run as runChunk } from '../../vm.js';
 import { formatDiagnostics, sortErrors, CrumbError } from './diagnostics.js';
 
 export class Loader {

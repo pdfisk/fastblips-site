@@ -9,11 +9,11 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./lexer": "./src/vm/lexer.js",
-    "./parser": "./src/vm/parser.js",
-    "./compiler": "./src/vm/compiler.js",
+    "./lexer": "./src/vm/compiler/basic/lexer.js",
+    "./parser": "./src/vm/compiler/basic/parser.js",
+    "./compiler": "./src/vm/compiler/basic/compiler.js",
     "./vm": "./src/vm/vm.js",
-    "./loader": "./src/vm/loader.js"
+    "./loader": "./src/vm/compiler/basic/loader.js"
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\"",

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parse, parseOrThrow } from '../src/index.js';
-import { formatAst } from '../src/vm/format.js';
+import { formatAst } from '../src/vm/compiler/basic/format.js';
 
 /** Parses one expression by wrapping it in `Print`, and returns the AST node. */
 function expr(source) {

@@ -25,7 +25,7 @@ const FINISHED = new Set([ProcessState.DONE, ProcessState.FAILED, ProcessState.K
 export class Process {
   /**
    * @param {number} pid     id assigned by the Scheduler
-   * @param {object} chunk   compiled bytecode (see vm/compiler.js)
+   * @param {object} chunk   compiled bytecode (see vm/compiler/basic/compiler.js)
    * @param {object} options { name, onExit, ...VM options }
    *   onExit(process) is called once, when the process finishes for any reason.
    */
