@@ -7,8 +7,8 @@
 // flat slots array. Blocks do not scope, so a Dim inside an If body occupies a
 // procedure slot and is visible for the rest of that procedure.
 
-import { Op, BINARY_OPS } from './opcodes.js';
-import { BUILTINS } from './builtins.js';
+import { Op, CRUMB_BINARY_OPS as BINARY_OPS, FORMAT } from '../../opcodes.js';
+import { BUILTINS } from '../../runtime/crumb-builtins.js';
 import { CrumbError, sortErrors } from './diagnostics.js';
 
 class Scope {
@@ -185,6 +185,7 @@ export class Compiler {
     for (const proc of this.procs) this.procedure(proc);
 
     return {
+      language: 'crumb',
       filename: this.filename,
       code: this.code,
       lines: this.lines,
@@ -249,6 +250,7 @@ export class Compiler {
     this.emit(proc.kind === 'Sub' ? Op.RETURN_NOTHING : Op.NO_RETURN);
 
     proc.slotCount = scope.count;
+    proc.slotNames = [...scope.names.values()].map((e) => e.name);
     this.loops = outerLoops;
     this.scope = this.module;
   }
@@ -342,7 +344,7 @@ export class Compiler {
 
   print(node) {
     for (const arg of node.args) this.expression(arg);
-    this.emit(Op.PRINT, node.args.length);
+    this.emit(Op.PRINT, node.args.length, FORMAT.CRUMB);
   }
 
   ifStatement(node) {

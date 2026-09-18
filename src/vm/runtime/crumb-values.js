@@ -1,20 +1,15 @@
-// Runtime value representation and the conversions of spec sections 3 and 10.
+// Crumb's view of the shared runtime values (src/vm/values.js) and the
+// conversions of spec sections 3 and 10.
 //
 //   Number  -> JS number (double)
 //   String  -> JS string
 //   Boolean -> JS boolean
-//   Nothing -> the NOTHING sentinel
+//   Nothing -> NOTHING (null), the same value as MiniPy's None
 //   Array   -> CrumbArray
 
-/** The single Nothing value (section 3). */
-export const NOTHING = Symbol('Crumb.Nothing');
+import { NOTHING, CrumbArray } from '../values.js';
 
-export class CrumbArray {
-  constructor(bound) {
-    this.bound = bound;                                  // highest valid index
-    this.elements = new Array(bound + 1).fill(NOTHING);
-  }
-}
+export { NOTHING, CrumbArray };
 
 export function typeName(value) {
   if (value === NOTHING) return 'Nothing';

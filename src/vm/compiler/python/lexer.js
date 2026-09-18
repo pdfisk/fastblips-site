@@ -80,6 +80,14 @@ function lex(source) {
       s += advance();
       while (pos < len && isDigit(peek())) s += advance();
     }
+    // An exponent makes a float: 1e16, 2.5E-3.
+    if ((peek() === 'e' || peek() === 'E')
+      && (isDigit(peek(1)) || ((peek(1) === '+' || peek(1) === '-') && isDigit(peek(2))))) {
+      isFloat = true;
+      s += advance();
+      if (peek() === '+' || peek() === '-') s += advance();
+      while (pos < len && isDigit(peek())) s += advance();
+    }
     tokens.push(new Token(T.NUMBER, { text: s, isFloat, value: parseFloat(s) }, startLine, startCol));
   }
 

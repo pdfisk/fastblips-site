@@ -1,0 +1,5 @@
+before
+err_unhandled.py:2: TypeError: unsupported operand type(s) for +: 'int' and 'str'
+err_unhandled.py:2:     return x + "a"
+  in boom(), called at err_unhandled.py:4
+  in mid(), called at err_unhandled.py:6

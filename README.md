@@ -5,31 +5,38 @@ Visual-Basic-flavoured language specified in [`docs/crumb-v0.1-spec.md`](docs/cr
 
 Zero dependencies, ES modules, Node 18+.
 
-`src/vm/compiler/` holds the language implementations, front end to back: one
-folder per language, each with the same shape. `src/scheduling/` runs several
-programs in turn, and `src/ui/` is the browser UI.
+`src/vm/` holds one bytecode VM and the two front ends that compile to it:
+Crumb, and MiniPy (a Python subset). `src/scheduling/` runs several programs
+in turn, whatever their language, and `src/ui/` is the browser UI.
 
 ```
 src/index.js          parse() / compile() / run() for Crumb
 src/ui/browser.js     the bundle entry point (everything on window.Crumb)
+
+src/vm/                           the shared back end
+  opcodes.js          the one instruction set: core, crumb and python sections
+  vm.js               the stack machine that runs every chunk
+  values.js           runtime value kinds shared by both languages
+  faults.js           runtime fault codes and their per-language wording
+  disasm.js           bytecode listing for any chunk
+  runtime/
+    crumb-values.js   Crumb's type names and Str conversion   (sections 3, 10)
+    crumb-builtins.js the 17 Crumb built-in functions        (section 10)
+    python-values.js  MiniPy's type names, truthiness, str/repr, numeric tower
+    python-ops.js     MiniPy's operators, subscripts, attributes, iteration
+    python-builtins.js MiniPy's built-ins, exceptions and methods
 
 src/vm/compiler/basic/            Crumb — the language this repo specifies
   tokens.js           token classes, the 24 reserved words, the 17 built-ins
   lexer.js            source text -> tokens              (spec section 2)
   parser.js           tokens      -> AST                 (spec section 13)
   compiler.js         AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
-  opcodes.js          the instruction set
-  values.js           runtime values and conversions     (sections 3, 10)
-  builtins.js         the 17 built-in functions          (section 10)
-  vm.js               the stack machine
   loader.js           the tokenize -> parse -> compile -> run pipeline
-  disasm.js           bytecode listing
   diagnostics.js      CrumbError + the section 11 diagnostic format
   format.js           AST -> indented s-expression; tokens -> table
 
-src/vm/compiler/python/           MiniPy — a Python subset, same pipeline
-  tokens.js lexer.js parser.js compiler.js opcodes.js
-  values.js builtins.js vm.js diagnostics.js
+src/vm/compiler/python/           MiniPy — a Python subset
+  tokens.js lexer.js parser.js compiler.js
   loader.js           parse() / compile() / run() for MiniPy
 
 src/scheduling/process.js    Process: one running program (a VM + state)
@@ -40,31 +47,43 @@ src/ui/runtime.js     the Scheduler the browser UI runs programs on
 src/ui/windows/basic-console-window.js    a console that runs Crumb
 src/ui/windows/python-console-window.js   a console that runs MiniPy
 
-bin/crumb.js          CLI
+bin/crumb.js          CLI (.crumb files, and .py files through MiniPy)
 web/                  the playground page and its build
+docs/shared-opcodes.md  how the two languages share one instruction set
 ```
 
 ## Front ends
 
-Crumb is the language the spec describes, and the one everything else in this
-README is about: the CLI, `src/index.js`, the test suite and the scheduler are
-all Crumb's.
+Crumb is the language the spec describes, and the one most of this README is
+about.
 
-MiniPy is a second, smaller front end under `src/vm/compiler/python/` —
-indentation-delimited Python with functions, classes, exceptions, f-strings
-and list comprehensions, compiled to its own bytecode and run on its own stack
-machine. It shares the pipeline's shape but none of its code, and is reached
-through its own loader rather than `src/index.js`:
+MiniPy is a second front end under `src/vm/compiler/python/`:
+indentation-delimited Python with functions, default arguments, classes with
+single inheritance, exceptions (`try`/`except`/`else`/`finally`, `raise`),
+f-strings, slices and list comprehensions. `int` is arbitrary precision and
+`float` is a double, as in Python. It compiles to the same bytecode as Crumb
+and runs on the same VM, so a MiniPy program also runs on the scheduler,
+yields for `sleep(seconds)`, and writes to the transcript with
+`transcript(value)`:
 
 ```js
-import { run } from './src/vm/compiler/python/loader.js';
+import { run, compile } from './src/vm/compiler/python/loader.js';
 
 const { output, loadErrors, error, ok } = run(source, { filename: 'tally.py' });
+scheduler.spawn(compile(source).chunk, { name: 'tally' });
 ```
 
-Its VM has no `runSlice`, so a MiniPy program runs to completion rather than
-on the scheduler; `maxSteps` is what bounds a runaway loop. There is no CLI
-front end for it, and the test suite does not cover it yet.
+An uncaught exception is reported like this:
+
+```
+tally.py:2: TypeError: unsupported operand type(s) for +: 'int' and 'str'
+tally.py:2:     return x + "a"
+  in boom(), called at tally.py:4
+  in mid(), called at tally.py:6
+```
+
+`docs/shared-opcodes.md` explains how the instruction set is split between
+the two languages.
 
 ## Playground
 
@@ -187,14 +206,23 @@ flat slots array per procedure), classifies each `Apply` node as an array
 index, a user call or a built-in call, inserts `For`'s implicit loop-variable
 declaration, and reports the load errors the parser cannot see.
 
-**VM.** A stack machine with a switch dispatch over a flat `code` array of
-opcode-plus-inline-operand words. Types are checked at the instruction,
-because Crumb does no coercion.
+**VM.** One stack machine, `src/vm/vm.js`, for both languages: a switch
+dispatch over a flat `code` array of opcode-plus-inline-operand words. Types
+are checked at the instruction, because Crumb does no coercion. Frames, the
+value stack and MiniPy's exception handlers are all VM state, so any program
+can be paused after any instruction and resumed.
 
 ## Bytecode
 
-37 opcodes. Operands are inline; jump targets are absolute addresses into
-`code`, so a disassembly listing's addresses match its jump annotations.
+88 opcodes in three sections: 18 `core` opcodes whose meaning does not
+depend on the language (constants, slots, jumps, calls, returns, `PRINT`,
+`HALT`), 23 `crumb` opcodes with Crumb's value rules, and 47 `python` opcodes
+with MiniPy's. Where the two languages disagree about an operator, each
+meaning has its own opcode (`MOD_TRUNC` vs `PY_MOD`, `AND_JUMP` vs
+`JUMP_IF_FALSY_KEEP`). The Crumb compiler emits only core and crumb opcodes;
+the tests check that for every example. Operands are inline; jump targets are
+absolute addresses into `code`, so a disassembly listing's addresses match
+its jump annotations.
 
 ```
 chunk = {
@@ -202,8 +230,11 @@ chunk = {
   lines:       number[]    // parallel to code: source line per word
   constants:   value[]     // pooled; identical literals share a slot
   globalCount, globalNames
-  procedures:  [{ name, kind, arity, entry, slotCount, line }]
+  procedures:  [{ name, kind, arity, entry, slotCount, slotNames, line }]
   entry:       0           // module code runs first, procedures are appended
+  language:    'crumb' | 'python'   // picks error wording only
+  // MiniPy chunks also carry globalInit (built-ins in their slots),
+  // initialSlot (UNBOUND) and runtime (MiniPy's runtime library)
 }
 ```
 
@@ -221,11 +252,11 @@ check, which is what makes `False And 1 = "x"` legal.
 
 ```
 $ crumb dis examples/factorial.crumb
-line     addr  op             args    ; note
-    6      0  CONST          0       ; 0
-    |      2  CONST          1       ; 9
-    |      4  SET_GLOBAL     1       ; for$limit$1
-    |      6  SET_GLOBAL     0       ; i
+line     addr  op                 args    ; note
+    6      0  CONST              0       ; 0
+    |      2  CONST              1       ; 9
+    |      4  SET_GLOBAL         1       ; for$limit$1
+    |      6  SET_GLOBAL         0       ; i
     ...
 ```
 
@@ -293,7 +324,7 @@ exhausted by runaway recursion, and the instruction budget.
 npm test
 ```
 
-136 tests: lexer behaviour; every precedence rule and associativity in section
+167 tests. For Crumb: lexer behaviour; every precedence rule and associativity in section
 8; each statement form; the procedure rules; error collection and recovery;
 resolution, arity and slot allocation; the VM's arithmetic, comparison,
 short-circuiting, control flow, arrays, procedures and built-ins; and the
@@ -303,6 +334,12 @@ suspend and resume, failure isolation and kill.
 diagnostics, so a recovery regression that starts cascading fails the build;
 `examples/errors.crumb` asserts the runtime traceback.
 
+For MiniPy (`test/python.test.js`): every program in `test/python/` must
+print exactly its `.out` file, and for everything CPython can run that file is
+CPython's own output. Then the opcode table's integrity, which sections each
+compiler may emit, exceptions unwinding across frames, int precision, and
+Crumb and MiniPy processes sharing one scheduler.
+
 Beyond the suite: 20,000 random token streams and 4,000 generated programs run
 without a crash, a hang or a single unbalanced value stack. The playground page
 has its own 14-check headless pass covering the buttons, the keyboard
@@ -311,13 +348,18 @@ the 400px layout.
 
 ## Performance
 
-Node 22, one core:
+Node 22, one core, on the shared VM:
 
 | program | ops | throughput |
 |---|---|---|
-| `Fib(27)` recursive | 6.4 M | 7.8 M ops/s |
-| 3 M-iteration `For` with `Mod` | 45 M | 13.1 M ops/s |
-| Sieve to 200,000 | 10.6 M | 10.4 M ops/s |
+| Crumb `Fib(27)` recursive | 6.4 M | 12.8 M ops/s |
+| Crumb 3 M-iteration `For` with `Mod` | 45 M | 23.2 M ops/s |
+| MiniPy `fib(24)` recursive | 1.7 M | 16.2 M ops/s |
+| MiniPy 1 M-iteration `for` with `%` | 9.0 M | 32.5 M ops/s |
+
+MiniPy's ints are bigints, which is exact but costs something: those two
+MiniPy programs run about 20-45% slower than on MiniPy's old separate VM,
+which used doubles for ints.
 
 ## Still to come
 

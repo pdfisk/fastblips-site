@@ -1,0 +1,23 @@
+1 -1
+[1, 3]
+300
+[0, 1, 4, 9] module n
+NameError cannot access local variable 'x' where it is not associated with a value
+None 0
+bare class raised True
+500
+4999950000
+True True True True
+1 2 3
+pair three
+True True True True
+2.5 2 -3 -2 1.4142135623730951
+1 1.0 None False True
+5 2 5050 7
+1 + 2 = 3
+['hello', 'world'] 2 True
+6 14 111
+0 0 0 5 [10, 7, 4, 1]
+True False True
+-4 1 -4 -1 -4.0 1.0
+inf -inf 0.30000000000000004 0.3333333333333333

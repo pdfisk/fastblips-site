@@ -1,0 +1,22 @@
+finally 7 2
+3
+caught: integer division or modulo by zero
+finally 1 0
+None
+IndexError: list index out of range
+KeyError
+NameError: name 'undefined_name' is not defined
+TypeError: unsupported operand type(s) for +: 'int' and 'str'
+0
+1
+2
+MyError too big: 3
+outer got inner
+re-raised
+cleanup
+from try
+inner finally
+propagated through finally
+tuple match plain
+bad int
+else ran

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { compile } from '../src/index.js';
-import { Op, OP_NAMES, OPERANDS } from '../src/vm/compiler/basic/opcodes.js';
-import { BUILTIN_LIST } from '../src/vm/compiler/basic/builtins.js';
+import { Op, OP_NAMES, OPERANDS } from '../src/vm/opcodes.js';
+import { BUILTIN_LIST } from '../src/vm/runtime/crumb-builtins.js';
 import { BUILTINS as LEXICAL_BUILTINS } from '../src/vm/compiler/basic/tokens.js';
 
 function messages(source) {

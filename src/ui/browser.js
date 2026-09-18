@@ -2,7 +2,8 @@
 // hung off one global (window.Crumb).
 
 import { parse, compile, run } from '../index.js';
-import { disassemble } from '../vm/compiler/basic/disasm.js';
+import { disassemble } from '../vm/disasm.js';
+import * as python from '../vm/compiler/python/loader.js';
 import { formatAst, formatTokens } from '../vm/compiler/basic/format.js';
 import { formatDiagnostics } from '../vm/compiler/basic/diagnostics.js';
 import { tokenize } from '../vm/compiler/basic/lexer.js';
@@ -41,5 +42,5 @@ const ui = {
 
 export {
   parse, compile, run, disassemble, formatAst, formatTokens,
-  formatDiagnostics, tokenize, KEYWORDS, BUILTINS, ui,
+  formatDiagnostics, tokenize, KEYWORDS, BUILTINS, python, ui,
 };

@@ -6,7 +6,7 @@
 import {
   NOTHING, CrumbArray, typeName, toStr, formatNumber,
   isNumber, isString, isArray,
-} from './values.js';
+} from './crumb-values.js';
 
 /** Thrown by a builtin; the VM turns it into a positioned runtime error. */
 export class BuiltinError extends Error {}

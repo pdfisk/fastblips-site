@@ -408,7 +408,7 @@ class Parser {
 
   primary() {
     const t = this.cur();
-    if (t.type === T.NUMBER) { this.advance(); return { type: 'Num', value: t.value.value, isFloat: t.value.isFloat, line: t.line }; }
+    if (t.type === T.NUMBER) { this.advance(); return { type: 'Num', value: t.value.value, text: t.value.text, isFloat: t.value.isFloat, line: t.line }; }
     if (t.type === T.STRING) { this.advance(); return { type: 'Str', value: t.value, line: t.line }; }
     if (t.type === T.FSTRING) {
       this.advance();

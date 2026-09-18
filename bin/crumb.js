@@ -1,16 +1,22 @@
 #!/usr/bin/env node
-// crumb — load a .crumb file and print its tokens, AST, or load errors.
+// crumb — load a .crumb (or MiniPy .py) file and run, disassemble or inspect it.
 //
-//   crumb parse  <file>   indented s-expression AST (default)
-//   crumb tokens <file>   one line per token
-//   crumb json   <file>   the AST as JSON
+//   crumb run    <file>   compile and execute (default)
+//   crumb dis    <file>   disassemble the bytecode
 //   crumb check  <file>   load errors only; exit 1 if any
+//   crumb parse  <file>   indented s-expression AST        (Crumb only)
+//   crumb tokens <file>   one line per token               (Crumb only)
+//   crumb json   <file>   the AST as JSON
+//
+// A .py file goes through the MiniPy front end. Both languages compile to the
+// same bytecode and run on the same VM.
 
 import { readFileSync } from 'node:fs';
-import { basename } from 'node:path';
+import { basename, extname } from 'node:path';
 import {
   parse, compile, run, formatAst, formatTokens, formatDiagnostics, disassemble,
 } from '../src/index.js';
+import * as python from '../src/vm/compiler/python/loader.js';
 
 const COMMANDS = new Set(['run', 'parse', 'tokens', 'json', 'check', 'dis']);
 
@@ -21,11 +27,11 @@ const file = argv[0];
 
 if (!file) {
   process.stderr.write(
-    'usage: crumb <command> <file.crumb>\n'
+    'usage: crumb <command> <file.crumb | file.py>\n'
     + '  run     compile and execute      (default)\n'
     + '  dis     disassemble the bytecode\n'
-    + '  parse   indented s-expression AST\n'
-    + '  tokens  one line per token\n'
+    + '  parse   indented s-expression AST (Crumb)\n'
+    + '  tokens  one line per token        (Crumb)\n'
     + '  json    the AST as JSON\n'
     + '  check   load errors only\n',
   );
@@ -42,12 +48,40 @@ try {
 
 const filename = basename(file);
 
+// --- MiniPy ------------------------------------------------------------------
+if (extname(file) === '.py') {
+  if (command === 'parse' || command === 'tokens') {
+    process.stderr.write(`crumb: '${command}' is not available for MiniPy; try 'json'\n`);
+    process.exit(2);
+  }
+  if (command === 'json') {
+    const { module, errors } = python.parse(source);
+    if (errors.length) process.stderr.write(`${python.formatLoadErrors(errors, filename).join('\n')}\n`);
+    process.stdout.write(`${JSON.stringify(module, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)}\n`);
+    process.exit(errors.length ? 1 : 0);
+  }
+  const { chunk, loadErrors } = python.compile(source, { filename });
+  if (!chunk) {
+    process.stderr.write(`${python.formatLoadErrors(loadErrors, filename).join('\n')}\n`);
+    process.stderr.write(`${loadErrors.length} load error${loadErrors.length === 1 ? '' : 's'}\n`);
+    process.exit(1);
+  }
+  if (command === 'check') { process.stdout.write(`${filename}: ok\n`); process.exit(0); }
+  if (command === 'dis') { process.stdout.write(`${disassemble(chunk)}\n`); process.exit(0); }
+  const result = python.run(source, { filename, out: (text) => process.stdout.write(`${text}\n`) });
+  if (result.error) {
+    process.stderr.write(`${result.error}\n`);
+    process.exit(1);
+  }
+  process.exit(0);
+}
+
+// --- Crumb: front end only ---------------------------------------------------
 function reportLoadErrors(errors) {
   process.stderr.write(`${formatDiagnostics(errors, source, filename)}\n`);
   process.stderr.write(`${errors.length} load error${errors.length === 1 ? '' : 's'}\n`);
 }
 
-// --- front end only ----------------------------------------------------------
 if (command === 'tokens' || command === 'parse' || command === 'json') {
   const { ast, tokens, errors, ok } = parse(source, { filename });
   if (!ok) reportLoadErrors(errors);
@@ -57,7 +91,7 @@ if (command === 'tokens' || command === 'parse' || command === 'json') {
   process.exit(ok ? 0 : 1);
 }
 
-// --- through the compiler ----------------------------------------------------
+// --- Crumb: through the compiler ---------------------------------------------
 const { chunk, errors, ok } = compile(source, { filename });
 if (!ok) {
   reportLoadErrors(errors);
@@ -74,7 +108,6 @@ if (command === 'dis') {
   process.exit(0);
 }
 
-// --- run ---------------------------------------------------------------------
 const result = run(source, {
   filename,
   out: (text) => process.stdout.write(`${text}\n`),

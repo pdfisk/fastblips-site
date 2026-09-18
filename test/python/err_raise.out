@@ -1,0 +1,3 @@
+err_raise.py:4: Oops: custom failure
+err_raise.py:4:     raise Oops("custom failure")
+  in f(), called at err_raise.py:5

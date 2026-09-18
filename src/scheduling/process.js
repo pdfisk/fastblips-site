@@ -1,4 +1,4 @@
-// A Process is one running Crumb program: a VM plus the bookkeeping the
+// A Process is one running program, Crumb or MiniPy: a VM plus the bookkeeping the
 // Scheduler needs (id, name, state, exit result).
 //
 // The VM does the work; the Process only tracks where it is in its life:
@@ -7,7 +7,7 @@
 // A process that calls Sleep goes to `sleeping`; the Scheduler wakes it later.
 // Any waiting or ready process can be `suspended`, and later resumed.
 
-import { VM } from '../vm/compiler/basic/vm.js';
+import { VM } from '../vm/vm.js';
 
 export const ProcessState = Object.freeze({
   SCHEDULED: 'scheduled',
@@ -25,7 +25,7 @@ const FINISHED = new Set([ProcessState.DONE, ProcessState.FAILED, ProcessState.K
 export class Process {
   /**
    * @param {number} pid     id assigned by the Scheduler
-   * @param {object} chunk   compiled bytecode (see vm/compiler/basic/compiler.js)
+   * @param {object} chunk   compiled bytecode from either compiler (see src/vm/opcodes.js)
    * @param {object} options { name, onExit, ...VM options }
    *   onExit(process) is called once, when the process finishes for any reason.
    */
