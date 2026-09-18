@@ -7,7 +7,7 @@
 // A process that calls Sleep goes to `sleeping`; the Scheduler wakes it later.
 // Any waiting or ready process can be `suspended`, and later resumed.
 
-import { VM } from '../vm/vm.js';
+import { VM } from '../vm/compiler/basic/vm.js';
 
 export const ProcessState = Object.freeze({
   SCHEDULED: 'scheduled',

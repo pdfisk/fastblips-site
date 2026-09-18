@@ -9,7 +9,7 @@ export { tokenize, Lexer } from './vm/compiler/basic/lexer.js';
 export { parseTokens, Parser } from './vm/compiler/basic/parser.js';
 export { formatAst, formatTokens } from './vm/compiler/basic/format.js';
 export { Compiler, compile as compileAst } from './vm/compiler/basic/compiler.js';
-export { VM, run as runChunk, CrumbRuntimeError } from './vm/vm.js';
+export { VM, run as runChunk, CrumbRuntimeError } from './vm/compiler/basic/vm.js';
 export { disassemble } from './vm/compiler/basic/disasm.js';
 export { Op, OP_NAMES } from './vm/compiler/basic/opcodes.js';
 export { NOTHING, CrumbArray, toStr, typeName } from './vm/compiler/basic/values.js';

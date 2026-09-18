@@ -12,7 +12,7 @@
     "./lexer": "./src/vm/compiler/basic/lexer.js",
     "./parser": "./src/vm/compiler/basic/parser.js",
     "./compiler": "./src/vm/compiler/basic/compiler.js",
-    "./vm": "./src/vm/vm.js",
+    "./vm": "./src/vm/compiler/basic/vm.js",
     "./loader": "./src/vm/compiler/basic/loader.js"
   },
   "scripts": {

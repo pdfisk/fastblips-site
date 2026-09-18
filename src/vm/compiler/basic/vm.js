@@ -4,13 +4,13 @@
 // typed and does no coercion (spec section 3). Every failure becomes a
 // positioned runtime error with a traceback (section 11).
 
-import { Op, OP_NAMES } from './compiler/basic/opcodes.js';
+import { Op, OP_NAMES } from './opcodes.js';
 import {
   NOTHING, CrumbArray, typeName, toStr, formatNumber,
   isNumber, isString, isBoolean, isArray,
-} from './compiler/basic/values.js';
-import { BUILTIN_LIST, BuiltinError } from './compiler/basic/builtins.js';
-import { CrumbError } from './compiler/basic/diagnostics.js';
+} from './values.js';
+import { BUILTIN_LIST, BuiltinError } from './builtins.js';
+import { CrumbError } from './diagnostics.js';
 
 export class CrumbRuntimeError extends CrumbError {
   constructor(message, { line, column = 0, traceback = [] } = {}) {
