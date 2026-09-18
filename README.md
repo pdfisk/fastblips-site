@@ -5,35 +5,66 @@ Visual-Basic-flavoured language specified in [`docs/crumb-v0.1-spec.md`](docs/cr
 
 Zero dependencies, ES modules, Node 18+.
 
-`src/vm/` holds the language implementation, front end to back.
-`src/scheduling/` runs several programs in turn, and `src/ui/` is the
-browser UI.
+`src/vm/compiler/` holds the language implementations, front end to back: one
+folder per language, each with the same shape. `src/scheduling/` runs several
+programs in turn, and `src/ui/` is the browser UI.
 
 ```
-src/index.js          parse() / compile() / run()
+src/index.js          parse() / compile() / run() for Crumb
 src/ui/browser.js     the bundle entry point (everything on window.Crumb)
 
-src/vm/tokens.js      token classes, the 24 reserved words, the 17 built-ins
-src/vm/lexer.js       source text -> tokens              (spec section 2)
-src/vm/parser.js      tokens      -> AST                 (spec section 13)
-src/vm/compiler.js    AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
-src/vm/opcodes.js     the instruction set
-src/vm/values.js      runtime values and conversions     (sections 3, 10)
-src/vm/builtins.js    the 17 built-in functions          (section 10)
-src/vm/vm.js          the stack machine
-src/vm/disasm.js      bytecode listing
-src/vm/diagnostics.js CrumbError + the section 11 diagnostic format
-src/vm/format.js      AST -> indented s-expression; tokens -> table
+src/vm/compiler/basic/            Crumb — the language this repo specifies
+  tokens.js           token classes, the 24 reserved words, the 17 built-ins
+  lexer.js            source text -> tokens              (spec section 2)
+  parser.js           tokens      -> AST                 (spec section 13)
+  compiler.js         AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
+  opcodes.js          the instruction set
+  values.js           runtime values and conversions     (sections 3, 10)
+  builtins.js         the 17 built-in functions          (section 10)
+  vm.js               the stack machine
+  loader.js           the tokenize -> parse -> compile -> run pipeline
+  disasm.js           bytecode listing
+  diagnostics.js      CrumbError + the section 11 diagnostic format
+  format.js           AST -> indented s-expression; tokens -> table
+
+src/vm/compiler/python/           MiniPy — a Python subset, same pipeline
+  tokens.js lexer.js parser.js compiler.js opcodes.js
+  values.js builtins.js vm.js diagnostics.js
+  loader.js           parse() / compile() / run() for MiniPy
 
 src/scheduling/process.js    Process: one running program (a VM + state)
 src/scheduling/scheduler.js  Scheduler: round-robin time slicing, delayed starts
 
 src/ui/               widgets and windows (see docs/widgets.txt)
 src/ui/runtime.js     the Scheduler the browser UI runs programs on
+src/ui/windows/basic-console-window.js    a console that runs Crumb
+src/ui/windows/python-console-window.js   a console that runs MiniPy
 
 bin/crumb.js          CLI
 web/                  the playground page and its build
 ```
+
+## Front ends
+
+Crumb is the language the spec describes, and the one everything else in this
+README is about: the CLI, `src/index.js`, the test suite and the scheduler are
+all Crumb's.
+
+MiniPy is a second, smaller front end under `src/vm/compiler/python/` —
+indentation-delimited Python with functions, classes, exceptions, f-strings
+and list comprehensions, compiled to its own bytecode and run on its own stack
+machine. It shares the pipeline's shape but none of its code, and is reached
+through its own loader rather than `src/index.js`:
+
+```js
+import { run } from './src/vm/compiler/python/loader.js';
+
+const { output, loadErrors, error, ok } = run(source, { filename: 'tally.py' });
+```
+
+Its VM has no `runSlice`, so a MiniPy program runs to completion rather than
+on the scheduler; `maxSteps` is what bounds a runaway loop. There is no CLI
+front end for it, and the test suite does not cover it yet.
 
 ## Playground
 

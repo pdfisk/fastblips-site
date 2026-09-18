@@ -1,2 +1,0 @@
--- extract all compiler related files from minipy and place them in the compiler/python folder
--- in the python console enable the run button
