@@ -1,3 +1,2 @@
--- under the vm folder add a new folder name compiler
--- under the compiler folder add two new folders basic and python
--- move all of the *.js files under vm excepr vm.js to the basic folder
+-- extract all compiler related files from minipy and place them in the compiler/python folder
+-- in the python console enable the run button
