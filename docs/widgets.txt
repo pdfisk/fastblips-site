@@ -24,13 +24,18 @@ Class hierarchy
           ConsoleWindow
             BasicConsoleWindow
             PythonConsoleWindow
+          DatabaseWindow (abstract, one per table)
+            BasicDatabaseWindow
+            PythonDatabaseWindow
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
+      RecordPanel
       TextPanel
         MonacoPanel
       ListPanel
     Menu
     Button
+    Label
     Spacer
 
 
@@ -208,8 +213,13 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with Basic, Python and Scheduler buttons followed by a Windows menu, which is
-always the last item, and the TranscriptWindow is open.
+with a Database menu at the left, then Basic, Python and Scheduler buttons,
+followed by a Windows menu, which is always the last item, and the
+TranscriptWindow is open.
+
+  - The Database menu has Basic and Python items, which open the
+    BasicDatabaseWindow and PythonDatabaseWindow (or bring them to the
+    front).
 
   - The Basic button opens a new BasicConsoleWindow.
   - The Python button opens a new PythonConsoleWindow.
@@ -329,6 +339,55 @@ suspended, resumed or killed.
     process is suspended, Suspend reads Resume.
   - A suspended process gets no turns; a sleeping one keeps the rest of its
     sleep for when it is resumed.
+
+
+DatabaseWindow
+--------------
+An HSplitWindow that browses one table of source records on the database
+server (rails/server): records are listed on the left ("id  name"), and the
+selected one is edited in a RecordPanel on the right. Abstract: a subclass
+sets the static table ('basic' or 'python', see src/ui/db-client.js),
+language (the Monaco language id) and consoleClass. There is one window per
+subclass, obtained with BasicDatabaseWindow.instance and
+PythonDatabaseWindow.instance; closing it keeps its state.
+
+  - Its ButtonBar has New, Save, Delete, Refresh, Open in Console and
+    Server... buttons, and a status line at the right end.
+  - Selecting a row loads that record. New starts an empty record, which
+    Save creates on the server; Save on an existing record updates it.
+    Enter in the name, Ctrl+Enter in the content, or Ctrl+S also saves.
+  - Delete asks for confirmation, then deletes the record.
+  - Selecting another record, starting a new one or closing the window
+    with unsaved changes asks before discarding them.
+  - Open in Console opens a new console of the table's language holding
+    the record's content.
+  - The list is reloaded each time the window opens, and by Refresh.
+  - Server... sets the server URL. By default it is http://localhost:3000;
+    a ?db=<url> page parameter, a URL saved with Server..., or
+    window.CRUMB_DB_URL override it.
+  - Errors from the server (for example "name can't be blank") or the
+    network are shown in red in the status line.
+
+BasicDatabaseWindow edits the basic_source table (VB highlighting, opens a
+BasicConsoleWindow); PythonDatabaseWindow edits python_source (Python
+highlighting, opens a PythonConsoleWindow).
+
+
+RecordPanel
+-----------
+A Panel for editing one source record: a Name field and a caption along the
+top, and the content in a MonacoPanel filling the rest.
+
+  - name, content and caption properties; enabled makes both fields
+    editable or read-only.
+  - Fires change when the user edits either field, and submit on Enter in
+    the name or Ctrl+Enter in the content.
+
+
+Label
+-----
+A Widget showing one line of text (text property). tone = 'error' shows it
+in red. Used for the status line of a DatabaseWindow's ButtonBar.
 
 
 Spacer

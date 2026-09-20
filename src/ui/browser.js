@@ -30,14 +30,19 @@ import { ListPanel } from './widgets/list-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
+import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
+import { RecordPanel } from './widgets/record-panel.js';
+import { Label } from './widgets/label.js';
+import * as db from './db-client.js';
 import { start } from './app.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
   SplitPanel, HSplitPanel, TextPanel, MonacoPanel, ListPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
-  TranscriptWindow, SchedulerWindow,
-  scheduler, start,
+  TranscriptWindow, SchedulerWindow, RecordPanel, Label,
+  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
+  scheduler, db, start,
 };
 
 export {
