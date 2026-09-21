@@ -36,6 +36,7 @@ import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
 import { start } from './app.js';
 import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
+import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
@@ -44,7 +45,7 @@ const ui = {
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
   scheduler, db, start,
-  THEMES, setTheme, themeName, resolvedTheme,
+  THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 
 export {

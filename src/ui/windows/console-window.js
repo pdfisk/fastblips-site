@@ -8,6 +8,21 @@ import { TextPanel } from '../widgets/text-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
 import { openFile, saveFile } from '../files.js';
 
+// While a program runs its output pane fades a little (the amount is a
+// theme variable), and comes back when the program ends.
+const STYLE = `
+.cr-console-output{transition:opacity .2s ease}
+.cr-running .cr-console-output{opacity:var(--cr-output-running-opacity)}
+`;
+
+function installStyle() {
+  if (document.getElementById('cr-console-style')) return;
+  const style = document.createElement('style');
+  style.id = 'cr-console-style';
+  style.textContent = STYLE;
+  document.head.appendChild(style);
+}
+
 // Every console, of any language, cascades from the same starting point.
 let opened = 0;
 // Each subclass numbers its own windows: Basic Console, Basic Console 2, ...
@@ -50,12 +65,14 @@ export class ConsoleWindow extends HSplitWindow {
       x: 440 + offset, y: 55 + offset, width: 560, height: 320,
       ...options,
     });
+    installStyle();
     this.element.classList.add('cr-console-window');
     this.baseTitle = this.title;
     this.fileName = null;     // the file this console was opened from or saved to
     this.fileHandle = null;   // its handle, where the browser provides one
     this.input = this.createInput(options.text ?? cls.defaultText);
     this.output = new TextPanel({ readOnly: true });
+    this.output.element.classList.add('cr-console-output');
     this.output.textArea.style.background = 'var(--cr-output-bg)';
     this.left = this.input;
     this.right = this.output;
@@ -75,6 +92,10 @@ export class ConsoleWindow extends HSplitWindow {
 
   /** Stops this console's program, if one is running. The base has none. */
   stop() {}
+
+  /** True while a program started from this console is running. */
+  get running() { return this.element.classList.contains('cr-running'); }
+  set running(value) { this.element.classList.toggle('cr-running', Boolean(value)); }
 
   // ------------------------------------------------------------------ files
 
@@ -180,11 +201,13 @@ export class ConsoleWindow extends HSplitWindow {
 
   /** Reports that a program has started. */
   reportStarted(process) {
+    this.running = true;
     StatusBar.instance.show(`${this.title}: running (pid ${process.pid})`);
   }
 
   /** Reports how a program ended. */
   reportExited(process) {
+    this.running = false;
     const bar = StatusBar.instance;
     if (process.state === 'failed') bar.show(`${this.title}: stopped with an error`, 'error');
     else if (process.state === 'killed') bar.show(`${this.title}: stopped`);

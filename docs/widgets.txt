@@ -296,9 +296,14 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Python button opens a new PythonConsoleWindow.
   - The Process button opens the SchedulerWindow (or brings it to the
     front).
-  - The Settings menu has a Theme item, which opens a submenu listing the
-    themes, Classic and Smalltalk, with a check mark on the one in use.
-    Choosing one switches to it at once and remembers it for the next visit.
+  - The Settings menu has two items that open submenus, each with a check
+    mark on the choice in use. Choosing one takes effect at once and is
+    remembered for the next visit.
+    - Theme: Classic or Smalltalk.
+    - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
+      source, output and lists, and in the Monaco editor. The font is
+      fetched from Google Fonts when first chosen; until it arrives, or if
+      the page is offline, the theme's own monospace font is used.
   - The Windows menu lists every open window by title, front-most first,
     with a check mark on the front-most one. Choosing a window shows it (if
     hidden) and brings it to the front.
@@ -360,6 +365,8 @@ BasicConsoleWindow
 A ConsoleWindow that runs Crumb code, titled Basic Console, Basic Console 2, ...
 
   - The source pane is a MonacoPanel with VB.NET highlighting.
+  - While its program runs, the console's output pane is dimmed a little
+    (running is true); it returns to normal when the program ends.
   - Run compiles the source and starts it on the Scheduler shared by all
     consoles (src/ui/runtime.js), so programs run in the background, take
     turns, and a Sleep never freezes the page. Output appears as it is
@@ -488,7 +495,9 @@ a colour; they write var(--cr-title-bg) and so on.
     Values shared by every theme are defined once, and a theme overrides
     only those it changes. Besides colours there are shape variables:
     window padding, title weight and alignment, raised button and title-bar
-    button bevels.
+    button bevels, the window corner radius (windows have slightly rounded
+    corners and soft shadows; a maximized window is square) and how far a
+    running console's output fades.
   - Settings > Theme offers Classic and Smalltalk (MENU_THEMES). Light and
     Dark remain available from code.
   - setTheme(name) switches theme by setting data-cr-theme on <html>, and
@@ -500,5 +509,8 @@ a colour; they write var(--cr-title-bg) and so on.
     lays everything out again on it (a theme can change fonts, padding and
     borders), and MonacoPanel switches the editor's own theme, since Monaco
     cannot read CSS variables.
+  - The code font is separate from the theme (src/ui/fonts.js): it sets
+    --cr-font-code, which falls back to the theme's --cr-font-mono, and a
+    cr-fontchange event tells Monaco to switch font and re-measure.
   - A new theme is one more entry in THEMES. In the browser the API is
     Crumb.ui.setTheme(...).

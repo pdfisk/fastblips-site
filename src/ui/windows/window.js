@@ -13,7 +13,7 @@ let topZ = 10;
 const STYLE = `
 .cr-window{box-sizing:border-box;background:var(--cr-window-bg);color:var(--cr-text);
   border:1px solid var(--cr-window-border);box-shadow:var(--cr-window-shadow-inactive);
-  padding:var(--cr-window-padding);
+  padding:var(--cr-window-padding);border-radius:var(--cr-window-radius);
   font:var(--cr-font-size) var(--cr-font-ui);
   display:flex;flex-direction:column;overflow:hidden}
 .cr-window.cr-window-active{box-shadow:var(--cr-window-shadow)}
@@ -29,7 +29,7 @@ const STYLE = `
   width:22px;height:18px;padding:0;cursor:pointer;border-radius:var(--cr-radius-field)}
 .cr-window-tool:hover{background:var(--cr-title-hover)}
 .cr-window-close:hover{background:var(--cr-close-hover);color:var(--cr-close-hover-text)}
-.cr-window.cr-maximized{box-shadow:none;padding:0}
+.cr-window.cr-maximized{box-shadow:none;padding:0;border-radius:0}
 .cr-window.cr-maximized .cr-window-title{cursor:default}
 .cr-window.cr-maximized .cr-window-grip{display:none}
 .cr-window-content{flex:1;position:relative;overflow:hidden}

@@ -8,6 +8,7 @@
 
 import { TextPanel } from './text-panel.js';
 import { themeValue } from '../theme.js';
+import { codeFontFamily } from '../fonts.js';
 
 const MONACO_VERSION = '0.52.2';
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min`;
@@ -40,6 +41,14 @@ export function loadMonaco() {
   // Monaco's theme is global: one listener keeps every editor in step.
   monacoPromise.then((monaco) => {
     document.addEventListener('cr-themechange', () => monaco.editor.setTheme(themeValue('monaco')));
+    // Font is a per-editor option: update every live editor, then have
+    // Monaco re-measure character widths for the new font.
+    document.addEventListener('cr-fontchange', () => {
+      for (const editor of monaco.editor.getEditors?.() ?? []) {
+        editor.updateOptions({ fontFamily: codeFontFamily() });
+      }
+      monaco.editor.remeasureFonts?.();
+    });
   }, () => {});
   return monacoPromise;
 }
@@ -72,6 +81,7 @@ export class MonacoPanel extends TextPanel {
       minimap: { enabled: false },
       scrollBeyondLastLine: false,
       fontSize: 13,
+      fontFamily: codeFontFamily(),
       tabSize: 2,
       theme: themeValue('monaco'),
     });

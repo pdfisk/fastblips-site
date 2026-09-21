@@ -14,7 +14,7 @@ const STYLE = `
 .cr-record-header label{color:var(--cr-header-text)}
 .cr-record-name{flex:1;min-width:60px;height:22px;box-sizing:border-box;padding:0 6px;
   border:1px solid var(--cr-field-border);border-radius:var(--cr-radius-field);
-  background:var(--cr-input-bg);color:var(--cr-text);font:var(--cr-font-size) var(--cr-font-mono)}
+  background:var(--cr-input-bg);color:var(--cr-text);font:var(--cr-font-size) var(--cr-font-code)}
 .cr-record-name:disabled{background:var(--cr-field-disabled-bg)}
 .cr-record-info{color:var(--cr-header-info);font-size:var(--cr-font-size-small);white-space:nowrap}
 `;

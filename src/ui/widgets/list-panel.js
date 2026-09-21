@@ -8,7 +8,7 @@ import { Panel } from './panel.js';
 const STYLE = `
 .cr-list{position:absolute;inset:0;overflow:auto;margin:0;padding:2px 0;list-style:none;
   box-sizing:border-box;outline:0;background:var(--cr-input-bg);color:var(--cr-text);
-  font:var(--cr-font-size)/1.4 var(--cr-font-mono)}
+  font:var(--cr-font-size)/1.4 var(--cr-font-code)}
 .cr-list li{padding:2px 8px;white-space:pre;cursor:default}
 .cr-list li[aria-selected="true"]{background:var(--cr-list-selected)}
 .cr-list:focus li[aria-selected="true"]{background:var(--cr-list-selected-focus);color:var(--cr-list-selected-focus-text)}

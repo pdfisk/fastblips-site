@@ -12,10 +12,12 @@ import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
+import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 
 export function start() {
   const viewport = Viewport.instance.mount(document.body);
+  installCodeFont();
   const navbar = Navbar.instance;
   const transcript = TranscriptWindow.instance;
 
@@ -94,14 +96,20 @@ function fileMenu(viewport) {
   return menu;
 }
 
-// The Settings menu. Theme opens a submenu of the themes: the one in use is
-// checked, and choosing another switches to it at once and remembers it.
+// The Settings menu. Theme and Code Font each open a submenu of choices: the
+// one in use is checked, and choosing another switches to it at once and
+// remembers it for the next visit.
 function settingsMenu() {
   const menu = new Menu('Settings');
   menu.addSubmenu('Theme', () => MENU_THEMES.map(([name, label]) => ({
     label,
     action: () => setTheme(name),
     checked: () => themeName() === name,
+  })));
+  menu.addSubmenu('Code Font', () => Object.entries(CODE_FONTS).map(([name, font]) => ({
+    label: font.label,
+    action: () => setCodeFont(name),
+    checked: () => codeFontName() === name,
   })));
   return menu;
 }
