@@ -12,7 +12,7 @@ export class TextPanel extends Panel {
     this.textArea.spellcheck = false;
     this.textArea.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;'
       + 'box-sizing:border-box;margin:0;border:0;outline:0;resize:none;padding:6px 8px;'
-      + 'font:13px/1.4 ui-monospace,Consolas,monospace;background:#fff;color:#111';
+      + 'font:var(--cr-font-size)/1.4 var(--cr-font-mono);background:var(--cr-input-bg);color:var(--cr-text)';
     // Ctrl/Cmd+Enter is reported as a 'submit' event (a console runs on it).
     this.textArea.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {

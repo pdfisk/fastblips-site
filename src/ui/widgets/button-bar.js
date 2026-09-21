@@ -11,7 +11,7 @@ export class ButtonBar extends HPanel {
     super({ padding: 3, spacing: 4 });
     this.height = BUTTON_BAR_HEIGHT;
     this.element.classList.add('cr-button-bar');
-    this.element.style.cssText += ';background:#e6e6e6;border-top:1px solid #c8c8c8;'
+    this.element.style.cssText += ';background:var(--cr-buttonbar-bg);border-top:1px solid var(--cr-buttonbar-border);'
       + 'box-sizing:border-box';
   }
 

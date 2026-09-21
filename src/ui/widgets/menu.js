@@ -10,16 +10,16 @@ const STYLE = `
 .cr-menu{display:flex;align-items:stretch}
 .cr-menu-button{border:0;background:transparent;color:inherit;font:inherit;
   padding:0 12px;cursor:pointer;white-space:nowrap}
-.cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:rgba(255,255,255,.18)}
+.cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:var(--cr-nav-hover)}
 .cr-menu-list{position:fixed;min-width:160px;margin:0;padding:4px 0;list-style:none;
-  background:#fff;color:#111;border:1px solid #999;box-shadow:0 4px 12px rgba(0,0,0,.2);
-  z-index:100001}
+  background:var(--cr-menu-bg);color:var(--cr-menu-text);border:1px solid var(--cr-menu-border);
+  box-shadow:var(--cr-menu-shadow);font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100001}
 .cr-menu-item{display:flex;align-items:center;gap:6px;padding:5px 14px 5px 8px;
   cursor:pointer;white-space:nowrap}
-.cr-menu-item:hover,.cr-menu-item:focus{background:#3a5f8f;color:#fff;outline:0}
+.cr-menu-item:hover,.cr-menu-item:focus{background:var(--cr-accent);color:var(--cr-accent-text);outline:0}
 .cr-menu-check{width:14px;text-align:center}
-.cr-menu-empty,.cr-menu-disabled{color:#888;cursor:default;pointer-events:none}
-.cr-menu-separator{height:1px;margin:4px 0;background:#ddd;pointer-events:none}
+.cr-menu-empty,.cr-menu-disabled{color:var(--cr-text-faint);cursor:default;pointer-events:none}
+.cr-menu-separator{height:1px;margin:4px 0;background:var(--cr-menu-separator);pointer-events:none}
 `;
 
 function installStyle() {

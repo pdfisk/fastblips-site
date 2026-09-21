@@ -7,7 +7,7 @@ export class Label extends Widget {
     super('span');
     this.element.classList.add('cr-label');
     this.element.style.cssText += ';display:flex;align-items:center;white-space:nowrap;'
-      + 'overflow:hidden;text-overflow:ellipsis;padding:0 6px;color:#444';
+      + 'overflow:hidden;text-overflow:ellipsis;padding:0 6px;color:var(--cr-text-muted)';
     this.text = text;
   }
 
@@ -15,7 +15,7 @@ export class Label extends Widget {
   set text(value) { this.element.textContent = String(value); }
 
   /** 'error' shows the text in red; anything else in the normal colour. */
-  set tone(tone) { this.element.style.color = tone === 'error' ? '#b00020' : '#444'; }
+  set tone(tone) { this.element.style.color = tone === 'error' ? 'var(--cr-danger)' : 'var(--cr-text-muted)'; }
 
   preferredWidth() {
     const saved = this.element.style.width;

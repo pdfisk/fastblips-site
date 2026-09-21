@@ -3,10 +3,10 @@
 import { Widget } from './widget.js';
 
 const STYLE = `
-.cr-button{box-sizing:border-box;border:1px solid transparent;border-radius:4px;
+.cr-button{box-sizing:border-box;border:1px solid transparent;border-radius:var(--cr-radius-button);
   background:transparent;color:inherit;font:inherit;padding:0 12px;cursor:pointer;
   white-space:nowrap}
-.cr-button:hover{background:rgba(127,127,127,.2)}
+.cr-button:hover{background:var(--cr-button-hover)}
 .cr-button:disabled{opacity:.5;cursor:default;background:transparent}
 `;
 

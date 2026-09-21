@@ -7,12 +7,12 @@ import { Panel } from './panel.js';
 
 const STYLE = `
 .cr-list{position:absolute;inset:0;overflow:auto;margin:0;padding:2px 0;list-style:none;
-  box-sizing:border-box;outline:0;background:#fff;color:#111;
-  font:13px/1.4 ui-monospace,Consolas,monospace}
+  box-sizing:border-box;outline:0;background:var(--cr-input-bg);color:var(--cr-text);
+  font:var(--cr-font-size)/1.4 var(--cr-font-mono)}
 .cr-list li{padding:2px 8px;white-space:pre;cursor:default}
-.cr-list li[aria-selected="true"]{background:#cfe0f7}
-.cr-list:focus li[aria-selected="true"]{background:#2f6fcf;color:#fff}
-.cr-list-empty{color:#888;padding:6px 8px}
+.cr-list li[aria-selected="true"]{background:var(--cr-list-selected)}
+.cr-list:focus li[aria-selected="true"]{background:var(--cr-list-selected-focus);color:var(--cr-list-selected-focus-text)}
+.cr-list-empty{color:var(--cr-text-faint);padding:6px 8px}
 `;
 
 function installStyle() {

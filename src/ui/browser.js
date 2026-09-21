@@ -35,6 +35,7 @@ import { RecordPanel } from './widgets/record-panel.js';
 import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
 import { start } from './app.js';
+import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
@@ -43,6 +44,7 @@ const ui = {
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
   scheduler, db, start,
+  THEMES, setTheme, themeName, resolvedTheme,
 };
 
 export {

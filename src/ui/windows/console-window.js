@@ -56,7 +56,7 @@ export class ConsoleWindow extends HSplitWindow {
     this.fileHandle = null;   // its handle, where the browser provides one
     this.input = this.createInput(options.text ?? cls.defaultText);
     this.output = new TextPanel({ readOnly: true });
-    this.output.textArea.style.background = '#f7f7f7';
+    this.output.textArea.style.background = 'var(--cr-output-bg)';
     this.left = this.input;
     this.right = this.output;
 

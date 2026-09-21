@@ -10,12 +10,13 @@ export const RECORD_HEADER_HEIGHT = 32;
 const STYLE = `
 .cr-record-header{position:absolute;left:0;top:0;right:0;height:${RECORD_HEADER_HEIGHT}px;
   box-sizing:border-box;display:flex;align-items:center;gap:6px;padding:0 8px;
-  background:#eef1f5;border-bottom:1px solid #d0d0d0}
-.cr-record-header label{color:#333}
+  background:var(--cr-header-bg);border-bottom:1px solid var(--cr-divider)}
+.cr-record-header label{color:var(--cr-header-text)}
 .cr-record-name{flex:1;min-width:60px;height:22px;box-sizing:border-box;padding:0 6px;
-  border:1px solid #aab;border-radius:3px;font:13px ui-monospace,Consolas,monospace}
-.cr-record-name:disabled{background:#f4f4f4}
-.cr-record-info{color:#666;font-size:12px;white-space:nowrap}
+  border:1px solid var(--cr-field-border);border-radius:var(--cr-radius-field);
+  background:var(--cr-input-bg);color:var(--cr-text);font:var(--cr-font-size) var(--cr-font-mono)}
+.cr-record-name:disabled{background:var(--cr-field-disabled-bg)}
+.cr-record-info{color:var(--cr-header-info);font-size:var(--cr-font-size-small);white-space:nowrap}
 `;
 
 function installStyle() {

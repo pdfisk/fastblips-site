@@ -7,6 +7,7 @@
 // plain TextPanel, and whatever was typed carries over into the editor.
 
 import { TextPanel } from './text-panel.js';
+import { themeValue } from '../theme.js';
 
 const MONACO_VERSION = '0.52.2';
 const MONACO_BASE = `https://cdn.jsdelivr.net/npm/monaco-editor@${MONACO_VERSION}/min`;
@@ -36,6 +37,10 @@ export function loadMonaco() {
   });
   // Let a later panel try again after a failure.
   monacoPromise.catch(() => { monacoPromise = null; });
+  // Monaco's theme is global: one listener keeps every editor in step.
+  monacoPromise.then((monaco) => {
+    document.addEventListener('cr-themechange', () => monaco.editor.setTheme(themeValue('monaco')));
+  }, () => {});
   return monacoPromise;
 }
 
@@ -68,7 +73,7 @@ export class MonacoPanel extends TextPanel {
       scrollBeyondLastLine: false,
       fontSize: 13,
       tabSize: 2,
-      theme: 'vs',
+      theme: themeValue('monaco'),
     });
     const hadFocus = document.activeElement === this.textArea;
     this.textArea.hidden = true;

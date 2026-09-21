@@ -2,6 +2,7 @@
 // (see docs/widgets.txt).
 
 import { Panel } from './panel.js';
+import { installTheme } from '../theme.js';
 
 let instance = null;
 
@@ -26,11 +27,14 @@ export class Viewport extends Panel {
     s.position = 'fixed';
     s.inset = '0';
     s.overflow = 'hidden';
+    s.background = 'var(--cr-desktop-bg)';
+    s.color = 'var(--cr-text)';
     this._onResize = () => this.layout();
   }
 
   /** Attaches the Viewport to the page and starts tracking window size. */
   mount(host = document.body) {
+    installTheme();
     host.appendChild(this.element);
     window.addEventListener('resize', this._onResize);
     this.layout();

@@ -3,6 +3,7 @@
 
 import { Panel } from '../widgets/panel.js';
 import { ButtonBar, BUTTON_BAR_HEIGHT } from '../widgets/button-bar.js';
+import { installTheme } from '../theme.js';
 
 const TITLE_HEIGHT = 24;
 const GRIP = 6;   // thickness of the resize edges, in pixels
@@ -10,16 +11,20 @@ const GRIP = 6;   // thickness of the resize edges, in pixels
 let topZ = 10;
 
 const STYLE = `
-.cr-window{box-sizing:border-box;background:#f4f4f4;border:1px solid #888;
-  box-shadow:0 4px 16px rgba(0,0,0,.25);font:13px system-ui,sans-serif;
+.cr-window{box-sizing:border-box;background:var(--cr-window-bg);color:var(--cr-text);
+  border:1px solid var(--cr-window-border);box-shadow:var(--cr-window-shadow-inactive);
+  font:var(--cr-font-size) var(--cr-font-ui);
   display:flex;flex-direction:column;overflow:hidden}
+.cr-window.cr-window-active{box-shadow:var(--cr-window-shadow)}
 .cr-window-title{flex:0 0 ${TITLE_HEIGHT}px;display:flex;align-items:center;
-  padding:0 4px 0 8px;background:#3a5f8f;color:#fff;cursor:move;user-select:none}
+  padding:0 4px 0 8px;background:var(--cr-title-bg-inactive);color:var(--cr-title-text-inactive);
+  cursor:move;user-select:none}
+.cr-window-active .cr-window-title{background:var(--cr-title-bg);color:var(--cr-title-text)}
 .cr-window-title span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cr-window-tool{border:0;background:transparent;color:inherit;font:16px/1 system-ui;
-  width:22px;height:20px;padding:0;cursor:pointer;border-radius:3px}
-.cr-window-tool:hover{background:rgba(255,255,255,.25)}
-.cr-window-close:hover{background:#c42b1c}
+.cr-window-tool{border:0;background:transparent;color:inherit;font:16px/1 var(--cr-font-ui);
+  width:22px;height:20px;padding:0;cursor:pointer;border-radius:var(--cr-radius-field)}
+.cr-window-tool:hover{background:var(--cr-title-hover)}
+.cr-window-close:hover{background:var(--cr-close-hover);color:var(--cr-close-hover-text)}
 .cr-window.cr-maximized{box-shadow:none}
 .cr-window.cr-maximized .cr-window-title{cursor:default}
 .cr-window.cr-maximized .cr-window-grip{display:none}
@@ -35,6 +40,7 @@ function installStyle() {
   style.id = 'cr-window-style';
   style.textContent = STYLE;
   document.head.appendChild(style);
+  installTheme();
 }
 
 // Resize handles: which edges each one moves, and its cursor.
@@ -160,8 +166,24 @@ export class Window extends Panel {
   }
 
   bringToFront() {
-    if (this.isFront) return;
-    this.element.style.zIndex = String(++topZ);
+    if (!this.isFront) this.element.style.zIndex = String(++topZ);
+    Window.refreshActive(this.parent);
+  }
+
+  /** True when this is the active window: the front-most one showing. */
+  get isActive() { return this.element.classList.contains('cr-window-active'); }
+
+  /**
+   * Marks the front-most showing window in `parent` as active (a stronger
+   * title bar and shadow) and the rest as inactive. Called whenever windows
+   * are raised, opened, hidden, minimized or closed.
+   */
+  static refreshActive(parent) {
+    const windows = parent?.windows;
+    if (!windows) return;
+    const showing = windows.filter((w) => w.visible);
+    const active = showing[showing.length - 1] ?? null;
+    for (const win of windows) win.element.classList.toggle('cr-window-active', win === active);
   }
 
   /** True when this is the frontmost window. */
@@ -179,7 +201,10 @@ export class Window extends Panel {
       this.minimized = false;
       this._stateChanged();
     }
-    if (this.parent) this.parent.remove(this);
+    const parent = this.parent;
+    if (parent) parent.remove(this);
+    this.element.classList.remove('cr-window-active');
+    Window.refreshActive(parent);
     return true;
   }
 
@@ -200,6 +225,7 @@ export class Window extends Panel {
     if (!this.parent || this.minimized) return;
     this.minimized = true;
     this.visible = false;
+    Window.refreshActive(this.parent);
     this._stateChanged();
   }
 
@@ -259,8 +285,10 @@ export class Window extends Panel {
 
   /** Opens the window if it is closed or hidden, otherwise hides it. */
   toggle(viewport) {
-    if (this.isOpen) this.visible = false;
-    else this.open(viewport);
+    if (this.isOpen) {
+      this.visible = false;
+      Window.refreshActive(this.parent);
+    } else this.open(viewport);
     return this.isOpen;
   }
 

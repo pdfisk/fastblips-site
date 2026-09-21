@@ -131,6 +131,9 @@ A top-level panel that floats above the Viewport's content.
     changes).
   - Clicking anywhere in a window brings it to the front; isFront tells
     whether it is the front-most window.
+  - The front-most window that is showing is the active window: it has
+    the stronger title bar and shadow, and the others are drawn inactive.
+    isActive tells whether a window is the active one.
   - minimize() hides the window; open() restores it. In the playground each
     minimized window gets a button on the StatusBar, and the Windows menu
     restores it too. minimized tells whether it is minimized.
@@ -457,3 +460,23 @@ Spacer
 ------
 An empty Widget with a flex weight (1 by default). Placed in an HPanel, it
 takes up the free space, pushing the widgets after it to the right.
+
+
+Theming
+-------
+Every colour, font, radius and shadow the widgets use is a CSS custom
+property named --cr-*, defined in src/ui/theme.js. Widgets never hard-code
+a colour; they write var(--cr-title-bg) and so on.
+
+  - THEMES holds a set of values per theme: light (the default, the
+    original look) and dark. Values shared by every theme (fonts, sizes,
+    radii) are defined once.
+  - setTheme('light' | 'dark' | 'auto') switches theme by setting
+    data-cr-theme on <html>; 'auto' follows the operating system's light or
+    dark setting. themeName() is the theme chosen, resolvedTheme() the one
+    in effect ('auto' resolved to 'light' or 'dark').
+  - A cr-themechange event on document announces each change. MonacoPanel
+    uses it to switch the editor between Monaco's 'vs' and 'vs-dark'
+    themes, since Monaco cannot read CSS variables.
+  - A new theme is one more entry in THEMES with a value for each
+    variable. In the browser the API is Crumb.ui.setTheme(...).

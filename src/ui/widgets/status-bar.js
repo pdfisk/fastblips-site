@@ -24,8 +24,9 @@ export class StatusBar extends HPanel {
     this.height = STATUS_BAR_HEIGHT;
     this.element.classList.add('cr-status-bar');
     this.element.setAttribute('role', 'status');
-    this.element.style.cssText += ';background:#e9ecef;border-top:1px solid #c5cbd3;'
-      + 'font:12px system-ui,sans-serif;z-index:100000;box-sizing:border-box';
+    this.element.style.cssText += ';background:var(--cr-status-bg);'
+      + 'border-top:1px solid var(--cr-status-border);'
+      + 'font:var(--cr-font-size-small) var(--cr-font-ui);z-index:100000;box-sizing:border-box';
 
     this.messageLabel = new Label('Ready');
     this.messageLabel.flex = 1;
@@ -48,7 +49,8 @@ export class StatusBar extends HPanel {
       button.element.classList.add('cr-status-task');
       button.element.title = task.title ?? task.label;
       button.element.style.cssText += ';max-width:180px;overflow:hidden;text-overflow:ellipsis;'
-        + 'border:1px solid #b8c0ca;background:#f8f9fa;padding:0 8px;font-size:12px';
+        + 'border:1px solid var(--cr-status-task-border);background:var(--cr-status-task-bg);'
+        + 'color:var(--cr-text);padding:0 8px;font-size:var(--cr-font-size-small)';
       const natural = button.preferredWidth.bind(button);
       button.preferredWidth = () => Math.min(180, natural() + 4);   // slack for sub-pixel text
       return button;

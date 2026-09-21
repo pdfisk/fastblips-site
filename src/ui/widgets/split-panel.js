@@ -26,7 +26,7 @@ export class SplitPanel extends Panel {
 
     this.divider = document.createElement('div');
     this.divider.className = 'cr-split-divider';
-    this.divider.style.cssText = `position:absolute;background:#d0d0d0;z-index:1;cursor:${this.cursor}`;
+    this.divider.style.cssText = `position:absolute;background:var(--cr-divider);z-index:1;cursor:${this.cursor}`;
     this.element.appendChild(this.divider);
     this._wireDivider();
 
