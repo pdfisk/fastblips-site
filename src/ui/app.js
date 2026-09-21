@@ -2,6 +2,8 @@
 
 import { Viewport } from './widgets/viewport.js';
 import { Navbar } from './widgets/navbar.js';
+import { StatusBar } from './widgets/status-bar.js';
+import { scheduler } from './runtime.js';
 import { Menu } from './widgets/menu.js';
 import { Button } from './widgets/button.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
@@ -21,9 +23,39 @@ export function start() {
   navbar.add(new Button('Scheduler', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;
+  viewport.statusBar = statusBar(viewport);
+
+  // Each minimized window gets a button on the StatusBar that restores it.
+  viewport.element.addEventListener('windowstate', () => {
+    StatusBar.instance.setTasks(viewport.minimizedWindows.map((win) => ({
+      label: win.title,
+      title: `Restore ${win.title}`,
+      action: () => win.open(viewport),
+    })));
+  });
 
   transcript.open(viewport);
   return viewport;
+}
+
+// The StatusBar shows messages from the consoles on the left and a live
+// summary of the scheduler on the right.
+function statusBar() {
+  const bar = StatusBar.instance;
+  const update = () => { bar.info = schedulerSummary(); };
+  update();
+  setInterval(update, 500);
+  return bar;
+}
+
+function schedulerSummary() {
+  const counts = {};
+  for (const p of scheduler.list()) counts[p.state] = (counts[p.state] ?? 0) + 1;
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  if (total === 0) return 'No processes';
+  const parts = ['running', 'ready', 'sleeping', 'scheduled', 'suspended']
+    .filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`);
+  return `${total} process${total === 1 ? '' : 'es'}: ${parts.join(', ')}`;
 }
 
 // The Database menu, third on the Navbar, opens a browser for each table on

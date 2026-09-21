@@ -47,6 +47,18 @@ export class Viewport extends Panel {
   /** Height taken by the Navbar; content and windows start below it. */
   get top() { return this._navbar && this._navbar.visible ? this._navbar.height : 0; }
 
+  /** The StatusBar docked at the bottom of the Viewport, or null. */
+  get statusBar() { return this._statusBar ?? null; }
+  set statusBar(bar) {
+    if (this._statusBar) this.remove(this._statusBar);
+    this._statusBar = bar ?? null;
+    if (bar) this.add(bar);
+    this.layout();
+  }
+
+  /** Height taken by the StatusBar; windows cannot be dragged below it. */
+  get bottom() { return this._statusBar && this._statusBar.visible ? this._statusBar.height : 0; }
+
   /** Open windows (children with a title bar), back to front. */
   get windows() {
     return this._children
@@ -54,8 +66,18 @@ export class Viewport extends Panel {
       .sort((a, b) => (Number(a.element.style.zIndex) || 0) - (Number(b.element.style.zIndex) || 0));
   }
 
+  /** Windows that are minimized, oldest first. */
+  get minimizedWindows() {
+    return this._children.filter((c) => c.minimized === true);
+  }
+
   layout() {
     if (this._navbar) this._navbar.setBounds(0, 0, this.width, this._navbar.height);
+    for (const win of this.windows) if (win.maximized) win.fitToParent();
+    if (this._statusBar) {
+      const h = this._statusBar.height;
+      this._statusBar.setBounds(0, this.height - h, this.width, h);
+    }
     super.layout();
   }
 

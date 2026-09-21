@@ -42,6 +42,7 @@ export class BasicConsoleWindow extends ConsoleWindow {
     const { chunk, errors } = compile(source, { filename });
     if (!chunk || errors.length > 0) {
       this.output.text = formatDiagnostics(errors, source, filename);
+      this.reportLoadErrors(errors.length);
       return null;
     }
 
@@ -52,8 +53,10 @@ export class BasicConsoleWindow extends ConsoleWindow {
       transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
       onExit: (process) => {
         if (process.error) output.append(`${formatDiagnostics([process.error], source, filename)}\n`);
+        this.reportExited(process);
       },
     });
+    this.reportStarted(this.process);
     scheduler.start();
     return this.process;
   }

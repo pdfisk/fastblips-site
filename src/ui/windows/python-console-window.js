@@ -45,6 +45,7 @@ export class PythonConsoleWindow extends ConsoleWindow {
     const { chunk, loadErrors } = compilePython(source, { filename });
     if (!chunk) {
       this.output.text = `${formatLoadErrors(loadErrors, filename).join('\n')}\n`;
+      this.reportLoadErrors(loadErrors.length);
       return null;
     }
 
@@ -56,8 +57,10 @@ export class PythonConsoleWindow extends ConsoleWindow {
       transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
       onExit: (process) => {
         if (process.error) output.append(`${formatFault(process.error, source, filename)}\n`);
+        this.reportExited(process);
       },
     });
+    this.reportStarted(this.process);
     scheduler.start();
     return this.process;
   }

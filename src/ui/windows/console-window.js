@@ -5,6 +5,7 @@
 
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
+import { StatusBar } from '../widgets/status-bar.js';
 
 // Every console, of any language, cascades from the same starting point.
 let opened = 0;
@@ -63,5 +64,25 @@ export class ConsoleWindow extends HSplitWindow {
     const closed = super.close();
     if (closed) this.stop();
     return closed;
+  }
+
+  // ----------------------------------------------------- status bar messages
+
+  /** Reports load errors on the StatusBar. */
+  reportLoadErrors(count) {
+    StatusBar.instance.show(`${this.title}: ${count} load error${count === 1 ? '' : 's'}`, 'error');
+  }
+
+  /** Reports that a program has started. */
+  reportStarted(process) {
+    StatusBar.instance.show(`${this.title}: running (pid ${process.pid})`);
+  }
+
+  /** Reports how a program ended. */
+  reportExited(process) {
+    const bar = StatusBar.instance;
+    if (process.state === 'failed') bar.show(`${this.title}: stopped with an error`, 'error');
+    else if (process.state === 'killed') bar.show(`${this.title}: stopped`);
+    else bar.show(`${this.title}: finished in ${process.vm.steps} steps`);
   }
 }

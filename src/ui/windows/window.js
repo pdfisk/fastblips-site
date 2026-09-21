@@ -16,9 +16,13 @@ const STYLE = `
 .cr-window-title{flex:0 0 ${TITLE_HEIGHT}px;display:flex;align-items:center;
   padding:0 4px 0 8px;background:#3a5f8f;color:#fff;cursor:move;user-select:none}
 .cr-window-title span{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cr-window-close{border:0;background:transparent;color:inherit;font:16px/1 system-ui;
-  width:20px;height:20px;cursor:pointer;border-radius:3px}
-.cr-window-close:hover{background:rgba(255,255,255,.25)}
+.cr-window-tool{border:0;background:transparent;color:inherit;font:16px/1 system-ui;
+  width:22px;height:20px;padding:0;cursor:pointer;border-radius:3px}
+.cr-window-tool:hover{background:rgba(255,255,255,.25)}
+.cr-window-close:hover{background:#c42b1c}
+.cr-window.cr-maximized{box-shadow:none}
+.cr-window.cr-maximized .cr-window-title{cursor:default}
+.cr-window.cr-maximized .cr-window-grip{display:none}
 .cr-window-content{flex:1;position:relative;overflow:hidden}
 .cr-window-buttons{flex:0 0 ${BUTTON_BAR_HEIGHT}px;position:relative}
 .cr-window-grip{position:absolute}
@@ -61,13 +65,27 @@ export class Window extends Panel {
     this.titleBar = document.createElement('div');
     this.titleBar.className = 'cr-window-title';
     this.titleText = document.createElement('span');
-    const close = document.createElement('button');
-    close.className = 'cr-window-close';
-    close.title = 'Close';
-    close.textContent = '×';
-    close.addEventListener('pointerdown', (e) => e.stopPropagation());
-    close.addEventListener('click', () => this.close());
-    this.titleBar.append(this.titleText, close);
+    const tool = (label, text, action, extraClass = '') => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `cr-window-tool ${extraClass}`.trim();
+      button.title = label;
+      button.setAttribute('aria-label', label);
+      button.textContent = text;
+      button.addEventListener('pointerdown', (e) => e.stopPropagation());
+      button.addEventListener('dblclick', (e) => e.stopPropagation());
+      button.addEventListener('click', action);
+      return button;
+    };
+    this.minimizeButton = tool('Minimize', '\u2013', () => this.minimize(), 'cr-window-minimize');
+    this.maximizeButton = tool('Maximize', '\u25a1', () => this.toggleMaximize(), 'cr-window-maximize');
+    const close = tool('Close', '\u00d7', () => this.close(), 'cr-window-close');
+    this.titleBar.append(this.titleText, this.minimizeButton, this.maximizeButton, close);
+    this.titleBar.addEventListener('dblclick', () => this.toggleMaximize());
+
+    this.maximized = false;
+    this.minimized = false;
+    this._restoreBounds = null;   // bounds to return to from maximized
 
     this.contentElement = document.createElement('div');
     this.contentElement.className = 'cr-window-content';
@@ -126,10 +144,16 @@ export class Window extends Panel {
     this.layout();
   }
 
-  /** Shows the window in the given Viewport (above earlier windows). */
+  /** Shows the window in the given Viewport (above earlier windows). A
+   *  minimized window is restored. */
   open(viewport) {
     if (this.parent !== viewport) viewport.add(this);
     this.visible = true;
+    if (this.minimized) {
+      this.minimized = false;
+      this._stateChanged();
+    }
+    if (this.maximized) this.fitToParent();
     this.bringToFront();
     this.layout();
     return this;
@@ -151,6 +175,10 @@ export class Window extends Panel {
   close() {
     const event = new CustomEvent('close', { cancelable: true, detail: { window: this } });
     if (!this.element.dispatchEvent(event)) return false;
+    if (this.minimized) {
+      this.minimized = false;
+      this._stateChanged();
+    }
     if (this.parent) this.parent.remove(this);
     return true;
   }
@@ -158,6 +186,72 @@ export class Window extends Panel {
   // Lowest y a window may be dragged to (below the parent's Navbar, if any).
   _top() {
     return this.parent && typeof this.parent.top === 'number' ? this.parent.top : 0;
+  }
+
+  // Height reserved at the bottom of the parent (its StatusBar, if any).
+  _bottom() {
+    return this.parent && typeof this.parent.bottom === 'number' ? this.parent.bottom : 0;
+  }
+
+  // ---------------------------------------------------- minimize / maximize
+
+  /** Hides the window; open() (or its StatusBar button) brings it back. */
+  minimize() {
+    if (!this.parent || this.minimized) return;
+    this.minimized = true;
+    this.visible = false;
+    this._stateChanged();
+  }
+
+  /** Makes the window fill the parent between its Navbar and StatusBar. */
+  maximize() {
+    if (this.maximized) return;
+    this._restoreBounds = { ...this.bounds };
+    this.maximized = true;
+    this.element.classList.add('cr-maximized');
+    this.maximizeButton.textContent = '\u2750';
+    this.maximizeButton.title = 'Restore';
+    this.maximizeButton.setAttribute('aria-label', 'Restore');
+    this.fitToParent();
+    this.bringToFront();
+    this._stateChanged();
+  }
+
+  /** Returns a maximized window to the size and place it had before. */
+  restore() {
+    if (!this.maximized) return;
+    this.maximized = false;
+    this.element.classList.remove('cr-maximized');
+    this.maximizeButton.textContent = '\u25a1';
+    this.maximizeButton.title = 'Maximize';
+    this.maximizeButton.setAttribute('aria-label', 'Maximize');
+    const b = this._restoreBounds;
+    if (b) this.setBounds(b.x, b.y, b.width, b.height);
+    this._stateChanged();
+  }
+
+  toggleMaximize() {
+    if (this.maximized) this.restore();
+    else this.maximize();
+  }
+
+  /** Sizes a maximized window to its parent; the Viewport calls this on resize. */
+  fitToParent() {
+    const parent = this.parent;
+    if (!parent) return;
+    const top = this._top();
+    const width = parent.element.clientWidth;
+    const height = parent.element.clientHeight - top - this._bottom();
+    this.setBounds(0, top, width, height);
+  }
+
+  // Tells listeners on the window or any ancestor (the Viewport) that the
+  // window was minimized, restored, maximized or un-maximized.
+  _stateChanged() {
+    this.element.dispatchEvent(new CustomEvent('windowstate', {
+      bubbles: true,
+      detail: { window: this, minimized: this.minimized, maximized: this.maximized },
+    }));
   }
 
   /** True when the window is in a Viewport and not hidden. */
@@ -174,7 +268,7 @@ export class Window extends Panel {
   // n/s/e/w naming the edges being dragged.
   _drag(handle, dirs) {
     handle.addEventListener('pointerdown', (down) => {
-      if (down.button !== 0) return;
+      if (down.button !== 0 || this.maximized) return;
       down.preventDefault();
       handle.setPointerCapture(down.pointerId);
       const start = { ...this.bounds };
@@ -190,7 +284,7 @@ export class Window extends Panel {
         if (dirs === 'move') {
           // Keep the title bar reachable.
           x = Math.min(Math.max(x + dx, 40 - width), vw - 40);
-          y = Math.min(Math.max(y + dy, this._top()), vh - TITLE_HEIGHT);
+          y = Math.min(Math.max(y + dy, this._top()), vh - this._bottom() - TITLE_HEIGHT);
         } else {
           if (dirs.includes('e')) width = Math.max(this.minWidth, width + dx);
           if (dirs.includes('s')) height = Math.max(this.minHeight, height + dy);

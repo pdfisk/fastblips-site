@@ -14,6 +14,7 @@ Class hierarchy
       Viewport (singleton)
       HPanel
         Navbar (singleton)
+        StatusBar (singleton)
         ButtonBar
       VPanel
       SplitPanel (abstract)
@@ -58,8 +59,8 @@ of the widget tree.
 
   - Exactly one instance exists; obtain it with Viewport.instance. Calling
     the constructor a second time is an error.
-  - Holds an optional Navbar docked at the top, and one content widget that
-    fills the space below it.
+  - Holds an optional Navbar docked at the top, an optional StatusBar docked
+    at the bottom, and one content widget that fills the space between.
   - Hosts Windows, which float above the content area. The Viewport keeps
     their stacking order and brings a window to the front when it is
     clicked.
@@ -112,8 +113,8 @@ Window
 ------
 A top-level panel that floats above the Viewport's content.
 
-  - Has a title bar showing a title and a close button, and a content area
-    that holds a single child widget.
+  - Has a title bar showing a title and minimize, maximize and close
+    buttons, and a content area that holds a single child widget.
   - Moved by dragging the title bar; it is kept within the Viewport so the
     title bar can always be reached.
   - Resized by dragging its edges or corners, down to a minimum size.
@@ -122,6 +123,16 @@ A top-level panel that floats above the Viewport's content.
     changes).
   - Clicking anywhere in a window brings it to the front; isFront tells
     whether it is the front-most window.
+  - minimize() hides the window; open() restores it. In the playground each
+    minimized window gets a button on the StatusBar, and the Windows menu
+    restores it too. minimized tells whether it is minimized.
+  - maximize() makes the window fill the Viewport between the Navbar and
+    the StatusBar, and keeps it fitted when the browser is resized; restore()
+    puts it back where it was. toggleMaximize() switches between the two, and
+    double-clicking the title bar calls it. A maximized window cannot be
+    moved or resized; maximized tells whether it is maximized.
+  - Minimizing, restoring, maximizing and un-maximizing fire a windowstate
+    event that bubbles up to the Viewport.
   - Has a ButtonBar (window.buttonBar) along its bottom edge, 30px high,
     below the content area. Subclasses add their buttons to it.
 
@@ -191,6 +202,26 @@ same fixed-size and flex rules.
   - Each item has a label and an action; the active item is highlighted.
   - Items that do not fit may collapse into an overflow menu on narrow
     screens.
+
+
+StatusBar (singleton)
+---------------------
+The status strip docked along the bottom of the Viewport. StatusBar is a
+subclass of HPanel.
+
+  - Exactly one instance exists; obtain it with StatusBar.instance. Calling
+    the constructor a second time is an error.
+  - Added to the Viewport (viewport.statusBar = StatusBar.instance), which
+    docks it at the bottom of the page.
+  - Is 24px high and spans the full width of the Viewport. Windows cannot
+    be dragged below it.
+  - A message Label on the left (message, or show(text, tone) where tone
+    'error' shows it in red) and an info Label on the right (info).
+  - setTasks([{label, title, action}]) shows a row of buttons between the
+    message and the info; the playground uses it for minimized windows.
+  - In the playground the consoles report on the message (running, finished,
+    stopped, load errors) and the info shows a live summary of the
+    scheduler's processes.
 
 
 Menu
