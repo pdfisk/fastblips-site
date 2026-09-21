@@ -10,13 +10,17 @@ const STYLE = `
 .cr-menu{display:flex;align-items:stretch}
 .cr-menu-button{border:0;background:transparent;color:inherit;font:inherit;
   padding:0 12px;cursor:pointer;white-space:nowrap}
-.cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:var(--cr-nav-hover)}
+.cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:var(--cr-nav-hover);
+  color:var(--cr-nav-hover-text)}
 .cr-menu-list{position:fixed;min-width:160px;margin:0;padding:4px 0;list-style:none;
   background:var(--cr-menu-bg);color:var(--cr-menu-text);border:1px solid var(--cr-menu-border);
   box-shadow:var(--cr-menu-shadow);font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100001}
 .cr-menu-item{display:flex;align-items:center;gap:6px;padding:5px 14px 5px 8px;
   cursor:pointer;white-space:nowrap}
-.cr-menu-item:hover,.cr-menu-item:focus{background:var(--cr-accent);color:var(--cr-accent-text);outline:0}
+.cr-menu-item:hover,.cr-menu-item:focus,.cr-menu-item.cr-submenu-open{background:var(--cr-accent);
+  color:var(--cr-accent-text);outline:0}
+.cr-menu-item>span:nth-child(2){flex:1}
+.cr-menu-arrow{margin-left:16px;font-size:9px}
 .cr-menu-check{width:14px;text-align:center}
 .cr-menu-empty,.cr-menu-disabled{color:var(--cr-text-faint);cursor:default;pointer-events:none}
 .cr-menu-separator{height:1px;margin:4px 0;background:var(--cr-menu-separator);pointer-events:none}
@@ -78,6 +82,18 @@ export class Menu extends Widget {
   }
 
   /** Adds a dividing line between groups of items. */
+  /**
+   * Adds an item that opens a submenu: a further list shown beside it.
+   * @param {string} label
+   * @param {() => object[]} items - called each time the submenu opens;
+   *   returns items in the same shape as itemsProvider's
+   */
+  addSubmenu(label, items) {
+    const item = { label, submenu: items };
+    this.items.push(item);
+    return item;
+  }
+
   addSeparator() {
     const item = { separator: true };
     this.items.push(item);
@@ -119,6 +135,7 @@ export class Menu extends Widget {
 
   close() {
     if (!this.isOpen) return;
+    this._closeSubmenu();
     this.list.hidden = true;
     this.element.classList.remove('open');
     this.button.setAttribute('aria-expanded', 'false');
@@ -149,6 +166,18 @@ export class Menu extends Widget {
     const text = document.createElement('span');
     text.textContent = item.label;
     li.append(check, text);
+    if (item.submenu) {
+      const arrow = document.createElement('span');
+      arrow.className = 'cr-menu-arrow';
+      arrow.textContent = '\u25b6';
+      li.append(arrow);
+      li.setAttribute('aria-haspopup', 'menu');
+      li.addEventListener('pointerenter', () => this._openSubmenu(li, item));
+      li.addEventListener('click', () => this._openSubmenu(li, item));
+      return li;
+    }
+    // Moving onto another item of the main list closes an open submenu.
+    li.addEventListener('pointerenter', () => { if (li.parentElement === this.list) this._closeSubmenu(); });
     if (item.enabled && !item.enabled()) {
       li.classList.add('cr-menu-disabled');
       li.setAttribute('aria-disabled', 'true');
@@ -156,6 +185,35 @@ export class Menu extends Widget {
     }
     li.addEventListener('click', () => { this.close(); item.action(); });
     return li;
+  }
+
+  // Shows item's submenu beside li: to the right, or to the left if there is
+  // no room. Only one submenu is open at a time.
+  _openSubmenu(li, item) {
+    if (this._submenuFor === li) return;
+    this._closeSubmenu();
+    const sub = document.createElement('ul');
+    sub.className = 'cr-menu-list cr-submenu';
+    sub.setAttribute('role', 'menu');
+    sub.append(...item.submenu().map((it) => this._renderItem(it)));
+    this.element.appendChild(sub);   // inside the menu, so an outside click still closes it
+    const r = li.getBoundingClientRect();
+    const w = sub.offsetWidth;
+    const left = r.right + w <= window.innerWidth ? r.right : Math.max(0, r.left - w);
+    sub.style.left = `${left}px`;
+    sub.style.top = `${Math.max(0, Math.min(r.top - 5, window.innerHeight - sub.offsetHeight))}px`;
+    li.classList.add('cr-submenu-open');
+    li.setAttribute('aria-expanded', 'true');
+    this._submenu = sub;
+    this._submenuFor = li;
+  }
+
+  _closeSubmenu() {
+    this._submenu?.remove();
+    this._submenuFor?.classList.remove('cr-submenu-open');
+    this._submenuFor?.setAttribute('aria-expanded', 'false');
+    this._submenu = null;
+    this._submenuFor = null;
   }
 
   dispose() {

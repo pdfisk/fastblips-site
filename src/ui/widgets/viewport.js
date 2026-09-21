@@ -30,6 +30,9 @@ export class Viewport extends Panel {
     s.background = 'var(--cr-desktop-bg)';
     s.color = 'var(--cr-text)';
     this._onResize = () => this.layout();
+    // A theme can change fonts, padding and borders, so sizes measured under
+    // the old one are stale: lay everything out again.
+    this._onTheme = () => requestAnimationFrame(() => this.layout());
   }
 
   /** Attaches the Viewport to the page and starts tracking window size. */
@@ -37,6 +40,7 @@ export class Viewport extends Panel {
     installTheme();
     host.appendChild(this.element);
     window.addEventListener('resize', this._onResize);
+    document.addEventListener('cr-themechange', this._onTheme);
     this.layout();
     return this;
   }
@@ -149,6 +153,7 @@ export class Viewport extends Panel {
 
   dispose() {
     window.removeEventListener('resize', this._onResize);
+    document.removeEventListener('cr-themechange', this._onTheme);
     super.dispose();
     instance = null;
   }

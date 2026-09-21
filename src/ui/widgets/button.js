@@ -4,10 +4,13 @@ import { Widget } from './widget.js';
 
 const STYLE = `
 .cr-button{box-sizing:border-box;border:1px solid transparent;border-radius:var(--cr-radius-button);
-  background:transparent;color:inherit;font:inherit;padding:0 12px;cursor:pointer;
-  white-space:nowrap}
+  background:var(--cr-button-bg);color:var(--cr-button-text);box-shadow:var(--cr-button-shadow);
+  font:inherit;padding:0 12px;cursor:pointer;white-space:nowrap}
 .cr-button:hover{background:var(--cr-button-hover)}
-.cr-button:disabled{opacity:.5;cursor:default;background:transparent}
+.cr-button:active{box-shadow:var(--cr-button-active-shadow)}
+.cr-button:disabled{opacity:.5;cursor:default;background:var(--cr-button-bg)}
+.cr-navbar .cr-button{background:transparent;color:inherit;box-shadow:none;border-radius:0}
+.cr-navbar .cr-button:hover{background:var(--cr-nav-hover);color:var(--cr-nav-hover-text)}
 `;
 
 function installStyle() {

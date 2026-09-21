@@ -11,6 +11,7 @@ import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
+import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 
 export function start() {
@@ -23,6 +24,7 @@ export function start() {
   navbar.add(new Button('Basic', () => new BasicConsoleWindow().open(viewport)));
   navbar.add(new Button('Python', () => new PythonConsoleWindow().open(viewport)));
   navbar.add(new Button('Process', () => SchedulerWindow.instance.open(viewport)));
+  navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;
   viewport.statusBar = statusBar(viewport);
@@ -89,6 +91,18 @@ function fileMenu(viewport) {
   menu.addItem('Delete', () => frontConsole()?.deleteFile(), {
     enabled: () => Boolean(frontConsole()?.canDeleteFile),
   });
+  return menu;
+}
+
+// The Settings menu. Theme opens a submenu of the themes: the one in use is
+// checked, and choosing another switches to it at once and remembers it.
+function settingsMenu() {
+  const menu = new Menu('Settings');
+  menu.addSubmenu('Theme', () => MENU_THEMES.map(([name, label]) => ({
+    label,
+    action: () => setTheme(name),
+    checked: () => themeName() === name,
+  })));
   return menu;
 }
 

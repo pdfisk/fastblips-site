@@ -244,6 +244,11 @@ Menu is a Widget, not a Panel; its items are not widgets.
     item closes the menu and runs action(). If enabled is given, it is
     called each time the menu opens and the item is greyed out and cannot be
     chosen while it returns false.
+  - addSubmenu(label, items) adds an item with an arrow that opens a
+    submenu beside it (to the right, or to the left if there is no room)
+    when pointed at or clicked. items is a function called each time the
+    submenu opens, returning items in the itemsProvider shape. Only one
+    submenu is open at a time, and choosing an item in it closes the menu.
   - addSeparator() adds a dividing line; an itemsProvider can return
     {separator: true} for the same.
   - If checked is given, it is a function called each time the menu opens;
@@ -261,7 +266,8 @@ Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
 with, from left to right, a File menu, a Database menu, Basic, Python and
-Process buttons, and a Windows menu, which is always the last item. The
+Process buttons, a Settings menu, and a Windows menu, which is always the
+last item. The
 StatusBar is docked at the bottom, and the TranscriptWindow is open.
 
   - The File menu has New Basic and New Python; then Open..., Save and
@@ -290,6 +296,9 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Python button opens a new PythonConsoleWindow.
   - The Process button opens the SchedulerWindow (or brings it to the
     front).
+  - The Settings menu has a Theme item, which opens a submenu listing the
+    themes, Classic and Smalltalk, with a check mark on the one in use.
+    Choosing one switches to it at once and remembers it for the next visit.
   - The Windows menu lists every open window by title, front-most first,
     with a check mark on the front-most one. Choosing a window shows it (if
     hidden) and brings it to the front.
@@ -468,15 +477,28 @@ Every colour, font, radius and shadow the widgets use is a CSS custom
 property named --cr-*, defined in src/ui/theme.js. Widgets never hard-code
 a colour; they write var(--cr-title-bg) and so on.
 
-  - THEMES holds a set of values per theme: light (the default, the
-    original look) and dark. Values shared by every theme (fonts, sizes,
-    radii) are defined once.
-  - setTheme('light' | 'dark' | 'auto') switches theme by setting
-    data-cr-theme on <html>; 'auto' follows the operating system's light or
-    dark setting. themeName() is the theme chosen, resolvedTheme() the one
-    in effect ('auto' resolved to 'light' or 'dark').
-  - A cr-themechange event on document announces each change. MonacoPanel
-    uses it to switch the editor between Monaco's 'vs' and 'vs-dark'
-    themes, since Monaco cannot read CSS variables.
-  - A new theme is one more entry in THEMES with a value for each
-    variable. In the browser the API is Crumb.ui.setTheme(...).
+  - THEMES holds a set of values per theme:
+      classic    the default: a Windows 2000-style desktop, with grey 3D
+                 bevels, gradient title bars, Tahoma and a blue desktop
+      smalltalk  after Smalltalk-80: black on white, striped title bars
+                 with the title centred on a white label, hard drop
+                 shadows and a dithered grey desktop
+      light      the original flat look
+      dark       a dark version of it
+    Values shared by every theme are defined once, and a theme overrides
+    only those it changes. Besides colours there are shape variables:
+    window padding, title weight and alignment, raised button and title-bar
+    button bevels.
+  - Settings > Theme offers Classic and Smalltalk (MENU_THEMES). Light and
+    Dark remain available from code.
+  - setTheme(name) switches theme by setting data-cr-theme on <html>, and
+    remembers it in localStorage ('crumb.theme'), so the next visit starts
+    with it. setTheme('auto') follows the operating system's light or dark
+    setting. themeName() is the theme chosen, resolvedTheme() the one in
+    effect.
+  - A cr-themechange event on document announces each change. The Viewport
+    lays everything out again on it (a theme can change fonts, padding and
+    borders), and MonacoPanel switches the editor's own theme, since Monaco
+    cannot read CSS variables.
+  - A new theme is one more entry in THEMES. In the browser the API is
+    Crumb.ui.setTheme(...).
