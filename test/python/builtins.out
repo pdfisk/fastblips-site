@@ -1,0 +1,6 @@
+<module 'builtins' (built-in)>
+builtins
+3
+True True True False
+True
+wrapped: hello

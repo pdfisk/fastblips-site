@@ -5,5 +5,5 @@
 ['count', 'endswith', 'find', 'format', 'isalpha', 'isdigit', 'join', 'lower', 'lstrip', 'replace', 'rstrip', 'split', 'startswith', 'strip', 'upper']
 []
 ['a', 'b', 'c']
-['Animal', 'Dog', 'd', 'inner', 'x']
+['Animal', 'Dog', '__builtins__', 'd', 'inner', 'x']
 ['args']

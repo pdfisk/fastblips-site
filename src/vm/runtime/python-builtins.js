@@ -140,7 +140,7 @@ const FUNCTIONS = {
 export const FUNCTION_NAMES = Object.keys(FUNCTIONS);
 
 /** Every name a MiniPy program starts with, in global-slot order. */
-export const BUILTIN_NAMES = [...EXCEPTION_NAMES, ...FUNCTION_NAMES];
+export const BUILTIN_NAMES = [...EXCEPTION_NAMES, ...FUNCTION_NAMES, '__builtins__'];
 
 function builtin(name, [min, max, fn]) {
   return new PyBuiltinFunction(name, (vm, args) => {
@@ -166,7 +166,8 @@ function scopeNames(vm) {
   const { globalNames, globalInit } = vm.chunk;
   globalNames.forEach((name, slot) => {
     const value = vm.globals[slot];
-    if (value !== UNBOUND && value !== globalInit[slot] && !name.startsWith('$')) names.push(name);
+    const bound = value !== UNBOUND && (value !== globalInit[slot] || name === '__builtins__');
+    if (bound && !name.startsWith('$')) names.push(name);
   });
   return names;
 }
@@ -339,6 +340,16 @@ export function createPythonRuntime() {
   const globals = new Map();
   for (const name of EXCEPTION_NAMES) globals.set(name, exceptionClasses[name]);
   for (const [name, spec] of Object.entries(FUNCTIONS)) globals.set(name, builtin(name, spec));
+
+  // __builtins__: a read-mostly stand-in for Python's builtins module. Its
+  // attributes are the built-in values as they were at startup, so
+  // __builtins__.print still works after a program rebinds print.
+  const moduleClass = new PyClass('module', null);
+  moduleClass.isModule = true;
+  const builtinsModule = new PyInstance(moduleClass);
+  builtinsModule.attrs.set('__name__', 'builtins');
+  for (const [name, value] of globals) builtinsModule.attrs.set(name, value);
+  globals.set('__builtins__', builtinsModule);
 
   return {
     globals,

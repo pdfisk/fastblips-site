@@ -116,6 +116,7 @@ export function pyStr(v) {
   if (v instanceof PyBoundMethod) return `<bound method ${v.func.name}>`;
   if (v instanceof PyClass) return `<class '${v.name}'>`;
   if (v instanceof PyInstance) {
+    if (v.cls.isModule) return `<module '${v.attrs.get('__name__')}' (built-in)>`;
     if (v.attrs.has('__msg__')) return pyStr(v.attrs.get('__msg__'));
     return `<${v.cls.name} object>`;
   }
