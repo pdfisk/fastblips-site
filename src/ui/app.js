@@ -68,19 +68,33 @@ function databaseMenu(viewport) {
   return menu;
 }
 
-// The Windows menu lists every open window, front-most first; choosing one
-// shows it (if hidden) and brings it to the front. The Transcript is always
-// listed, so it can be reopened after being closed.
+// The Windows menu starts with commands for all windows, then lists every
+// open window, front-most first; choosing one shows it (if hidden or
+// minimized) and brings it to the front. The Transcript is always listed, so
+// it can be reopened after being closed.
 function windowsMenu(viewport, transcript) {
   const menu = new Menu('Windows');
   menu.itemsProvider = () => {
-    const windows = viewport.windows.reverse();
+    const open = viewport.windows;   // before the Transcript is added below
+    const windows = open.slice().reverse();
+    const anyShowing = () => viewport.visibleWindows.length > 0;
+    const commands = [
+      { label: 'Arrange Windows', action: () => viewport.arrangeWindows(), enabled: anyShowing },
+      { label: 'Minimize All', action: () => viewport.minimizeAll(), enabled: anyShowing },
+      {
+        label: 'Restore All',
+        action: () => viewport.restoreAll(),
+        enabled: () => open.some((w) => w.minimized || w.maximized),
+      },
+      { label: 'Close All', action: () => viewport.closeAll(), enabled: () => open.length > 0 },
+      { separator: true },
+    ];
     if (!windows.includes(transcript)) windows.push(transcript);
-    return windows.map((win) => ({
+    return [...commands, ...windows.map((win) => ({
       label: win.title,
       action: () => win.open(viewport),
       checked: () => win.isOpen && win.isFront,
-    }));
+    }))];
   };
   return menu;
 }

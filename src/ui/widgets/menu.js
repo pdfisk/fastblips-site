@@ -18,7 +18,8 @@ const STYLE = `
   cursor:pointer;white-space:nowrap}
 .cr-menu-item:hover,.cr-menu-item:focus{background:#3a5f8f;color:#fff;outline:0}
 .cr-menu-check{width:14px;text-align:center}
-.cr-menu-empty{color:#888;cursor:default;pointer-events:none}
+.cr-menu-empty,.cr-menu-disabled{color:#888;cursor:default;pointer-events:none}
+.cr-menu-separator{height:1px;margin:4px 0;background:#ddd;pointer-events:none}
 `;
 
 function installStyle() {
@@ -66,11 +67,19 @@ export class Menu extends Widget {
    * Adds an item.
    * @param {string} label
    * @param {() => void} action - run when the item is chosen
-   * @param {{checked?: () => boolean}} options - if given, a check mark shows
-   *   whenever checked() returns true
+   * @param {{checked?: () => boolean, enabled?: () => boolean}} options -
+   *   checked: a check mark shows whenever it returns true;
+   *   enabled: the item is greyed out whenever it returns false
    */
-  addItem(label, action, { checked } = {}) {
-    const item = { label, action, checked };
+  addItem(label, action, { checked, enabled } = {}) {
+    const item = { label, action, checked, enabled };
+    this.items.push(item);
+    return item;
+  }
+
+  /** Adds a dividing line between groups of items. */
+  addSeparator() {
+    const item = { separator: true };
     this.items.push(item);
     return item;
   }
@@ -120,6 +129,11 @@ export class Menu extends Widget {
 
   _renderItem(item) {
     const li = document.createElement('li');
+    if (item.separator) {
+      li.className = 'cr-menu-separator';
+      li.setAttribute('role', 'separator');
+      return li;
+    }
     li.className = 'cr-menu-item';
     li.tabIndex = -1;
     const check = document.createElement('span');
@@ -135,6 +149,11 @@ export class Menu extends Widget {
     const text = document.createElement('span');
     text.textContent = item.label;
     li.append(check, text);
+    if (item.enabled && !item.enabled()) {
+      li.classList.add('cr-menu-disabled');
+      li.setAttribute('aria-disabled', 'true');
+      return li;
+    }
     li.addEventListener('click', () => { this.close(); item.action(); });
     return li;
   }

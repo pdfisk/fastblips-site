@@ -66,6 +66,13 @@ of the widget tree.
     clicked.
   - Listens for browser resize events and lays out the whole tree again.
   - windows returns the open Windows, back to front.
+  - visibleWindows and minimizedWindows return the Windows that are
+    showing, and those that are minimized.
+  - arrangeWindows() tiles the showing Windows in a grid between the Navbar
+    and the StatusBar, front-most at the top left; minimizeAll(),
+    restoreAll() (un-minimize and un-maximize) and closeAll() act on every
+    Window. The playground's Windows menu offers all four above its list
+    of windows.
 
 
 Panel (abstract)
@@ -229,8 +236,12 @@ Menu
 A pulldown menu: a labelled button that opens a list of items when clicked.
 Menu is a Widget, not a Panel; its items are not widgets.
 
-  - addItem(label, action, { checked }) adds an item. Choosing the item
-    closes the menu and runs action().
+  - addItem(label, action, { checked, enabled }) adds an item. Choosing the
+    item closes the menu and runs action(). If enabled is given, it is
+    called each time the menu opens and the item is greyed out and cannot be
+    chosen while it returns false.
+  - addSeparator() adds a dividing line; an itemsProvider can return
+    {separator: true} for the same.
   - If checked is given, it is a function called each time the menu opens;
     a check mark is shown next to the item while it returns true.
   - Only one menu is open at a time. Clicking outside the menu or pressing
@@ -238,7 +249,8 @@ Menu is a Widget, not a Panel; its items are not widgets.
   - The list is drawn above all Windows, and kept inside the browser window.
   - Setting itemsProvider to a function makes the menu dynamic: the function
     is called each time the menu opens and returns the items to show, in the
-    same {label, action, checked} shape. "(none)" is shown for an empty list.
+    same {label, action, checked, enabled} shape. "(none)" is shown for an
+    empty list.
 
 
 Startup

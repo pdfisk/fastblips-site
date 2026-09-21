@@ -71,6 +71,56 @@ export class Viewport extends Panel {
     return this._children.filter((c) => c.minimized === true);
   }
 
+  // ------------------------------------------------------ window commands
+
+  /** Windows currently showing (not minimized or hidden), back to front. */
+  get visibleWindows() { return this.windows.filter((w) => w.visible); }
+
+  /**
+   * Tiles the showing windows in a grid over the area between the Navbar and
+   * the StatusBar, front-most window first (top left). Maximized windows are
+   * restored first. Windows keep their minimum size, so with many windows
+   * in a small viewport some may overlap.
+   */
+  arrangeWindows() {
+    const wins = this.visibleWindows.reverse();
+    if (wins.length === 0) return;
+    const top = this.top;
+    const width = this.width;
+    const height = this.height - top - this.bottom;
+    const cols = Math.ceil(Math.sqrt(wins.length * (width / Math.max(1, height)) * 0.75));
+    const columns = Math.max(1, Math.min(wins.length, cols));
+    const rows = Math.ceil(wins.length / columns);
+    wins.forEach((win, i) => {
+      const row = Math.floor(i / columns);
+      // The last row may be short; its windows share the full width.
+      const inRow = row === rows - 1 ? wins.length - row * columns : columns;
+      const col = i - row * columns;
+      const x0 = Math.round((col * width) / inRow);
+      const x1 = Math.round(((col + 1) * width) / inRow);
+      const y0 = top + Math.round((row * height) / rows);
+      const y1 = top + Math.round(((row + 1) * height) / rows);
+      if (win.maximized) win.restore();
+      win.setBounds(x0, y0, x1 - x0, y1 - y0);
+    });
+  }
+
+  /** Minimizes every showing window. */
+  minimizeAll() {
+    for (const win of this.visibleWindows) win.minimize();
+  }
+
+  /** Brings back every minimized window and un-maximizes maximized ones. */
+  restoreAll() {
+    for (const win of this.minimizedWindows) win.open(this);
+    for (const win of this.windows) if (win.maximized) win.restore();
+  }
+
+  /** Closes every window. A window whose close event is cancelled stays open. */
+  closeAll() {
+    for (const win of this.windows) win.close();
+  }
+
   layout() {
     if (this._navbar) this._navbar.setBounds(0, 0, this.width, this._navbar.height);
     for (const win of this.windows) if (win.maximized) win.fitToParent();
