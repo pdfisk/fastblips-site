@@ -257,17 +257,35 @@ Menu is a Widget, not a Panel; its items are not widgets.
 Startup
 -------
 When the program starts, the Navbar is docked at the top of the Viewport
-with a Database menu at the left, then Basic, Python and Scheduler buttons,
-followed by a Windows menu, which is always the last item, and the
-TranscriptWindow is open.
+with, from left to right, a File menu, a Database menu, Basic, Python and
+Process buttons, and a Windows menu, which is always the last item. The
+StatusBar is docked at the bottom, and the TranscriptWindow is open.
 
+  - The File menu has New Basic and New Python; then Open..., Save and
+    Save As...; then Delete, with a separator between the groups.
+    - New Basic and New Python open an empty console in that language.
+    - Open... asks for a source file and opens it in a new console: .crumb
+      and .bas files in a BasicConsoleWindow, .py files in a
+      PythonConsoleWindow. The console's title shows the file name.
+    - Save writes the front-most console's source back to its file; for a
+      console with no file yet it does what Save As... does.
+    - Save As... asks where to save the front-most console's source.
+    - Save and Save As... are greyed out unless the front-most showing
+      window is a console.
+    - Delete asks for confirmation, then deletes the front-most console's
+      file. The source stays in the console, which no longer has a file.
+      It is greyed out unless that file was opened or saved through the
+      File System Access API (Chrome, Edge), since other browsers give a
+      page no way to delete files.
+    - Where the browser has the File System Access API (Chrome, Edge), Save
+      writes the file in place. Elsewhere Open uses a file chooser and Save
+      downloads the file.
   - The Database menu has Basic and Python items, which open the
     BasicDatabaseWindow and PythonDatabaseWindow (or bring them to the
     front).
-
   - The Basic button opens a new BasicConsoleWindow.
   - The Python button opens a new PythonConsoleWindow.
-  - The Scheduler button opens the SchedulerWindow (or brings it to the
+  - The Process button opens the SchedulerWindow (or brings it to the
     front).
   - The Windows menu lists every open window by title, front-most first,
     with a check mark on the front-most one. Choosing a window shows it (if
@@ -371,6 +389,7 @@ SchedulerWindow (singleton)
 A Window listing the programs on the UI's shared Scheduler, so they can be
 suspended, resumed or killed.
 
+  - Its title is "Process", matching the Navbar button that opens it.
   - There is only one; SchedulerWindow.instance creates it on first use,
     and constructing a second one throws.
   - Its content is a ListPanel with one row per unfinished process: pid,

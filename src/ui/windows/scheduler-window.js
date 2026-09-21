@@ -17,7 +17,7 @@ export class SchedulerWindow extends Window {
 
   constructor({ scheduler = sharedScheduler } = {}) {
     if (instance) throw new Error('SchedulerWindow is a singleton; use SchedulerWindow.instance');
-    super({ title: 'Scheduler', x: 440, y: 400, width: 420, height: 220 });
+    super({ title: 'Process', x: 440, y: 400, width: 420, height: 220 });
     instance = this;
     this.scheduler = scheduler;
     this.element.classList.add('cr-scheduler-window');

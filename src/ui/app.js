@@ -10,6 +10,7 @@ import { TranscriptWindow } from './windows/transcript-window.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
+import { ConsoleWindow } from './windows/console-window.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 
 export function start() {
@@ -17,10 +18,11 @@ export function start() {
   const navbar = Navbar.instance;
   const transcript = TranscriptWindow.instance;
 
+  navbar.add(fileMenu(viewport));
+  navbar.add(databaseMenu(viewport));
   navbar.add(new Button('Basic', () => new BasicConsoleWindow().open(viewport)));
   navbar.add(new Button('Python', () => new PythonConsoleWindow().open(viewport)));
-  navbar.add(databaseMenu(viewport));
-  navbar.add(new Button('Scheduler', () => SchedulerWindow.instance.open(viewport)));
+  navbar.add(new Button('Process', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(windowsMenu(viewport, transcript));
   viewport.navbar = navbar;
   viewport.statusBar = statusBar(viewport);
@@ -56,6 +58,38 @@ function schedulerSummary() {
   const parts = ['running', 'ready', 'sleeping', 'scheduled', 'suspended']
     .filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`);
   return `${total} process${total === 1 ? '' : 'es'}: ${parts.join(', ')}`;
+}
+
+// The File menu:
+//   New Basic    a new, empty Basic console
+//   New Python   a new, empty Python console
+//   Open...      a source file in a new console of the matching language
+//                (.crumb/.bas: Basic, .py: Python)
+//   Save         the front-most console's source, to its file
+//   Save As...   the front-most console's source, to a new file
+//   Delete       the front-most console's file, after confirming
+// Save and Save As are greyed out unless a console is the front-most showing
+// window; Delete also needs that console's file to be deletable (a file
+// opened or saved through the File System Access API, in Chrome or Edge).
+function fileMenu(viewport) {
+  const menu = new Menu('File');
+  const frontConsole = () => {
+    const front = viewport.visibleWindows.at(-1);
+    return front instanceof ConsoleWindow ? front : null;
+  };
+  const hasConsole = () => frontConsole() !== null;
+  const newConsole = (Cls) => () => new Cls({ text: '' }).open(viewport).input.focus();
+  menu.addItem('New Basic', newConsole(BasicConsoleWindow));
+  menu.addItem('New Python', newConsole(PythonConsoleWindow));
+  menu.addSeparator();
+  menu.addItem('Open...', () => ConsoleWindow.openInNewConsole([BasicConsoleWindow, PythonConsoleWindow], viewport));
+  menu.addItem('Save', () => frontConsole()?.save(), { enabled: hasConsole });
+  menu.addItem('Save As...', () => frontConsole()?.saveAs(), { enabled: hasConsole });
+  menu.addSeparator();
+  menu.addItem('Delete', () => frontConsole()?.deleteFile(), {
+    enabled: () => Boolean(frontConsole()?.canDeleteFile),
+  });
+  return menu;
 }
 
 // The Database menu, third on the Navbar, opens a browser for each table on

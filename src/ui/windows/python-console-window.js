@@ -4,7 +4,7 @@
 //
 // MiniPy compiles to the same bytecode as Crumb and runs on the same VM, so
 // its programs go on the shared scheduler too: they take turns with Crumb
-// programs, sleep() never blocks the page, and the Scheduler window can
+// programs, sleep() never blocks the page, and the Process window can
 // suspend or kill them.
 
 import { ConsoleWindow } from './console-window.js';
@@ -17,6 +17,10 @@ import { scheduler } from '../runtime.js';
 
 export class PythonConsoleWindow extends ConsoleWindow {
   static get titlePrefix() { return 'Python Console'; }
+
+  static get fileTypes() {
+    return [{ description: 'Python source', accept: { 'text/x-python': ['.py'] } }];
+  }
   static get defaultText() { return 'print("Hello, world")\n'; }
 
   /** The source is edited in Monaco, highlighted as Python. */

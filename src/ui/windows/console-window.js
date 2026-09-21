@@ -6,6 +6,7 @@
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
+import { openFile, saveFile } from '../files.js';
 
 // Every console, of any language, cascades from the same starting point.
 let opened = 0;
@@ -27,6 +28,18 @@ export class ConsoleWindow extends HSplitWindow {
   /** The source a new console starts with. Subclasses override. */
   static get defaultText() { return ''; }
 
+  /** The file types this console opens and saves. Subclasses override. */
+  static get fileTypes() { return [{ description: 'Text', accept: { 'text/plain': ['.txt'] } }]; }
+
+  /** Extension for a new file's suggested name, e.g. '.crumb'. */
+  static get fileExtension() { return this.fileTypes[0].accept[Object.keys(this.fileTypes[0].accept)[0]][0]; }
+
+  /** True if this console's language uses files with this name. */
+  static handles(fileName) {
+    const lower = fileName.toLowerCase();
+    return this.fileTypes.some((t) => Object.values(t.accept).flat().some((ext) => lower.endsWith(ext)));
+  }
+
   constructor(options = {}) {
     const cls = new.target;
     const n = counts.get(cls) ?? 0;
@@ -38,6 +51,9 @@ export class ConsoleWindow extends HSplitWindow {
       ...options,
     });
     this.element.classList.add('cr-console-window');
+    this.baseTitle = this.title;
+    this.fileName = null;     // the file this console was opened from or saved to
+    this.fileHandle = null;   // its handle, where the browser provides one
     this.input = this.createInput(options.text ?? cls.defaultText);
     this.output = new TextPanel({ readOnly: true });
     this.output.textArea.style.background = '#f7f7f7';
@@ -59,6 +75,95 @@ export class ConsoleWindow extends HSplitWindow {
 
   /** Stops this console's program, if one is running. The base has none. */
   stop() {}
+
+  // ------------------------------------------------------------------ files
+
+  /** Puts a file's source in this console and remembers where it came from. */
+  load({ name, text, handle = null }) {
+    this.input.text = text;
+    this.output.text = '';
+    this._setFile(name, handle);
+  }
+
+  /** Writes the source back to its file, or asks where to save it. */
+  async save() {
+    if (!this.fileName) return this.saveAs();
+    return this._save({ name: this.fileName, handle: this.fileHandle });
+  }
+
+  /** Asks where to save the source, and saves it there. */
+  async saveAs() {
+    const cls = this.constructor;
+    const name = this.fileName ?? `${this.baseTitle.toLowerCase().replace(/\s+/g, '-')}${cls.fileExtension}`;
+    return this._save({ name, handle: null });
+  }
+
+  async _save({ name, handle }) {
+    try {
+      const saved = await saveFile(this.input.text, { name, handle, types: this.constructor.fileTypes });
+      if (!saved) return false;
+      this._setFile(saved.name, saved.handle);
+      StatusBar.instance.show(`Saved ${saved.name}`);
+      return true;
+    } catch (err) {
+      StatusBar.instance.show(`Could not save ${name}: ${err.message}`, 'error');
+      return false;
+    }
+  }
+
+  /** True if this console's file can be deleted from here: the browser
+   *  gave a handle for it (File System Access API) that supports remove(). */
+  get canDeleteFile() {
+    return Boolean(this.fileHandle && typeof this.fileHandle.remove === 'function');
+  }
+
+  /**
+   * Deletes this console's file, after the user confirms. The source stays
+   * in the console, which no longer has a file, so Save asks where to save.
+   */
+  async deleteFile() {
+    if (!this.canDeleteFile) return false;
+    const name = this.fileName;
+    if (!window.confirm(`Delete ${name}? This cannot be undone.`)) return false;
+    try {
+      await this.fileHandle.remove();
+      this._setFile(null, null);
+      StatusBar.instance.show(`Deleted ${name}`);
+      return true;
+    } catch (err) {
+      StatusBar.instance.show(`Could not delete ${name}: ${err.message}`, 'error');
+      return false;
+    }
+  }
+
+  _setFile(name, handle) {
+    this.fileName = name;
+    this.fileHandle = handle;
+    this.title = name ? `${this.baseTitle} \u2014 ${name}` : this.baseTitle;
+    this.element.dispatchEvent(new CustomEvent('windowstate', { bubbles: true, detail: { window: this } }));
+  }
+
+  /**
+   * Asks for a file and opens it in a new console of the class whose
+   * language matches its extension.
+   * @param {Function[]} classes ConsoleWindow subclasses, the first is the fallback
+   */
+  static async openInNewConsole(classes, viewport) {
+    const types = classes.flatMap((c) => c.fileTypes);
+    try {
+      const file = await openFile(types);
+      if (!file) return null;
+      const Cls = classes.find((c) => c.handles(file.name)) ?? classes[0];
+      const win = new Cls();
+      win.load(file);
+      win.open(viewport);
+      StatusBar.instance.show(`Opened ${file.name}`);
+      return win;
+    } catch (err) {
+      StatusBar.instance.show(`Could not open the file: ${err.message}`, 'error');
+      return null;
+    }
+  }
 
   close() {
     const closed = super.close();

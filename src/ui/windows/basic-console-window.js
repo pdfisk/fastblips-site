@@ -14,6 +14,10 @@ export { scheduler };
 
 export class BasicConsoleWindow extends ConsoleWindow {
   static get titlePrefix() { return 'Basic Console'; }
+
+  static get fileTypes() {
+    return [{ description: 'Crumb Basic source', accept: { 'text/plain': ['.crumb', '.bas'] } }];
+  }
   static get defaultText() { return 'Print "Hello, world"\n'; }
 
   /** The source is edited in Monaco, highlighted as VB.NET. */
