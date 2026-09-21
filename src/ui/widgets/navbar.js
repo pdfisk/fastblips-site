@@ -22,7 +22,8 @@ export class Navbar extends HPanel {
     this.element.classList.add('cr-navbar');
     this.element.setAttribute('role', 'menubar');
     this.element.style.cssText += ';background:var(--cr-nav-bg);color:var(--cr-nav-text);'
-      + 'font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100000;box-shadow:var(--cr-nav-shadow)';
+      + 'font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100000;box-shadow:var(--cr-nav-shadow);'
+      + 'backdrop-filter:var(--cr-nav-backdrop);-webkit-backdrop-filter:var(--cr-nav-backdrop)';
   }
 
   dispose() {

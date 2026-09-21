@@ -25,6 +25,7 @@ export class StatusBar extends HPanel {
     this.element.classList.add('cr-status-bar');
     this.element.setAttribute('role', 'status');
     this.element.style.cssText += ';background:var(--cr-status-bg);'
+      + 'backdrop-filter:var(--cr-nav-backdrop);-webkit-backdrop-filter:var(--cr-nav-backdrop);'
       + 'border-top:1px solid var(--cr-status-border);'
       + 'font:var(--cr-font-size-small) var(--cr-font-ui);z-index:100000;box-sizing:border-box';
 

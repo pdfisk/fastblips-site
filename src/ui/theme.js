@@ -8,11 +8,12 @@
 //
 //   setTheme('classic')    the default: a Windows 2000-style desktop
 //   setTheme('smalltalk')  black and white, after Smalltalk-80
+//   setTheme('apple')      a present-day Mac desktop
 //   setTheme('light')      the original flat look
 //   setTheme('dark')
 //   setTheme('auto')       light or dark, following the operating system
 //
-// Settings > Theme offers Classic and Smalltalk; the choice is remembered in
+// Settings > Theme offers Classic, Smalltalk and Apple; the choice is remembered in
 // localStorage.
 //
 // A 'cr-themechange' event is dispatched on document whenever the theme in
@@ -47,6 +48,32 @@ const BASE = {
   'button-shadow': 'none',
   'button-active-shadow': 'none',
   'nav-hover-text': 'inherit',
+  'nav-item-radius': '0px',
+  'nav-item-inset': '0px',     // space around a menu-bar item's highlight
+  'nav-backdrop': 'none',          // e.g. a blur behind a translucent bar
+  // Title-bar buttons: size, shape, colour per button, and order. A
+  // negative order puts a button before the title (on the left).
+  'tool-width': '22px',
+  'tool-height': '18px',
+  'tool-radius': 'var(--cr-radius-button)',
+  'tool-font-size': '16px',
+  'tool-text-hover': 'var(--cr-tool-text)',
+  'min-bg': 'var(--cr-tool-bg)',
+  'max-bg': 'var(--cr-tool-bg)',
+  'close-bg': 'var(--cr-tool-bg)',
+  'min-bg-inactive': 'var(--cr-min-bg)',
+  'max-bg-inactive': 'var(--cr-max-bg)',
+  'close-bg-inactive': 'var(--cr-close-bg)',
+  'min-hover': 'var(--cr-title-hover)',
+  'max-hover': 'var(--cr-title-hover)',
+  'min-order': '0',
+  'max-order': '0',
+  'close-order': '0',
+  // Menus
+  'menu-radius': '0px',
+  'menu-item-radius': '0px',
+  'menu-item-margin': '0px',
+  'menu-backdrop': 'none',
 };
 
 // A raised 3D edge, as on Windows 2000 buttons and window frames.
@@ -250,6 +277,102 @@ export const THEMES = {
     'status-task-border': '#000000',
     'monaco': 'vs',
   },
+  // A present-day Mac desktop: a translucent light menu bar, a soft gradient
+  // wallpaper, large rounded windows with deep soft shadows, centred titles,
+  // and red, yellow and green circular window buttons on the left whose
+  // symbols appear on hover.
+  apple: {
+    'font-ui': '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    'font-mono': '"SF Mono", Menlo, Monaco, monospace',
+    'font-size': '13px',
+    'font-size-nav': '13px',
+    'font-size-small': '11px',
+    'radius-button': '6px',
+    'radius-field': '5px',
+    'window-radius': '10px',
+    'desktop-bg': 'radial-gradient(ellipse at 20% 15%, #9ec5f0 0%, transparent 55%), '
+      + 'radial-gradient(ellipse at 85% 80%, #f0a8c8 0%, transparent 55%), '
+      + 'linear-gradient(135deg, #4a6fd0 0%, #7b62c9 50%, #c77bb0 100%)',
+    'text': '#1d1d1f',
+    'text-muted': '#3c3c43',
+    'text-faint': '#8e8e93',
+    'danger': '#d70015',
+    'accent': '#0a64d8',
+    'accent-text': '#ffffff',
+    'nav-bg': 'rgba(246,246,246,.72)',
+    'nav-text': '#1d1d1f',
+    'nav-hover': 'rgba(0,0,0,.09)',
+    'nav-hover-text': '#1d1d1f',
+    'nav-shadow': '0 .5px 0 rgba(0,0,0,.15)',
+    'nav-backdrop': 'saturate(180%) blur(20px)',
+    'nav-item-radius': '5px',
+    'nav-item-inset': '5px 1px',
+    'window-bg': '#ececec',
+    'window-border': 'rgba(0,0,0,.22)',
+    'window-shadow': '0 22px 50px rgba(0,0,0,.30), 0 4px 12px rgba(0,0,0,.12)',
+    'window-shadow-inactive': '0 10px 26px rgba(0,0,0,.16), 0 2px 6px rgba(0,0,0,.08)',
+    'title-bg': 'linear-gradient(#ececec, #e3e3e3)',
+    'title-text': '#3c3c43',
+    'title-bg-inactive': '#f5f5f5',
+    'title-text-inactive': '#b0b0b5',
+    'title-font-weight': '600',
+    'title-label-margin': '0 auto',
+    'title-label-padding': '0 12px',
+    'title-hover': 'transparent',
+    'tool-width': '12px',
+    'tool-height': '12px',
+    'tool-radius': '50%',
+    'tool-font-size': '9px',
+    'tool-bg': '#d6d6d6',
+    'tool-text': 'transparent',
+    'tool-text-hover': 'rgba(0,0,0,.55)',
+    'tool-shadow': 'inset 0 0 0 .5px rgba(0,0,0,.15)',
+    'close-bg': '#ff5f57',
+    'min-bg': '#febc2e',
+    'max-bg': '#28c840',
+    'close-bg-inactive': '#d6d6d6',
+    'min-bg-inactive': '#d6d6d6',
+    'max-bg-inactive': '#d6d6d6',
+    'close-hover': '#ff5f57',
+    'close-hover-text': 'rgba(0,0,0,.55)',
+    'min-hover': '#febc2e',
+    'max-hover': '#28c840',
+    'close-order': '-3',
+    'min-order': '-2',
+    'max-order': '-1',
+    'button-bg': '#ffffff',
+    'button-text': '#1d1d1f',
+    'button-shadow': '0 .5px 1.5px rgba(0,0,0,.22), inset 0 0 0 .5px rgba(0,0,0,.14)',
+    'button-active-shadow': 'inset 0 0 0 .5px rgba(0,0,0,.25), inset 0 1px 2px rgba(0,0,0,.12)',
+    'button-hover': '#fafafa',
+    'buttonbar-bg': '#ececec',
+    'buttonbar-border': 'rgba(0,0,0,.1)',
+    'input-bg': '#ffffff',
+    'output-bg': '#f7f7f7',
+    'divider': '#d9d9d9',
+    'list-selected': '#dcdcdc',
+    'list-selected-focus': '#0a64d8',
+    'list-selected-focus-text': '#ffffff',
+    'field-border': '#c7c7cc',
+    'field-disabled-bg': '#f2f2f2',
+    'header-bg': '#f2f2f2',
+    'header-text': '#3c3c43',
+    'header-info': '#8e8e93',
+    'menu-bg': 'rgba(246,246,246,.88)',
+    'menu-text': '#1d1d1f',
+    'menu-border': 'rgba(0,0,0,.14)',
+    'menu-separator': 'rgba(0,0,0,.1)',
+    'menu-shadow': '0 10px 30px rgba(0,0,0,.22)',
+    'menu-radius': '8px',
+    'menu-item-radius': '4px',
+    'menu-item-margin': '0 5px',
+    'menu-backdrop': 'saturate(180%) blur(20px)',
+    'status-bg': 'rgba(246,246,246,.72)',
+    'status-border': 'rgba(0,0,0,.12)',
+    'status-task-bg': '#ffffff',
+    'status-task-border': 'rgba(0,0,0,.15)',
+    'monaco': 'vs',
+  },
   dark: {
     'desktop-bg': '#1b1e23',
     'text': '#e4e6ea',
@@ -304,7 +427,7 @@ export const THEMES = {
 export const DEFAULT_THEME = 'classic';
 
 /** The themes offered in Settings > Theme, as [name, label]. */
-export const MENU_THEMES = [['classic', 'Classic'], ['smalltalk', 'Smalltalk']];
+export const MENU_THEMES = [['classic', 'Classic'], ['smalltalk', 'Smalltalk'], ['apple', 'Apple']];
 
 const STORAGE_KEY = 'crumb.theme';
 

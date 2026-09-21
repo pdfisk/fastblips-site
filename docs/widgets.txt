@@ -299,7 +299,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has two items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic or Smalltalk.
+    - Theme: Classic, Smalltalk or Apple.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -490,15 +490,22 @@ a colour; they write var(--cr-title-bg) and so on.
       smalltalk  after Smalltalk-80: black on white, striped title bars
                  with the title centred on a white label, hard drop
                  shadows and a dithered grey desktop
+      apple      a present-day Mac desktop: a translucent, blurred menu
+                 bar, a soft gradient wallpaper, large rounded windows with
+                 deep shadows, centred titles, and red, yellow and green
+                 circular window buttons on the left whose symbols show
+                 on hover
       light      the original flat look
       dark       a dark version of it
     Values shared by every theme are defined once, and a theme overrides
     only those it changes. Besides colours there are shape variables:
     window padding, title weight and alignment, raised button and title-bar
-    button bevels, the window corner radius (windows have slightly rounded
+    button bevels, the size, shape, colour and order of the title-bar
+    buttons (a negative order puts them before the title), rounded and
+    blurred menus and bars, the window corner radius (windows have slightly rounded
     corners and soft shadows; a maximized window is square) and how far a
     running console's output fades.
-  - Settings > Theme offers Classic and Smalltalk (MENU_THEMES). Light and
+  - Settings > Theme offers Classic, Smalltalk and Apple (MENU_THEMES). Light and
     Dark remain available from code.
   - setTheme(name) switches theme by setting data-cr-theme on <html>, and
     remembers it in localStorage ('crumb.theme'), so the next visit starts

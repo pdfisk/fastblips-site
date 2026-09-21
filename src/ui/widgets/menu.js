@@ -9,14 +9,18 @@ import { Widget } from './widget.js';
 const STYLE = `
 .cr-menu{display:flex;align-items:stretch}
 .cr-menu-button{border:0;background:transparent;color:inherit;font:inherit;
-  padding:0 12px;cursor:pointer;white-space:nowrap}
+  padding:0 12px;cursor:pointer;white-space:nowrap;border-radius:var(--cr-nav-item-radius);
+  border:solid transparent;border-width:var(--cr-nav-item-inset);background-clip:padding-box}
 .cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:var(--cr-nav-hover);
   color:var(--cr-nav-hover-text)}
 .cr-menu-list{position:fixed;min-width:160px;margin:0;padding:4px 0;list-style:none;
   background:var(--cr-menu-bg);color:var(--cr-menu-text);border:1px solid var(--cr-menu-border);
-  box-shadow:var(--cr-menu-shadow);font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100001}
+  box-shadow:var(--cr-menu-shadow);font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100001;
+  border-radius:var(--cr-menu-radius);backdrop-filter:var(--cr-menu-backdrop);
+  -webkit-backdrop-filter:var(--cr-menu-backdrop)}
 .cr-menu-item{display:flex;align-items:center;gap:6px;padding:5px 14px 5px 8px;
-  cursor:pointer;white-space:nowrap}
+  cursor:pointer;white-space:nowrap;margin:var(--cr-menu-item-margin);
+  border-radius:var(--cr-menu-item-radius)}
 .cr-menu-item:hover,.cr-menu-item:focus,.cr-menu-item.cr-submenu-open{background:var(--cr-accent);
   color:var(--cr-accent-text);outline:0}
 .cr-menu-item>span:nth-child(2){flex:1}
