@@ -50,7 +50,8 @@ export class StatusBar extends HPanel {
       button.element.title = task.title ?? task.label;
       button.element.style.cssText += ';max-width:180px;overflow:hidden;text-overflow:ellipsis;'
         + 'border:1px solid var(--cr-status-task-border);background:var(--cr-status-task-bg);'
-        + 'color:var(--cr-text);padding:0 8px;font-size:var(--cr-font-size-small)';
+        + 'color:var(--cr-text);padding:0 8px;font-size:var(--cr-font-size-small);'
+        + 'border-radius:var(--cr-radius-button)';
       const natural = button.preferredWidth.bind(button);
       button.preferredWidth = () => Math.min(180, natural() + 4);   // slack for sub-pixel text
       return button;

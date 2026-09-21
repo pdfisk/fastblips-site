@@ -19,14 +19,14 @@ const STYLE = `
 .cr-window.cr-window-active{box-shadow:var(--cr-window-shadow)}
 .cr-window-title{flex:0 0 ${TITLE_HEIGHT}px;display:flex;align-items:center;
   padding:0 4px 0 8px;background:var(--cr-title-bg-inactive);color:var(--cr-title-text-inactive);
-  font-weight:var(--cr-title-font-weight);cursor:move;user-select:none;gap:2px}
+  font-weight:var(--cr-title-font-weight);cursor:move;user-select:none;gap:3px}
 .cr-window-active .cr-window-title{background:var(--cr-title-bg);color:var(--cr-title-text)}
 .cr-window-title span{flex:0 1 auto;min-width:0;white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis;margin:var(--cr-title-label-margin);padding:var(--cr-title-label-padding);
   background:var(--cr-title-label-bg)}
 .cr-window-tool{flex:none;border:0;background:var(--cr-tool-bg);color:var(--cr-tool-text);
   box-shadow:var(--cr-tool-shadow);font:normal 16px/1 var(--cr-font-ui);
-  width:22px;height:18px;padding:0;cursor:pointer;border-radius:var(--cr-radius-field)}
+  width:22px;height:18px;padding:0;cursor:pointer;border-radius:var(--cr-radius-button)}
 .cr-window-tool:hover{background:var(--cr-title-hover)}
 .cr-window-close:hover{background:var(--cr-close-hover);color:var(--cr-close-hover-text)}
 .cr-window.cr-maximized{box-shadow:none;padding:0;border-radius:0}
