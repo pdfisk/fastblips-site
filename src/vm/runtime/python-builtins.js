@@ -13,6 +13,7 @@ import {
   add, order, normIndex, toSequenceArray,
 } from './python-ops.js';
 import { RuntimeFault } from '../faults.js';
+import { UNBOUND } from '../values.js';
 
 export const EXCEPTION_NAMES = [
   'Exception', 'TypeError', 'ValueError', 'ZeroDivisionError', 'IndexError',
@@ -114,6 +115,10 @@ const FUNCTIONS = {
   }],
   sorted: [1, 1, (vm, [seq]) => sortValues(vm, toSequenceArray(vm, seq).slice())],
 
+  // dir([object]): with no argument, the names bound in the current scope;
+  // with one, the attribute names of the object. Always a sorted list of str.
+  dir: [0, 1, (vm, args) => (args.length === 0 ? scopeNames(vm) : attributeNames(args[0])).sort()],
+
   // sleep(seconds): pauses the program. The VM yields; whoever runs it (the
   // loader's run() or a Scheduler) does the waiting, exactly as for Crumb's
   // Sleep.
@@ -145,6 +150,46 @@ function builtin(name, [min, max, fn]) {
     }
     return fn(vm, args);
   });
+}
+
+/** Names bound in the innermost scope: the running function or class body,
+ *  or else the module (leaving out built-ins the program hasn't rebound). */
+function scopeNames(vm) {
+  const names = [];
+  const frame = vm.frames[vm.frames.length - 1];
+  if (frame) {
+    frame.proc.slotNames.forEach((name, slot) => {
+      if (frame.slots[slot] !== UNBOUND && !name.startsWith('$')) names.push(name);
+    });
+    return names;
+  }
+  const { globalNames, globalInit } = vm.chunk;
+  globalNames.forEach((name, slot) => {
+    const value = vm.globals[slot];
+    if (value !== UNBOUND && value !== globalInit[slot] && !name.startsWith('$')) names.push(name);
+  });
+  return names;
+}
+
+/** The attribute names getAttr() would find on `obj`. */
+function attributeNames(obj) {
+  const names = new Set();
+  const addClass = (cls) => {
+    for (let c = cls; c; c = c.base) for (const name of c.methods.keys()) names.add(name);
+  };
+  if (obj instanceof PyInstance) {
+    for (const name of obj.attrs.keys()) if (name !== '__msg__') names.add(name);
+    addClass(obj.cls);
+  } else if (obj instanceof PyClass) {
+    addClass(obj);
+  } else if (Array.isArray(obj)) {
+    LIST_METHODS.forEach((n) => names.add(n));
+  } else if (obj instanceof PyDict) {
+    DICT_METHODS.forEach((n) => names.add(n));
+  } else if (typeof obj === 'string') {
+    STR_METHODS.forEach((n) => names.add(n));
+  }
+  return [...names];
 }
 
 function sortValues(vm, items) {
@@ -185,6 +230,13 @@ function bf(name, fn) {
     }
   });
 }
+
+const LIST_METHODS = ['append', 'extend', 'pop', 'insert', 'remove', 'index', 'count', 'reverse', 'sort', 'clear', 'copy'];
+const DICT_METHODS = ['get', 'keys', 'values', 'items', 'pop', 'update', 'setdefault', 'clear', 'copy'];
+const STR_METHODS = [
+  'upper', 'lower', 'strip', 'lstrip', 'rstrip', 'split', 'join', 'replace', 'startswith',
+  'endswith', 'find', 'count', 'isdigit', 'isalpha', 'format',
+];
 
 function listMethod(list, name) {
   switch (name) {
