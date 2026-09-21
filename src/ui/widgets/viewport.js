@@ -5,6 +5,11 @@ import { Panel } from './panel.js';
 
 let instance = null;
 
+/** Arrange Windows: each window's share of the viewport's width and height. */
+export const CASCADE_SIZE = 0.35;
+/** Arrange Windows: the diagonal offset between one window and the next. */
+export const CASCADE_STEP = 30;
+
 export class Viewport extends Panel {
   /** The single Viewport, created on first use. */
   static get instance() {
@@ -77,32 +82,36 @@ export class Viewport extends Panel {
   get visibleWindows() { return this.windows.filter((w) => w.visible); }
 
   /**
-   * Tiles the showing windows in a grid over the area between the Navbar and
-   * the StatusBar, front-most window first (top left). Maximized windows are
-   * restored first. Windows keep their minimum size, so with many windows
-   * in a small viewport some may overlap.
+   * Cascades the showing windows diagonally from the top left, below the
+   * Navbar. Each is sized to CASCADE_SIZE of the space between the Navbar
+   * and the StatusBar (at least its minimum size), and each sits
+   * CASCADE_STEP pixels right of and below the one behind it, so the
+   * front-most window ends up last and on top. When the next window would
+   * run off the bottom or right, the diagonal starts again at the top, one
+   * step further right. Maximized windows are restored first.
    */
   arrangeWindows() {
-    const wins = this.visibleWindows.reverse();
+    const wins = this.visibleWindows;   // back to front
     if (wins.length === 0) return;
     const top = this.top;
-    const width = this.width;
-    const height = this.height - top - this.bottom;
-    const cols = Math.ceil(Math.sqrt(wins.length * (width / Math.max(1, height)) * 0.75));
-    const columns = Math.max(1, Math.min(wins.length, cols));
-    const rows = Math.ceil(wins.length / columns);
-    wins.forEach((win, i) => {
-      const row = Math.floor(i / columns);
-      // The last row may be short; its windows share the full width.
-      const inRow = row === rows - 1 ? wins.length - row * columns : columns;
-      const col = i - row * columns;
-      const x0 = Math.round((col * width) / inRow);
-      const x1 = Math.round(((col + 1) * width) / inRow);
-      const y0 = top + Math.round((row * height) / rows);
-      const y1 = top + Math.round(((row + 1) * height) / rows);
+    const areaW = this.width;
+    const areaH = this.height - top - this.bottom;
+    let x = 0;
+    let y = top;
+    let column = 0;
+    for (const win of wins) {
       if (win.maximized) win.restore();
-      win.setBounds(x0, y0, x1 - x0, y1 - y0);
-    });
+      const w = Math.max(win.minWidth, Math.round(areaW * CASCADE_SIZE));
+      const h = Math.max(win.minHeight, Math.round(areaH * CASCADE_SIZE));
+      if (y + h > top + areaH || x + w > areaW) {
+        column += 1;
+        x = (column * CASCADE_STEP) % Math.max(CASCADE_STEP, areaW - w);
+        y = top;
+      }
+      win.setBounds(x, y, w, h);
+      x += CASCADE_STEP;
+      y += CASCADE_STEP;
+    }
   }
 
   /** Minimizes every showing window. */

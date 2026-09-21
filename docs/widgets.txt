@@ -68,8 +68,9 @@ of the widget tree.
   - windows returns the open Windows, back to front.
   - visibleWindows and minimizedWindows return the Windows that are
     showing, and those that are minimized.
-  - arrangeWindows() tiles the showing Windows in a grid between the Navbar
-    and the StatusBar, front-most at the top left; minimizeAll(),
+  - arrangeWindows() cascades the showing Windows diagonally from the top
+    left, each sized to 35% of the Viewport's width and height and offset
+    30px from the one behind it, front-most last and on top; minimizeAll(),
     restoreAll() (un-minimize and un-maximize) and closeAll() act on every
     Window. The playground's Windows menu offers all four above its list
     of windows.
