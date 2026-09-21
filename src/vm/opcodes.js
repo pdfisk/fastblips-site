@@ -55,6 +55,7 @@ const TABLE = [
   ['RETURN_NOTHING', 'core', [], 'RETURN with Nothing / None as the result'],
 
   ['PRINT', 'core', ['count', 'fmt'], 'pop n values, write them space-separated as one line'],
+  ['TRANSCRIPT', 'core', ['count', 'fmt'], 'PRINT, but to the transcript sink'],
   ['HALT', 'core', [], 'stop the program'],
 
   // ----------------------------------------------------------------- crumb --

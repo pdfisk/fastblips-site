@@ -264,6 +264,7 @@ export class Compiler {
       case 'AssignStatement': return this.assign(node);
       case 'CallStatement': return this.callStatement(node);
       case 'PrintStatement': return this.print(node);
+      case 'TranscriptStatement': return this.transcript(node);
       case 'IfStatement': return this.ifStatement(node);
       case 'WhileStatement': return this.whileStatement(node);
       case 'ForStatement': return this.forStatement(node);
@@ -345,6 +346,11 @@ export class Compiler {
   print(node) {
     for (const arg of node.args) this.expression(arg);
     this.emit(Op.PRINT, node.args.length, FORMAT.CRUMB);
+  }
+
+  transcript(node) {
+    for (const arg of node.args) this.expression(arg);
+    this.emit(Op.TRANSCRIPT, node.args.length, FORMAT.CRUMB);
   }
 
   ifStatement(node) {

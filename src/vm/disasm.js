@@ -31,7 +31,7 @@ function annotate(chunk, info, operands, proc) {
       default: break;   // count, flag: the number says it all
     }
   });
-  if (info.name === 'PRINT') {
+  if (info.name === 'PRINT' || info.name === 'TRANSCRIPT') {
     return `${operands[0]} value${operands[0] === 1 ? '' : 's'} as ${operands[1] === FORMAT.PYTHON ? 'str()' : 'Str'}`;
   }
   if (info.name === 'CALL' || info.name === 'CALL_BUILTIN') return `${notes[0]}/${operands[1]}`;

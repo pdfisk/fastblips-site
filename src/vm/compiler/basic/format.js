@@ -37,6 +37,11 @@ function lines(node) {
         ? [`${OPEN}print${CLOSE}`]
         : wrap('print', node.args.flatMap(lines));
 
+    case 'TranscriptStatement':
+      return node.args.length === 0
+        ? [`${OPEN}transcript${CLOSE}`]
+        : wrap('transcript', node.args.flatMap(lines));
+
     case 'IfStatement': {
       const out = [];
       node.branches.forEach((branch, index) => {

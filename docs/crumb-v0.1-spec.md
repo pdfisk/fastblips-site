@@ -12,8 +12,8 @@ Published spec (styled): https://claude.ai/code/artifact/cb906b5d-57c8-4a62-ba25
 2. **Nothing is implicit.** Variables must be declared, conditions must be Boolean, calls
    need parentheses, a `Function` must `Return`.
 3. **One numeric type** — IEEE 754 double. No `Integer`/`Long`/`Single`, no sigils (`x%`, `s$`).
-4. **If it can be a library function, it is not syntax.** Only `Print` is a statement;
-   everything else, including writing to the transcript, is a built-in (§10).
+4. **If it can be a library function, it is not syntax.** Only `Print` and its twin
+   `Transcript` are output statements; everything else is a built-in (§10).
 
 ## 2. Lexical structure
 
@@ -66,6 +66,9 @@ undeclared name is an error (`Option Explicit` always on).
   equality.
 - **Print** — zero or more comma-separated expressions, space-separated, then newline.
   Values converted as by `Str`. Bare `Print` writes a blank line.
+- **Transcript** — exactly like `Print`, but the line goes to the transcript (§10).
+  `Transcript` stays a built-in name, not a reserved word: only at the start of a
+  statement does it take `Print`'s syntax, so `Transcript("x")` still works.
 - **If** — block form with `ElseIf`/`Else`/`End If`; single-line form `If c Then stmt`
   (one statement, no `Else`). Condition must be Boolean — no truthiness.
 - **While** — `While cond … End While`.
@@ -130,12 +133,13 @@ syntax; resolved when the name is resolved.
 
 `Transcript(v)` writes `v`, converted as by `Str`, as one line to the transcript — a
 host-provided log separate from `Print` output (in the playground, the Transcript
-window). A host with no transcript sends it to `Print` output. Returns `Nothing`;
-normally called as a statement:
+window). A host with no transcript sends it to `Print` output. Returns `Nothing`.
+As a statement it takes `Print`'s syntax — any number of comma-separated values,
+space-separated on one line (§6):
 
 ```vb
 For i = 1 To 3
-  Transcript("step " & i)   ' to the transcript
+  Transcript "step", i      ' to the transcript
 Next
 Print "done"                 ' to program output
 ```
@@ -189,7 +193,7 @@ sub-decl       = "Sub" IDENT "(" [ params ] ")" NEWLINE body "End" "Sub" ;
 function-decl  = "Function" IDENT "(" [ params ] ")" NEWLINE body "End" "Function" ;
 params         = IDENT { "," IDENT } ;
 
-statement      = dim-stmt | assign-stmt | call-stmt | print-stmt | if-stmt
+statement      = dim-stmt | assign-stmt | call-stmt | print-stmt | transcript-stmt | if-stmt
                | while-stmt | for-stmt | exit-stmt | return-stmt ;
 
 dim-stmt       = "Dim" IDENT [ "=" expression | "(" expression ")" ] ;
@@ -197,6 +201,7 @@ assign-stmt    = lvalue "=" expression ;
 lvalue         = IDENT [ "(" expression ")" ] ;
 call-stmt      = IDENT "(" [ args ] ")" ;
 print-stmt     = "Print" [ expression { "," expression } ] ;
+transcript-stmt = "Transcript" [ expression { "," expression } ] ;   (* built-in name, not a keyword *)
 
 if-stmt        = "If" expression "Then"
                  ( statement

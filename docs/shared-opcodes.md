@@ -24,7 +24,7 @@ targets) would have to be proven once per language.
 
 | Section | Count | What is in it |
 |---|---|---|
-| `core` | 18 | `CONST NOTHING TRUE FALSE POP DUP`, `GET/SET_GLOBAL`, `GET/SET_LOCAL`, `NOT`, `JUMP`, `JUMP_IF_FALSE`, `CALL`, `RETURN`, `RETURN_NOTHING`, `PRINT`, `HALT` |
+| `core` | 19 | `CONST NOTHING TRUE FALSE POP DUP`, `GET/SET_GLOBAL`, `GET/SET_LOCAL`, `NOT`, `JUMP`, `JUMP_IF_FALSE`, `CALL`, `RETURN`, `RETURN_NOTHING`, `PRINT`, `TRANSCRIPT`, `HALT` |
 | `crumb` | 23 | Crumb's value rules: strict `ADD`…`POW`, `IDIV_TRUNC`, `MOD_TRUNC`, `CONCAT`, `EQ`…`GE`, `CHECK_BOOL`, `AND_JUMP`/`OR_JUMP`, fixed arrays, `CALL_BUILTIN`, `NO_RETURN` |
 | `python` | 47 | `TRUTHY`, `JUMP_IF_FALSY_KEEP`/`TRUTHY_KEEP`, `PY_ADD`…`PY_NOT_IN`, lists/tuples/dicts, items, slices, attributes, `CALL_VALUE`, `MAKE_FUNCTION`/`MAKE_CLASS`, `GET_ITER`/`FOR_ITER`, the exception opcodes |
 
@@ -55,7 +55,9 @@ and the MiniPy compiler only `core` + `python`.
   formatter per instruction: Crumb's `Str` (`Nothing` → empty, `2.0` → `2`) or
   Python's `str()` (`None`, `2.0`). MiniPy compiles `print(...)` to `PRINT`
   when `print` has not been rebound; the built-in `print` still exists as a
-  value for code that passes it around.
+  value for code that passes it around. `TRANSCRIPT n fmt` is the same
+  instruction writing to the transcript sink; Crumb's `Transcript` statement
+  compiles to it.
 - **Calls and returns.** Crumb calls procedures known at compile time
   (`CALL proc argc`). MiniPy calls values (`CALL_VALUE argc`: functions,
   bound methods, classes, built-ins). Both push the same kind of frame, and

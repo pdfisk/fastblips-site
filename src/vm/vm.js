@@ -184,7 +184,7 @@ export class VM {
    * @param {number} budget  instructions to run in this slice
    * @returns {boolean} true once the program has halted
    */
-  runSlice(budget = Infinity) {
+  runSlice(budget = 10) {
     if (this.halted) return true;
     let used = 0;
     for (;;) {
@@ -267,6 +267,13 @@ export class VM {
           const format = FORMATTERS[code[this.ip + 1]];
           this.ip += 2;
           this.out(this.popN(argc).map(format).join(' '));
+          break;
+        }
+        case Op.TRANSCRIPT: {
+          const argc = code[this.ip];
+          const format = FORMATTERS[code[this.ip + 1]];
+          this.ip += 2;
+          this.transcript(this.popN(argc).map(format).join(' '));
           break;
         }
         case Op.HALT:

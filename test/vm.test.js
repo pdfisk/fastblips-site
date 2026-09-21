@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { run } from '../src/index.js';
+import { run, compile, Op } from '../src/index.js';
 
 /** Runs a program and returns its Print output as an array of lines. */
 function out(source, options = {}) {
@@ -345,9 +345,19 @@ test('Transcript falls back to Print output when no sink is given', () => {
   assert.deepEqual(out('Transcript(42)'), ['42']);
 });
 
-test('Transcript takes exactly one argument', () => {
-  const result = run('Transcript("a", "b")');
-  assert.deepEqual(result.loadErrors.map((e) => e.message), ["'Transcript' takes 1 argument, found 2"]);
+test('the Transcript statement takes Print\'s syntax and formatting', () => {
+  const lines = [];
+  const src = 'Dim x = 2.0\nTranscript "x =", x, Nothing, True\nTranscript\ntranscript x + 1\nPrint "x =", x, Nothing, True';
+  const result = run(src, { transcript: (t) => lines.push(t) });
+  assert.equal(result.error, null, result.error?.message);
+  assert.deepEqual(lines, [result.output[0], '', '3']);
+  assert.deepEqual(result.output, ['x = 2  True']);
+});
+
+test('a Transcript statement compiles to the TRANSCRIPT opcode', () => {
+  const { chunk } = compile('Transcript "a", 1');
+  assert.ok(chunk.code.includes(Op.TRANSCRIPT));
+  assert.ok(!chunk.code.includes(Op.PRINT));
 });
 
 test('Sleep: a whole Number is seconds, a fractional one is milliseconds', () => {

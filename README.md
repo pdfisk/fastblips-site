@@ -214,8 +214,8 @@ can be paused after any instruction and resumed.
 
 ## Bytecode
 
-88 opcodes in three sections: 18 `core` opcodes whose meaning does not
-depend on the language (constants, slots, jumps, calls, returns, `PRINT`,
+89 opcodes in three sections: 19 `core` opcodes whose meaning does not
+depend on the language (constants, slots, jumps, calls, returns, `PRINT`, `TRANSCRIPT`,
 `HALT`), 23 `crumb` opcodes with Crumb's value rules, and 47 `python` opcodes
 with MiniPy's. Where the two languages disagree about an operator, each
 meaning has its own opcode (`MOD_TRUNC` vs `PY_MOD`, `AND_JUMP` vs

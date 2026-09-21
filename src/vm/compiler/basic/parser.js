@@ -282,6 +282,9 @@ export class Parser {
       }
     }
 
+    // Transcript is a built-in name, not a reserved word, but at the start of
+    // a statement it takes Print's syntax: `Transcript "x =", x`.
+    if (token.type === TokenType.Ident && token.lower === 'transcript') return this.parseTranscript();
     if (token.type === TokenType.Ident) return this.parseAssignOrCall();
 
     return this.fail(`expected a statement, found ${describeToken(token)}`);
@@ -319,6 +322,17 @@ export class Parser {
   /** print-stmt = "Print" [ expression { "," expression } ] */
   parsePrint() {
     const keyword = this.expectKeyword('Print');
+    return { type: 'PrintStatement', args: this.parseOutputList(), line: keyword.line, column: keyword.column };
+  }
+
+  /** transcript-stmt = "Transcript" [ expression { "," expression } ] */
+  parseTranscript() {
+    const name = this.expectIdent();
+    return { type: 'TranscriptStatement', args: this.parseOutputList(), line: name.line, column: name.column };
+  }
+
+  /** The comma-separated values after Print or Transcript; none at end of line. */
+  parseOutputList() {
     const args = [];
 
     if (this.peek().type !== TokenType.Newline && !this.atEnd()) {
@@ -326,8 +340,7 @@ export class Parser {
         args.push(this.parseExpression());
       } while (this.matchOperator(','));
     }
-
-    return { type: 'PrintStatement', args, line: keyword.line, column: keyword.column };
+    return args;
   }
 
   /**
