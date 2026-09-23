@@ -9,8 +9,11 @@
 //
 // No DOM is needed, so it also runs (and is tested) under Node.
 
-export const DEFAULT_SERVER_URL = 'http://localhost:3000';
-const STORAGE_KEY = 'crumb.dbServerUrl';
+/** The deployed (Heroku) server: the default. */
+export const REMOTE_SERVER_URL = 'https://fastblip-e2ba34b072c4.herokuapp.com';
+
+/** A server running on this machine, chosen with ?db=local. */
+export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
 /** The tables the Database menu offers. */
 export const TABLES = {
@@ -18,31 +21,46 @@ export const TABLES = {
   python: { resource: 'python_sources', key: 'python_source', title: 'Python' },
 };
 
+/** The servers Settings > Database offers: [name, label, url]. */
+export const SERVERS = [
+  ['remote', 'Remote', REMOTE_SERVER_URL],
+  ['local', 'Local', LOCAL_SERVER_URL],
+];
+const STORAGE_KEY = 'crumb.dbServer';
+let chosen = null;   // set by setServer() on this page
+
 /**
- * The server URL the UI talks to, in order of preference: a ?db=<url> query
- * parameter, the URL saved with setServerUrl(), window.CRUMB_DB_URL, then
- * http://localhost:3000.
+ * The server in use, 'remote' or 'local': the one chosen in Settings on this
+ * page, else a db=local query parameter, else the choice remembered from an
+ * earlier visit, else 'remote'.
  */
-export function getServerUrl() {
-  const g = globalThis;
+export function serverName() {
+  if (chosen) return chosen;
   try {
-    const fromQuery = g.location && new URLSearchParams(g.location.search).get('db');
-    if (fromQuery) return trimUrl(fromQuery);
+    if (new URLSearchParams(globalThis.location.search).get('db')?.trim().toLowerCase() === 'local') return 'local';
   } catch { /* no location */ }
   try {
-    const saved = g.localStorage?.getItem(STORAGE_KEY);
-    if (saved) return trimUrl(saved);
+    const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
+    if (saved === 'local' || saved === 'remote') return saved;
   } catch { /* storage blocked */ }
-  return trimUrl(g.CRUMB_DB_URL || DEFAULT_SERVER_URL);
+  return 'remote';
 }
 
-/** Remembers the server URL in this browser (an empty value forgets it). */
-export function setServerUrl(url) {
-  try {
-    if (url) globalThis.localStorage?.setItem(STORAGE_KEY, trimUrl(url));
-    else globalThis.localStorage?.removeItem(STORAGE_KEY);
-  } catch { /* storage blocked: the URL lasts for this page only */ }
-  if (url) globalThis.CRUMB_DB_URL = trimUrl(url);
+/** The URL of the server in use. */
+export function getServerUrl() {
+  return serverName() === 'local' ? LOCAL_SERVER_URL : REMOTE_SERVER_URL;
+}
+
+/**
+ * Switches to the 'remote' or 'local' server, remembers the choice for the
+ * next visit and announces it with a cr-dbserverchange event on document.
+ */
+export function setServer(name) {
+  if (name !== 'local' && name !== 'remote') throw new Error(`unknown database server '${name}'`);
+  chosen = name;
+  try { globalThis.localStorage?.setItem(STORAGE_KEY, name); } catch { /* not remembered */ }
+  globalThis.document?.dispatchEvent(new CustomEvent('cr-dbserverchange',
+    { detail: { name, url: getServerUrl() } }));
 }
 
 function trimUrl(url) { return String(url).trim().replace(/\/+$/, ''); }

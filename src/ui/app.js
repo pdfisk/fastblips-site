@@ -14,6 +14,7 @@ import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
+import { SERVERS, setServer, serverName } from './db-client.js';
 
 export function start() {
   const viewport = Viewport.instance.mount(document.body);
@@ -96,9 +97,9 @@ function fileMenu(viewport) {
   return menu;
 }
 
-// The Settings menu. Theme and Code Font each open a submenu of choices: the
-// one in use is checked, and choosing another switches to it at once and
-// remembers it for the next visit.
+// The Settings menu. Theme, Code Font and Database each open a submenu of
+// choices: the one in use is checked, and choosing another switches to it at
+// once and remembers it for the next visit.
 function settingsMenu() {
   const menu = new Menu('Settings');
   menu.addSubmenu('Theme', () => MENU_THEMES.map(([name, label]) => ({
@@ -110,6 +111,11 @@ function settingsMenu() {
     label: font.label,
     action: () => setCodeFont(name),
     checked: () => codeFontName() === name,
+  })));
+  menu.addSubmenu('Database', () => SERVERS.map(([name, label]) => ({
+    label,
+    action: () => setServer(name),
+    checked: () => serverName() === name,
   })));
   return menu;
 }

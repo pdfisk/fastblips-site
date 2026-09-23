@@ -296,7 +296,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Python button opens a new PythonConsoleWindow.
   - The Process button opens the SchedulerWindow (or brings it to the
     front).
-  - The Settings menu has two items that open submenus, each with a check
+  - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
     - Theme: Classic, Smalltalk or Apple.
@@ -304,6 +304,9 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
       the page is offline, the theme's own monospace font is used.
+    - Database: Remote (https://fastblip-e2ba34b072c4.herokuapp.com, the
+      default) or Local (http://localhost:3000). Open Database windows
+      reload from the new server.
   - The Windows menu lists every open window by title, front-most first,
     with a check mark on the front-most one. Choosing a window shows it (if
     hidden) and brings it to the front.
@@ -433,8 +436,8 @@ language (the Monaco language id) and consoleClass. There is one window per
 subclass, obtained with BasicDatabaseWindow.instance and
 PythonDatabaseWindow.instance; closing it keeps its state.
 
-  - Its ButtonBar has New, Save, Delete, Refresh, Open in Console and
-    Server... buttons, and a status line at the right end.
+  - Its ButtonBar has New, Save, Delete, Refresh, Open in Console
+    buttons, and a status line at the right end.
   - Selecting a row loads that record. New starts an empty record, which
     Save creates on the server; Save on an existing record updates it.
     Enter in the name, Ctrl+Enter in the content, or Ctrl+S also saves.
@@ -444,9 +447,8 @@ PythonDatabaseWindow.instance; closing it keeps its state.
   - Open in Console opens a new console of the table's language holding
     the record's content.
   - The list is reloaded each time the window opens, and by Refresh.
-  - Server... sets the server URL. By default it is http://localhost:3000;
-    a ?db=<url> page parameter, a URL saved with Server..., or
-    window.CRUMB_DB_URL override it.
+  - The server is the one chosen in Settings > Database: Remote by
+    default, or Local when the page is opened with ?db=local.
   - Errors from the server (for example "name can't be blank") or the
     network are shown in red in the status line.
 

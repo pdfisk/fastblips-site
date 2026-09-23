@@ -1,3 +1,4 @@
+$env:API_URL="https://fastblip-e2ba34b072c4.herokuapp.com"
 # g.ps1 - open web/index.html in Google Chrome
 # Rebuild first so the page (and its Built timestamp) matches the current source.
 node (Join-Path $PSScriptRoot 'web\build.mjs') --standalone

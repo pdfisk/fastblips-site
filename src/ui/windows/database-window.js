@@ -9,7 +9,7 @@ import { ListPanel } from '../widgets/list-panel.js';
 import { RecordPanel } from '../widgets/record-panel.js';
 import { Spacer } from '../widgets/spacer.js';
 import { Label } from '../widgets/label.js';
-import { SourceStore, TABLES, getServerUrl, setServerUrl } from '../db-client.js';
+import { SourceStore, TABLES } from '../db-client.js';
 import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
 
@@ -57,7 +57,6 @@ export class DatabaseWindow extends HSplitWindow {
     if (cls.consoleClass) {
       this.consoleButton = this.buttonBar.addButton('Open in Console', () => this.openInConsole());
     }
-    this.buttonBar.addButton('Server…', () => this.chooseServer());
     this.buttonBar.add(new Spacer());
     this.status = this.buttonBar.add(new Label());
 
@@ -68,6 +67,9 @@ export class DatabaseWindow extends HSplitWindow {
     this.element.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); this.save(); }
     });
+    // Settings > Database switched server: reload from the new one.
+    this._onServerChange = () => { if (this.isOpen) this.refresh(); };
+    document.addEventListener('cr-dbserverchange', this._onServerChange);
     this.updateButtons();
   }
 
@@ -173,13 +175,6 @@ export class DatabaseWindow extends HSplitWindow {
     return new Console({ text: this.recordPanel.content }).open(this.parent);
   }
 
-  /** Asks for the server URL and reloads from it. */
-  chooseServer() {
-    const url = prompt('Database server URL (empty for the default)', getServerUrl());
-    if (url === null) return;
-    setServerUrl(url.trim());
-    this.refresh();
-  }
 
   setStatus(text, tone) {
     this.status.text = text;
@@ -241,6 +236,7 @@ export class DatabaseWindow extends HSplitWindow {
   }
 
   dispose() {
+    document.removeEventListener('cr-dbserverchange', this._onServerChange);
     instances.delete(this.constructor);
     super.dispose();
   }
