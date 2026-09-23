@@ -1,0 +1,68 @@
+<div class="page">
+
+  <header class="mast">
+    <h1>Crumb</h1>
+    <span class="sub">Playground &middot; v0.1</span>
+    <span class="spacer"></span>
+    <span class="meta">tokenizer &rarr; parser &rarr; bytecode &rarr; VM, all in this page</span>
+  </header>
+
+  <div class="toolbar">
+    <button id="run" class="primary" type="button">Run<span class="kbd">&#8984;&#9166;</span></button>
+    <button id="clear-input" type="button">Clear input</button>
+    <button id="clear-output" type="button">Clear output</button>
+    <span class="spacer"></span>
+    <label class="hint" for="example">Example</label>
+    <select id="example" aria-label="Load an example program">
+      <option value="fizzbuzz">FizzBuzz</option>
+      <option value="factorial">Recursion</option>
+      <option value="words">Strings &amp; arrays</option>
+      <option value="sieve">Sieve of Eratosthenes</option>
+      <option value="errors">A runtime error</option>
+    </select>
+  </div>
+
+  <div class="split">
+
+    <section class="pane" aria-label="Program">
+      <div class="pane-head">
+        <span class="pane-title">Program</span>
+        <span class="spacer"></span>
+        <span class="status" id="editor-status">0 lines</span>
+      </div>
+      <div class="editor">
+        <div class="gutter" id="gutter" aria-hidden="true"></div>
+        <div class="surface">
+          <pre id="highlight" aria-hidden="true"></pre>
+          <textarea id="source" spellcheck="false" autocomplete="off"
+            autocapitalize="off" autocorrect="off" wrap="off"
+            aria-label="Crumb source code"></textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="pane" aria-label="Result">
+      <div class="pane-head">
+        <div class="tabs" role="tablist">
+          <button class="tab" id="tab-output" role="tab" aria-selected="true" type="button">Output</button>
+          <button class="tab" id="tab-bytecode" role="tab" aria-selected="false" type="button">Bytecode</button>
+        </div>
+        <span class="spacer"></span>
+        <span class="status" id="status"><span class="dot"></span><span id="status-text">ready</span></span>
+      </div>
+      <pre class="out" id="output" role="tabpanel" tabindex="0"></pre>
+    </section>
+
+  </div>
+
+  <div class="footnote">
+    <span><b>24</b> reserved words</span>
+    <span><b>15</b> built-ins</span>
+    <span><b>37</b> opcodes</span>
+    <span><b>&#8984;&#9166;</b> to run</span>
+    <span>Errors are clickable &mdash; they jump to the line</span>
+    <span class="grow"></span>
+    <span class="built">Built <time datetime="__BUILD_ISO__">__BUILD_STAMP__</time></span>
+  </div>
+
+</div>
