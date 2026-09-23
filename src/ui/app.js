@@ -6,6 +6,8 @@ import { StatusBar } from './widgets/status-bar.js';
 import { scheduler } from './runtime.js';
 import { Menu } from './widgets/menu.js';
 import { Button } from './widgets/button.js';
+import { Spacer } from './widgets/spacer.js';
+import { Label } from './widgets/label.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
@@ -29,6 +31,8 @@ export function start() {
   navbar.add(new Button('Process', () => SchedulerWindow.instance.open(viewport)));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
+  navbar.add(new Spacer());
+  navbar.add(buildLabel());
   viewport.navbar = navbar;
   viewport.statusBar = statusBar(viewport);
 
@@ -95,6 +99,19 @@ function fileMenu(viewport) {
     enabled: () => Boolean(frontConsole()?.canDeleteFile),
   });
   return menu;
+}
+
+// The build timestamp, at the right end of the Navbar. web/build.mjs replaces
+// the placeholder with the build time (UTC); unbundled, the label is empty.
+const BUILD_STAMP = '__BUILD_STAMP__';
+function buildLabel() {
+  const built = BUILD_STAMP.startsWith('__') ? '' : `Built ${BUILD_STAMP}`;
+  const label = new Label(built);
+  label.element.classList.add('cr-build-stamp');
+  label.element.style.color = 'var(--cr-nav-text)';
+  label.element.style.opacity = '0.7';
+  label.element.style.paddingRight = '12px';
+  return label;
 }
 
 // The Settings menu. Theme, Code Font and Database each open a submenu of
