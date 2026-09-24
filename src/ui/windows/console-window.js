@@ -7,6 +7,7 @@ import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { OutputPanel } from '../widgets/output-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
+import { Menu } from '../widgets/menu.js';
 import { openFile, saveFile } from '../files.js';
 
 // While a program runs its output pane fades a little (the amount is a
@@ -83,6 +84,9 @@ export class ConsoleWindow extends HSplitWindow {
     this.buttonBar.addButton('Run', () => this.run());
     this.buttonBar.addButton('Clear Output', () => { this.outputPanel.clear(); });
     this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.focus(); });
+    this.launchMenu = this.buttonBar.add(new Menu('Launch'));
+    this.launchMenu.addItem('Desktop', () => this.launch('desktop'));
+    this.launchMenu.addItem('Mobile', () => this.launch('mobile'));
 
     // Ctrl+Enter in the source runs the code.
     this.input.element.addEventListener('submit', () => this.run());
@@ -90,6 +94,17 @@ export class ConsoleWindow extends HSplitWindow {
 
   /** Runs the source in the left pane. The base class does nothing. */
   run() {
+    return null;
+  }
+
+  /**
+   * Launches the program for a target: 'desktop' or 'mobile' (the Launch
+   * menu). Not implemented yet: the base reports that on the StatusBar.
+   * Subclasses may override.
+   */
+  launch(target) {
+    const name = target === 'mobile' ? 'Mobile' : 'Desktop';
+    StatusBar.instance.show(`${this.title}: Launch ${name} is not available yet`);
     return null;
   }
 

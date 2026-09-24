@@ -297,7 +297,11 @@ Menu is a Widget, not a Panel; its items are not widgets.
     a check mark is shown next to the item while it returns true.
   - Only one menu is open at a time. Clicking outside the menu or pressing
     Escape closes it.
-  - The list is drawn above all Windows, and kept inside the browser window.
+  - The list is drawn above all Windows, and kept inside the browser window:
+    it opens below the menu's button, or above it when there is no room
+    below (as for a menu in a Window's ButtonBar).
+  - In a ButtonBar a Menu is drawn like the Buttons beside it, with a small
+    down arrow after its label.
   - Setting itemsProvider to a function makes the menu dynamic: the function
     is called each time the menu opens and returns the items to show, in the
     same {label, action, checked, enabled} shape. "(none)" is shown for an
@@ -407,8 +411,12 @@ language consoles below. Any number of consoles can be open at once.
     Canvas tabs. console.output is its Text page, which programs print to.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
     (empties every page of the OutputPanel) and Clear Input (empties the
-    source) buttons.
-    Ctrl+Enter in the source also runs it.
+    source) buttons. Ctrl+Enter in the source also runs it.
+  - After Clear Input comes a Launch menu (console.launchMenu), placed like
+    the other buttons, with Desktop and Mobile items, which call
+    launch('desktop') and launch('mobile'). Launching is not implemented
+    yet: ConsoleWindow's launch() says so on the StatusBar, and subclasses
+    may override it.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
     run() and stop() methods. In ConsoleWindow itself both do nothing.

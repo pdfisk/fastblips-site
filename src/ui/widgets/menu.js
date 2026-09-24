@@ -13,6 +13,14 @@ const STYLE = `
   border:solid transparent;border-width:var(--cr-nav-item-inset);background-clip:padding-box}
 .cr-menu-button:hover,.cr-menu.open .cr-menu-button{background:var(--cr-nav-hover);
   color:var(--cr-nav-hover-text)}
+/* In a Window's ButtonBar a menu looks like the Buttons beside it. */
+.cr-button-bar .cr-menu-button{box-sizing:border-box;border:1px solid transparent;
+  border-radius:var(--cr-radius-button);background:var(--cr-button-bg);color:var(--cr-button-text);
+  box-shadow:var(--cr-button-shadow)}
+.cr-button-bar .cr-menu-button::after{content:' \\25BE'}
+.cr-button-bar .cr-menu-button:hover,.cr-button-bar .cr-menu.open .cr-menu-button{
+  background:var(--cr-button-hover);color:var(--cr-button-text)}
+.cr-button-bar .cr-menu.open .cr-menu-button{box-shadow:var(--cr-button-active-shadow)}
 .cr-menu-list{position:fixed;min-width:160px;margin:0;padding:4px 0;list-style:none;
   background:var(--cr-menu-bg);color:var(--cr-menu-text);border:1px solid var(--cr-menu-border);
   box-shadow:var(--cr-menu-shadow);font:var(--cr-font-size-nav) var(--cr-font-ui);z-index:100001;
@@ -126,11 +134,14 @@ export class Menu extends Widget {
       this.list.replaceChildren(...items.map((item) => this._renderItem(item)));
     }
     this.list.hidden = false;
-    // Place below the button, keeping the list inside the window.
+    // Place below the button, or above it if there is no room below (as
+    // for a menu in a Window's ButtonBar), keeping the list inside the window.
     const r = this.button.getBoundingClientRect();
     const w = this.list.offsetWidth;
+    const h = this.list.offsetHeight;
+    const above = r.bottom + h > window.innerHeight && r.top - h >= 0;
     this.list.style.left = `${Math.max(0, Math.min(r.left, window.innerWidth - w))}px`;
-    this.list.style.top = `${r.bottom}px`;
+    this.list.style.top = `${above ? r.top - h : r.bottom}px`;
     this.element.classList.add('open');
     this.button.setAttribute('aria-expanded', 'true');
     document.addEventListener('pointerdown', this._onOutside, true);
