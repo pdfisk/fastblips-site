@@ -41,6 +41,7 @@ const STYLE = `
 .cr-window.cr-maximized{box-shadow:none;padding:0;border-radius:0}
 .cr-window.cr-maximized .cr-window-title{cursor:default}
 .cr-window.cr-maximized .cr-window-grip{display:none}
+.cr-window.cr-fixed-size .cr-window-grip,.cr-window.cr-fixed-size .cr-window-maximize{display:none}
 .cr-window-content{flex:1;position:relative;overflow:hidden}
 .cr-window-buttons{flex:0 0 ${BUTTON_BAR_HEIGHT}px;position:relative}
 .cr-window-grip{position:absolute}
@@ -71,15 +72,19 @@ const GRIPS = [
 export class Window extends Panel {
   /**
    * @param {{title?: string, x?: number, y?: number, width?: number,
-   *          height?: number, minWidth?: number, minHeight?: number}} options
+   *          height?: number, minWidth?: number, minHeight?: number,
+   *          resizable?: boolean}} options - a window that is not resizable
+   *   has no resize edges and cannot be maximized
    */
   constructor({ title = '', x = 0, y = 0, width = 300, height = 200,
-    minWidth = 120, minHeight = 90 } = {}) {
+    minWidth = 120, minHeight = 90, resizable = true } = {}) {
     super();
     installStyle();
     this.minWidth = minWidth;
     this.minHeight = minHeight;
+    this.resizable = Boolean(resizable);
     this.element.classList.add('cr-window');
+    this.element.classList.toggle('cr-fixed-size', !this.resizable);
 
     this.titleBar = document.createElement('div');
     this.titleBar.className = 'cr-window-title';
@@ -244,7 +249,7 @@ export class Window extends Panel {
 
   /** Makes the window fill the parent between its Navbar and StatusBar. */
   maximize() {
-    if (this.maximized) return;
+    if (this.maximized || !this.resizable) return;
     this._restoreBounds = { ...this.bounds };
     this.maximized = true;
     this.element.classList.add('cr-maximized');

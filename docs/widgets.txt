@@ -28,6 +28,9 @@ Class hierarchy
           DatabaseWindow (abstract, one per table)
             BasicDatabaseWindow
             PythonDatabaseWindow
+        LaunchWindow (abstract)
+          DesktopLaunchWindow
+          MobileLaunchWindow
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
       RecordPanel
@@ -150,6 +153,10 @@ A top-level panel that floats above the Viewport's content.
     event that bubbles up to the Viewport.
   - Has a ButtonBar (window.buttonBar) along its bottom edge, 30px high,
     below the content area. Subclasses add their buttons to it.
+  - The resizable option (true by default) can be set to false for a window
+    of fixed size: it has no resize edges and no maximize button, and
+    cannot be maximized (double-clicking the title bar does nothing).
+    arrangeWindows() moves such a window without resizing it.
 
 
 TextPanel
@@ -413,10 +420,9 @@ language consoles below. Any number of consoles can be open at once.
     (empties every page of the OutputPanel) and Clear Input (empties the
     source) buttons. Ctrl+Enter in the source also runs it.
   - After Clear Input comes a Launch menu (console.launchMenu), placed like
-    the other buttons, with Desktop and Mobile items, which call
-    launch('desktop') and launch('mobile'). Launching is not implemented
-    yet: ConsoleWindow's launch() says so on the StatusBar, and subclasses
-    may override it.
+    the other buttons, with Desktop and Mobile items. They call
+    launch('desktop') and launch('mobile'), which open a new
+    DesktopLaunchWindow or MobileLaunchWindow for the console's source.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
     run() and stop() methods. In ConsoleWindow itself both do nothing.
@@ -452,6 +458,35 @@ A ConsoleWindow for Python code, titled Python Console, Python Console 2, ...
 
   - Starts with print("Hello, world") as its source.
   - There is no Python runtime yet: Run does nothing.
+
+
+LaunchWindow (abstract)
+-----------------------
+A Window that runs a console's program as an app. Launch windows are
+opened from a console's Launch menu; any number can be open at once.
+
+  - new DesktopLaunchWindow({ source, console }) or
+    new MobileLaunchWindow({ source, console }): source is the program and
+    console the ConsoleWindow it came from (kept as window.source and
+    window.console).
+  - Titled '<console title> — Desktop' or '<console title> — Mobile'.
+    Each new launch window opens slightly below and to the right of the
+    previous one.
+  - The content (window.screen) is the app's screen. For now it is empty:
+    the program is not run yet.
+
+DesktopLaunchWindow
+  - An ordinary window, 640 x 440 to start, that can be moved, resized,
+    minimized and maximized.
+
+MobileLaunchWindow
+  - Preset to the size of a phone: the content area is exactly
+    MobileLaunchWindow.screenSize, 360 x 640 CSS pixels, whatever the
+    theme's title bar and borders (it is re-fitted when the theme changes).
+  - It cannot be resized or maximized (resizable is false), but can be
+    moved and minimized.
+  - When opened it moves up, if need be, so it does not reach below the
+    StatusBar.
 
 
 TranscriptWindow (singleton)

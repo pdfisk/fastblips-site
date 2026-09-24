@@ -8,6 +8,7 @@ import { TextPanel } from '../widgets/text-panel.js';
 import { OutputPanel } from '../widgets/output-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
 import { Menu } from '../widgets/menu.js';
+import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
 
 // While a program runs its output pane fades a little (the amount is a
@@ -98,14 +99,13 @@ export class ConsoleWindow extends HSplitWindow {
   }
 
   /**
-   * Launches the program for a target: 'desktop' or 'mobile' (the Launch
-   * menu). Not implemented yet: the base reports that on the StatusBar.
-   * Subclasses may override.
+   * Opens a LaunchWindow for the source (the Launch menu): a
+   * MobileLaunchWindow for 'mobile', otherwise a DesktopLaunchWindow.
    */
   launch(target) {
-    const name = target === 'mobile' ? 'Mobile' : 'Desktop';
-    StatusBar.instance.show(`${this.title}: Launch ${name} is not available yet`);
-    return null;
+    const Cls = target === 'mobile' ? MobileLaunchWindow : DesktopLaunchWindow;
+    const win = new Cls({ source: this.input.text, console: this });
+    return win.open(this.parent);
   }
 
   /** Stops this console's program, if one is running. The base has none. */

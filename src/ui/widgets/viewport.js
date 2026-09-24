@@ -109,8 +109,9 @@ export class Viewport extends Panel {
     let column = 0;
     for (const win of wins) {
       if (win.maximized) win.restore();
-      const w = Math.max(win.minWidth, Math.round(areaW * CASCADE_SIZE));
-      const h = Math.max(win.minHeight, Math.round(areaH * CASCADE_SIZE));
+      // A window that cannot be resized keeps its size and is only moved.
+      const w = win.resizable ? Math.max(win.minWidth, Math.round(areaW * CASCADE_SIZE)) : win.bounds.width;
+      const h = win.resizable ? Math.max(win.minHeight, Math.round(areaH * CASCADE_SIZE)) : win.bounds.height;
       if (y + h > top + areaH || x + w > areaW) {
         column += 1;
         x = (column * CASCADE_STEP) % Math.max(CASCADE_STEP, areaW - w);

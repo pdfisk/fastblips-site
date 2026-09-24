@@ -32,6 +32,11 @@ import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 import { RecordPanel } from './widgets/record-panel.js';
+import { TabPanel } from './widgets/tab-panel.js';
+import { OutputPanel } from './widgets/output-panel.js';
+import { BoardPanel } from './widgets/board-panel.js';
+import { CanvasPanel } from './widgets/canvas-panel.js';
+import { LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow } from './windows/launch-window.js';
 import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
 import { start, startDesktop } from './app.js';
@@ -45,6 +50,8 @@ const ui = {
   SplitPanel, HSplitPanel, TextPanel, MonacoPanel, ListPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
+  TabPanel, OutputPanel, BoardPanel, CanvasPanel,
+  LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
   scheduler, db, start, startDesktop, startMobile, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
