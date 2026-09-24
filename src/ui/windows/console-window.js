@@ -1,10 +1,11 @@
 // ConsoleWindow: the language-neutral base for consoles - an HSplitWindow
-// with source on the left, output on the right, and Run, Clear Output and
+// with source on the left, an OutputPanel on the right, and Run, Clear Output and
 // Clear Input buttons. Subclasses supply the language: a title prefix, the
 // starting source, and run().
 
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
+import { OutputPanel } from '../widgets/output-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
 import { openFile, saveFile } from '../files.js';
 
@@ -71,14 +72,16 @@ export class ConsoleWindow extends HSplitWindow {
     this.fileName = null;     // the file this console was opened from or saved to
     this.fileHandle = null;   // its handle, where the browser provides one
     this.input = this.createInput(options.text ?? cls.defaultText);
-    this.output = new TextPanel({ readOnly: true });
-    this.output.element.classList.add('cr-console-output');
-    this.output.textArea.style.background = 'var(--cr-output-bg)';
+    // The right side is an OutputPanel (Text, Board and Canvas tabs);
+    // output is its Text page, which programs print to.
+    this.outputPanel = new OutputPanel();
+    this.outputPanel.element.classList.add('cr-console-output');
+    this.output = this.outputPanel.textPanel;
     this.left = this.input;
-    this.right = this.output;
+    this.right = this.outputPanel;
 
     this.buttonBar.addButton('Run', () => this.run());
-    this.buttonBar.addButton('Clear Output', () => { this.output.text = ''; });
+    this.buttonBar.addButton('Clear Output', () => { this.outputPanel.clear(); });
     this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.focus(); });
 
     // Ctrl+Enter in the source runs the code.

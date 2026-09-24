@@ -34,7 +34,9 @@ import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './win
 import { RecordPanel } from './widgets/record-panel.js';
 import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
-import { start } from './app.js';
+import { start, startDesktop } from './app.js';
+import { startMobile } from './mobile/app.js';
+import { isMobileDevice } from './device.js';
 import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
@@ -44,7 +46,7 @@ const ui = {
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
-  scheduler, db, start,
+  scheduler, db, start, startDesktop, startMobile, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 

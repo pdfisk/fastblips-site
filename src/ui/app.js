@@ -17,8 +17,20 @@ import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 import { SERVERS, setServer, serverName } from './db-client.js';
+import { BUILD_STAMP } from './build-info.js';
+import { isMobileDevice } from './device.js';
+import { startMobile } from './mobile/app.js';
 
+/**
+ * Starts the UI the device calls for: the mobile landing page on a phone,
+ * otherwise the full UI. ?ui=mobile or ?ui=desktop overrides the detection.
+ */
 export function start() {
+  return isMobileDevice() ? startMobile() : startDesktop();
+}
+
+/** The full UI: Navbar, windows and StatusBar in a Viewport. */
+export function startDesktop() {
   const viewport = Viewport.instance.mount(document.body);
   installCodeFont();
   const navbar = Navbar.instance;
@@ -101,12 +113,9 @@ function fileMenu(viewport) {
   return menu;
 }
 
-// The build timestamp, at the right end of the Navbar. web/build.mjs replaces
-// the placeholder with the build time (UTC); unbundled, the label is empty.
-const BUILD_STAMP = '__BUILD_STAMP__';
+// The build timestamp, at the right end of the Navbar (empty when unbundled).
 function buildLabel() {
-  const built = BUILD_STAMP.startsWith('__') ? '' : `Built ${BUILD_STAMP}`;
-  const label = new Label(built);
+  const label = new Label(BUILD_STAMP ? `Built ${BUILD_STAMP}` : '');
   label.element.classList.add('cr-build-stamp');
   label.element.style.color = 'var(--cr-nav-text)';
   label.element.style.opacity = '0.7';

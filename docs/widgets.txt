@@ -34,6 +34,10 @@ Class hierarchy
       TextPanel
         MonacoPanel
       ListPanel
+      TabPanel
+      OutputPanel
+      BoardPanel
+      CanvasPanel
     Menu
     Button
     Label
@@ -196,6 +200,44 @@ A Panel that is filled by a single List element.
   - An optional emptyText is shown when there are no items.
 
 
+TabPanel
+--------
+A Panel showing one of several pages at a time, chosen by a row of tab
+labels.
+
+  - new TabPanel({ tabPosition }): the labels run along the 'top' (the
+    default) or the 'bottom' edge, in a 24px strip; the page showing fills
+    the rest.
+  - addTab(label, widget) adds a page and returns the widget. Pages are
+    added only this way; add() is an error. The first page added is
+    selected.
+  - Clicking a label shows its page and hides the others. select(index or
+    label) does the same from code, and fires a select event with detail
+    {index, label, widget}.
+  - labels, selectedIndex, selectedLabel and selectedWidget describe the
+    tabs and the page showing. remove(widget) removes a page and its tab.
+
+
+OutputPanel
+-----------
+The output side of a ConsoleWindow: a TabPanel with its labels along the
+bottom and three pages.
+
+  - Text: a read-only TextPanel (outputPanel.textPanel) that programs print
+    to. It is selected at first.
+  - Board: a BoardPanel (outputPanel.boardPanel).
+  - Canvas: a CanvasPanel (outputPanel.canvasPanel).
+  - selectedTab is the label of the page showing; selectTab(label) shows
+    another.
+  - clear() empties all three pages. No other children can be added.
+
+
+BoardPanel and CanvasPanel
+--------------------------
+The Board and Canvas pages of an OutputPanel. For now both are placeholders
+that show their name; clear() does nothing.
+
+
 Navbar (singleton)
 ------------------
 The navigation strip docked along the top of the Viewport. Navbar is a
@@ -264,7 +306,19 @@ Menu is a Widget, not a Panel; its items are not widgets.
 
 Startup
 -------
-When the program starts, the Navbar is docked at the top of the Viewport
+Crumb.ui.start() picks the UI for the device (isMobileDevice() in
+src/ui/device.js): on a phone it calls startMobile(), otherwise
+startDesktop(). A ?ui=mobile or ?ui=desktop page parameter overrides the
+detection. A phone is a browser that reports itself as mobile, a mobile
+user agent, or a touch screen whose short side is under 600px; tablets get
+the full UI.
+
+The mobile UI (src/ui/mobile/app.js) is, for now, a single landing page
+with the name, a short description, a link to the full version
+(?ui=desktop) and the build time. It uses plain DOM and the theme
+variables, not the desktop widgets.
+
+When the full UI starts, the Navbar is docked at the top of the Viewport
 with, from left to right, a File menu, a Database menu, Basic, Python and
 Process buttons, a Settings menu, and a Windows menu, which is always the
 last menu. At the right end is the time the page was built, e.g.
@@ -349,9 +403,11 @@ An HSplitWindow for editing and running code: the shared base of the
 language consoles below. Any number of consoles can be open at once.
 
   - The left side is an editable TextPanel holding the source; the right
-    side is a read-only TextPanel showing the output.
+    side is an OutputPanel (console.outputPanel) with Text, Board and
+    Canvas tabs. console.output is its Text page, which programs print to.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
-    (empties the output) and Clear Input (empties the source) buttons.
+    (empties every page of the OutputPanel) and Clear Input (empties the
+    source) buttons.
     Ctrl+Enter in the source also runs it.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
