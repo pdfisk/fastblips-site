@@ -64,6 +64,7 @@ export class VM {
     maxSteps = Infinity,
     random = Math.random,
     sleep = blockingSleep,   // (ms) => void, used by run() for Sleep / sleep()
+    gui = null,              // widget host for AddButton / add_button etc. (runtime/widgets.js)
   } = {}) {
     this.chunk = chunk;
     this.language = chunk.language ?? 'crumb';
@@ -74,6 +75,7 @@ export class VM {
     this.maxSteps = maxSteps;
     this.random = random;
     this.sleep = sleep;
+    this.gui = gui;
 
     this.slotFill = 'initialSlot' in chunk ? chunk.initialSlot : NOTHING;
     this.globals = chunk.globalInit
@@ -88,6 +90,43 @@ export class VM {
     this.steps = 0;
     this.halted = false;
     this.sleepMs = null;   // set by Sleep / sleep(); makes runSlice yield
+
+    // Events (widget clicks). Once a handler is registered the program does
+    // not halt at the end of its module code: it waits there for events and
+    // runs each one's handler, until it is killed.
+    this.listening = false;
+    this.events = [];      // queued { handler, args }
+    this.waiting = false;  // at the end of module code with no event queued
+    this.onWake = null;    // called when an event arrives while waiting (set by the Scheduler)
+  }
+
+  /**
+   * Registers an event handler: { proc } (a Crumb Sub) or { fn } (a MiniPy
+   * callable). register(post) is given the function the host calls for each
+   * event; the handler then receives `arg` if it takes an argument.
+   */
+  listen(arg, handler, register) {
+    this.listening = true;
+    register(() => this.postEvent(handler, [arg]));
+  }
+
+  /** Queues an event; the program runs its handler when it is next idle. */
+  postEvent(handler, args) {
+    if (this.halted) return;
+    this.events.push({ handler, args });
+    if (this.waiting) this.onWake?.();
+  }
+
+  /** Runs a queued event's handler: enters it as a call from the HALT at ip. */
+  dispatch({ handler, args }) {
+    if (handler.proc) {
+      this.enter(handler.proc, args.slice(0, handler.proc.arity));
+      return;
+    }
+    const fn = handler.fn;
+    const proc = fn instanceof PyBoundMethod ? fn.func.proc : fn.proc;
+    const bound = fn instanceof PyBoundMethod ? 1 : 0;
+    this.callValue(fn, proc && proc.arity - bound >= 1 ? args : []);
   }
 
   // ------------------------------------------------------------------ helpers
@@ -164,6 +203,7 @@ export class VM {
   /** Runs to completion, blocking for each sleep. */
   run() {
     while (!this.runSlice()) {
+      if (this.waiting) return;   // no one to send events: stop here
       const ms = this.takeSleep();
       if (ms !== null) this.sleep(ms);
     }
@@ -277,6 +317,20 @@ export class VM {
           break;
         }
         case Op.HALT:
+          if (this.listening) {
+            // The end of module code, with event handlers: stay on this
+            // HALT and run each event's handler as a call that returns here.
+            this.ip = this.opIp;
+            this.stack.length = 0;           // a handler's return value
+            const event = this.events.shift();
+            if (!event) {
+              this.waiting = true;
+              return false;
+            }
+            this.waiting = false;
+            this.dispatch(event);
+            break;
+          }
           this.halted = true;
           return true;
 

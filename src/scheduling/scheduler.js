@@ -36,6 +36,7 @@ export class Scheduler {
    */
   spawn(chunk, { delay = 0, ...options } = {}) {
     const process = new Process(this.nextPid, chunk, options);
+    process.vm.onWake = () => this.notify(process.pid);
     this.scheduleProcess(process, delay);
     return process;
   }
@@ -113,6 +114,19 @@ export class Scheduler {
     return true;
   }
 
+  /**
+   * An event arrived for a process waiting for one: queue it to run, and make
+   * sure the background loop (start()) is running. A suspended process picks
+   * its events up when resumed.
+   */
+  notify(pid) {
+    const process = this.processes.get(pid);
+    if (!process || process.state !== ProcessState.WAITING) return false;
+    this.scheduleProcess(process, 0);
+    this.start();
+    return true;
+  }
+
   unqueue(process) {
     this.activeQueue = this.activeQueue.filter((p) => p !== process);
     this.scheduledQueue = this.scheduledQueue.filter((p) => p !== process);
@@ -152,6 +166,7 @@ export class Scheduler {
     if (process.step(this.quantum)) return process;
     const sleepMs = process.takeSleep();
     if (sleepMs !== null) this.scheduleProcess(process, sleepMs, ProcessState.SLEEPING);
+    else if (process.state === ProcessState.WAITING) { /* off the queues until notify() */ }
     else this.activeQueue.push(process);
     return process;
   }

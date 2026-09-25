@@ -20,12 +20,17 @@ import { SERVERS, setServer, serverName } from './db-client.js';
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
+import { runParameter, startRuntime } from './run-app.js';
 
 /**
- * Starts the UI the device calls for: the mobile landing page on a phone,
- * otherwise the full UI. ?ui=mobile or ?ui=desktop overrides the detection.
+ * Starts the UI the page calls for: with ?run=<program name>, that program
+ * from the database as a full-page app (on any device); otherwise the mobile
+ * landing page on a phone, else the full UI. ?ui=mobile or ?ui=desktop
+ * overrides the device detection.
  */
 export function start() {
+  const program = runParameter();
+  if (program) return startRuntime(program);
   return isMobileDevice() ? startMobile() : startDesktop();
 }
 
@@ -76,7 +81,7 @@ function schedulerSummary() {
   for (const p of scheduler.list()) counts[p.state] = (counts[p.state] ?? 0) + 1;
   const total = Object.values(counts).reduce((a, b) => a + b, 0);
   if (total === 0) return 'No processes';
-  const parts = ['running', 'ready', 'sleeping', 'scheduled', 'suspended']
+  const parts = ['running', 'ready', 'sleeping', 'waiting', 'scheduled', 'suspended']
     .filter((s) => counts[s]).map((s) => `${counts[s]} ${s}`);
   return `${total} process${total === 1 ? '' : 'es'}: ${parts.join(', ')}`;
 }

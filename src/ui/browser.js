@@ -41,6 +41,9 @@ import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
 import { start, startDesktop } from './app.js';
 import { startMobile } from './mobile/app.js';
+import { startRuntime, findProgram } from './run-app.js';
+import { ProgramRunner } from './program-runner.js';
+import { AppScreen } from './widgets/app-screen.js';
 import { isMobileDevice } from './device.js';
 import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
@@ -53,7 +56,8 @@ const ui = {
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
-  scheduler, db, start, startDesktop, startMobile, isMobileDevice,
+  scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram,
+  ProgramRunner, AppScreen, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 

@@ -69,6 +69,21 @@ export class Viewport extends Panel {
     this.layout();
   }
 
+  /** The widget filling the space between the Navbar and the StatusBar,
+   *  below any Windows; or null. */
+  get content() { return this._content ?? null; }
+  set content(widget) {
+    if (this._content) this.remove(this._content);
+    this._content = widget ?? null;
+    if (widget) {
+      this.add(widget);
+      // Behind the Windows, which float above it.
+      const after = this._navbar ? this._navbar.element.nextSibling : this.element.firstChild;
+      this.element.insertBefore(widget.element, after);
+    }
+    this.layout();
+  }
+
   /** Height taken by the StatusBar; windows cannot be dragged below it. */
   get bottom() { return this._statusBar && this._statusBar.visible ? this._statusBar.height : 0; }
 
@@ -145,6 +160,9 @@ export class Viewport extends Panel {
     if (this._statusBar) {
       const h = this._statusBar.height;
       this._statusBar.setBounds(0, this.height - h, this.width, h);
+    }
+    if (this._content) {
+      this._content.setBounds(0, this.top, this.width, Math.max(0, this.height - this.top - this.bottom));
     }
     super.layout();
   }

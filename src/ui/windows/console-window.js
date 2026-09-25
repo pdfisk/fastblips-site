@@ -96,6 +96,17 @@ export class ConsoleWindow extends HSplitWindow {
     this.input.element.addEventListener('submit', () => this.run());
   }
 
+  /**
+   * Compiles source in this console's language and spawns it on the shared
+   * scheduler, printing to options.output (a TextPanel) and putting widgets
+   * on options.gui (an AppScreen's host, if any); load errors are written to output
+   * instead. Does not start the scheduler. Returns
+   * { process, errorCount }. The base class has no language: no process.
+   */
+  static spawn(source, options = {}) { // eslint-disable-line no-unused-vars
+    return { process: null, errorCount: 0 };
+  }
+
   /** Runs the source in the left pane. The base class does nothing. */
   run() {
     return null;

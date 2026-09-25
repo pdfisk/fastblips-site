@@ -124,12 +124,13 @@ fixed — no `ReDim`, no `Option Base`, one dimension only. Index must be an int
 Number in range. Arrays are references (assignment aliases). `a(i)` and `f(i)` share
 syntax; resolved when the name is resolved.
 
-## 10. Built-ins (17, not reserved words, not shadowable)
+## 10. Built-ins (23, not reserved words, not shadowable)
 
 `Len(s)` · `Mid(s, start, count)` (1-based, truncates past end) · `InStr(hay, needle)`
 (1-based or 0) · `UCase(s)` · `LCase(s)` · `Trim(s)` · `Str(v)` · `Val(s)` · `Int(n)` ·
 `Abs(n)` · `Sqr(n)` · `Rnd()` → `[0,1)` · `Chr(n)` · `Asc(s)` · `UBound(a)` ·
-`Transcript(v)` · `Sleep(n)`
+`Transcript(v)` · `Sleep(n)` · widgets: `AddButton` · `AddLabel` · `SetText` · `GetText` ·
+`SetBounds` · `OnClick` (§10.1)
 
 `Transcript(v)` writes `v`, converted as by `Str`, as one line to the transcript — a
 host-provided log separate from `Print` output (in the playground, the Transcript
@@ -157,6 +158,45 @@ Next
 Sleep(500.5)                 ' half a second (500.5 ms)
 Print "go"
 ```
+
+### 10.1 Widgets
+
+A program can put buttons and labels on the screen it runs on — in the playground, a
+launch window (a console's Launch menu) or a `?run=` page. Positions and sizes are in
+pixels from the top left of the screen, rounded to whole pixels. A widget is a Number,
+its id (1, 2, ...). A host with no screen (the command line, a console window) makes
+every widget built-in a runtime error.
+
+| Built-in | Does |
+|---|---|
+| `AddButton(text, left, top, width, height)` | Adds a button; returns its id. `text` is converted as by `Str`. |
+| `AddLabel(text, left, top, width, height)` | Adds a label (a line of text); returns its id. |
+| `SetText(w, text)` | Changes the text shown by widget `w`. Returns `Nothing`. |
+| `GetText(w)` | The text widget `w` shows, a String. |
+| `SetBounds(w, left, top, width, height)` | Moves and sizes widget `w`. Returns `Nothing`. |
+| `OnClick(w, "SubName")` | Calls that `Sub` each time `w` is clicked. Returns `Nothing`. |
+
+The handler is named by a String (case-insensitive) and must be a `Sub` taking no
+arguments, or one: the widget clicked. Once a program has called `OnClick`, reaching the
+end of its top-level code does not end it: it waits for clicks and runs each handler in
+turn, until it is stopped (Reset, or closing its window). Clicks made while the program is
+still running its top-level code, or a handler, wait their turn.
+
+```vb
+Dim clicks = 0
+Dim counter = AddLabel("Clicks: 0", 20, 20, 200, 24)
+Dim button = AddButton("Click me", 20, 50, 120, 32)
+OnClick(button, "Clicked")
+
+Sub Clicked()
+  clicks = clicks + 1
+  SetText(counter, "Clicks: " & clicks)
+End Sub
+```
+
+MiniPy has the same built-ins, named `add_button`, `add_label`, `set_text`, `get_text`,
+`set_bounds` and `on_click`; the handler given to `on_click` is a function, called with no
+arguments or with the widget.
 
 ## 11. Errors
 

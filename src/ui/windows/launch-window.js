@@ -4,23 +4,8 @@
 // screen and cannot be resized (see docs/widgets.txt).
 
 import { Window } from './window.js';
-import { Panel } from '../widgets/panel.js';
-import { TextPanel } from '../widgets/text-panel.js';
-
-// The app's screen: a TextPanel filling all of it.
-class ScreenPanel extends Panel {
-  constructor() {
-    super();
-    this.element.classList.add('cr-launch-screen');
-    this.element.style.background = 'var(--cr-output-bg)';
-    this.textPanel = this.add(new TextPanel());
-  }
-
-  layout() {
-    this.textPanel.setBounds(0, 0, this.bounds.width, this.bounds.height);
-    super.layout();
-  }
-}
+import { AppScreen } from '../widgets/app-screen.js';
+import { ProgramRunner } from '../program-runner.js';
 
 // Every launch window, of either kind, cascades from the same point.
 let opened = 0;
@@ -46,23 +31,53 @@ export class LaunchWindow extends Window {
       ...options,
     });
     this.element.classList.add('cr-launch-window');
-    this.source = source;
+    // A copy of the console's code, taken at launch: later edits in the
+    // console do not change it. The console's class compiles and runs it
+    // (see ConsoleWindow.spawn), so Go works even after the console closes.
+    this.source = String(source ?? '');
     this.console = console;
-    this.screen = new ScreenPanel();
+    this.language = console ? console.constructor : null;
+    this.screen = new AppScreen();
+    this.screen.element.classList.add('cr-launch-screen');
     this.textPanel = this.screen.textPanel;
     this.content = this.screen;
+    this.runner = new ProgramRunner({
+      language: this.language,
+      source: this.source,
+      screen: this.screen,
+      name: () => this.title,
+    });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());
   }
 
-  /** Starts the app (the Go button). Not implemented yet: does nothing. */
-  go() {
-    return null;
+  /**
+   * Runs the program (the Go button): stops any previous run, clears the
+   * text panel and starts the source on the shared scheduler, printing to
+   * the text panel. Returns the Process, or null if there were load errors.
+   */
+  go() { return this.runner.go(); }
+
+  /** Stops the program, if it is running. */
+  stop() { this.runner.stop(); }
+
+  /** Puts the app back to its starting state (the Reset button): stops the
+   *  program and clears the text panel. */
+  reset() { this.runner.reset(); }
+
+  /** The running Process, or null. */
+  get process() { return this.runner.process; }
+
+  close() {
+    const closed = super.close();
+    if (closed) this.stop();
+    return closed;
   }
 
-  /** Puts the app back to its starting state (the Reset button). Not
-   *  implemented yet: does nothing. */
-  reset() {}
+  dispose() {
+    this.stop();
+    super.dispose();
+  }
 }
 
 export class DesktopLaunchWindow extends LaunchWindow {

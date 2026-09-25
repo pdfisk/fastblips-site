@@ -1,4 +1,4 @@
-// The 17 built-ins of spec section 10. Fixed arity, checked at compile time;
+// The 23 built-ins of spec section 10 (the last 6 are the widgets of 10.1). Fixed arity, checked at compile time;
 // argument types checked here, at the call.
 //
 // String positions are 1-based throughout, following VB.
@@ -7,6 +7,7 @@ import {
   NOTHING, CrumbArray, typeName, toStr, formatNumber,
   isNumber, isString, isArray,
 } from './crumb-values.js';
+import { hostFor, checkWidget, checkBox } from './widgets.js';
 
 /** Thrown by a builtin; the VM turns it into a positioned runtime error. */
 export class BuiltinError extends Error {}
@@ -33,6 +34,33 @@ function wantWholeNumber(name, position, value) {
     fail(`${name} expects a whole Number as argument ${position}, got ${formatNumber(value)}`);
   }
   return value;
+}
+
+/** Widget builtins: the host (vm.gui), or a runtime error without one. */
+const gui = (name, vm) => hostFor(vm, name, fail);
+
+function wantWidget(name, position, vm, id) {
+  wantWholeNumber(name, position, id);
+  return checkWidget(gui(name, vm), name, id, fail);
+}
+
+/** Arguments from `first` on: left, top, width, height, all Numbers. */
+function wantBox(name, first, values) {
+  values.forEach((v, i) => wantNumber(name, first + i, v));
+  return checkBox(name, values, fail);
+}
+
+/** AddButton / AddLabel(text, left, top, width, height) -> widget id. */
+function addWidget(name, kind) {
+  return {
+    name,
+    arity: 5,
+    fn: ([text, ...box], vm) => {
+      const host = gui(name, vm);
+      if (isArray(text)) fail(`${name} cannot show an Array as its text`);
+      return host.create(kind, toStr(text), ...wantBox(name, 2, box));
+    },
+  };
 }
 
 /**
@@ -142,6 +170,52 @@ export const BUILTIN_LIST = [
         fail(`Sleep expects a Number of 0 or more, got ${formatNumber(n)}`);
       }
       vm.sleepMs = Number.isInteger(n) ? n * 1000 : n;
+      return NOTHING;
+    },
+  },
+
+  // ---- Widgets (need a screen: vm.gui). See ./widgets.js.
+  addWidget('AddButton', 'button'),
+  addWidget('AddLabel', 'label'),
+  {
+    // SetText(widget, value): the text shown, value converted as by Str.
+    name: 'SetText',
+    arity: 2,
+    fn: ([id, text], vm) => {
+      wantWidget('SetText', 1, vm, id);
+      if (isArray(text)) fail('SetText cannot show an Array as a widget\'s text');
+      vm.gui.setText(id, toStr(text));
+      return NOTHING;
+    },
+  },
+  {
+    name: 'GetText',
+    arity: 1,
+    fn: ([id], vm) => vm.gui.getText(wantWidget('GetText', 1, vm, id)),
+  },
+  {
+    // SetBounds(widget, left, top, width, height): moves and sizes it.
+    name: 'SetBounds',
+    arity: 5,
+    fn: ([id, ...box], vm) => {
+      wantWidget('SetBounds', 1, vm, id);
+      vm.gui.setBounds(id, ...wantBox('SetBounds', 2, box));
+      return NOTHING;
+    },
+  },
+  {
+    // OnClick(widget, "SubName"): calls that Sub each time the widget is
+    // clicked. The Sub takes no arguments, or one: the widget clicked.
+    name: 'OnClick',
+    arity: 2,
+    fn: ([id, subName], vm) => {
+      wantWidget('OnClick', 1, vm, id);
+      wantString('OnClick', 2, subName);
+      const proc = vm.chunk.procedures.find((p) => p.name.toLowerCase() === subName.toLowerCase());
+      if (!proc) fail(`OnClick: there is no Sub named '${subName}'`);
+      if (proc.kind !== 'Sub') fail(`OnClick: '${proc.name}' is a ${proc.kind}; a click handler must be a Sub`);
+      if (proc.arity > 1) fail(`OnClick: Sub '${proc.name}' takes ${proc.arity} arguments; a click handler takes none, or one (the widget)`);
+      vm.listen(id, { proc }, (handler) => vm.gui.onClick(id, handler));
       return NOTHING;
     },
   },

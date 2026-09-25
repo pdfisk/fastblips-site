@@ -2,9 +2,11 @@
 // Scheduler needs (id, name, state, exit result).
 //
 // The VM does the work; the Process only tracks where it is in its life:
-//   [scheduled ->] ready -> running -> ready | sleeping ... -> done | failed | killed
+//   [scheduled ->] ready -> running -> ready | sleeping | waiting ... -> done | failed | killed
 //
 // A process that calls Sleep goes to `sleeping`; the Scheduler wakes it later.
+// One that has registered event handlers and finished its module code goes
+// to `waiting` until an event arrives (the VM calls its onWake).
 // Any waiting or ready process can be `suspended`, and later resumed.
 
 import { VM } from '../vm/vm.js';
@@ -14,6 +16,7 @@ export const ProcessState = Object.freeze({
   READY: 'ready',
   RUNNING: 'running',
   SLEEPING: 'sleeping',
+  WAITING: 'waiting',   // for an event (a widget click); see VM.listen
   SUSPENDED: 'suspended',
   DONE: 'done',
   FAILED: 'failed',
@@ -56,7 +59,8 @@ export class Process {
       const halted = this.vm.runSlice(quantum);
       this.sleepMs = halted ? null : this.vm.takeSleep();
       if (halted) this.finish(ProcessState.DONE);
-      else this.state = this.sleepMs !== null ? ProcessState.SLEEPING : ProcessState.READY;
+      else if (this.sleepMs !== null) this.state = ProcessState.SLEEPING;
+      else this.state = this.vm.waiting ? ProcessState.WAITING : ProcessState.READY;
     } catch (error) {
       this.error = error;
       this.finish(ProcessState.FAILED);

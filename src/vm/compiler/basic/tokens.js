@@ -30,13 +30,14 @@ export const OPERATORS = Object.freeze([
 ]);
 
 /**
- * The 17 built-ins of section 10 are deliberately NOT keywords. They are listed
+ * The 23 built-ins of section 10 are deliberately NOT keywords. They are listed
  * here only so tools (a highlighter, the resolver) have one source of truth.
  */
 export const BUILTINS = Object.freeze([
   'Len', 'Mid', 'InStr', 'UCase', 'LCase', 'Trim', 'Str', 'Val',
   'Int', 'Abs', 'Sqr', 'Rnd', 'Chr', 'Asc', 'UBound',
   'Transcript', 'Sleep',
+  'AddButton', 'AddLabel', 'SetText', 'GetText', 'SetBounds', 'OnClick',
 ]);
 
 export const BUILTIN_TABLE = new Map(BUILTINS.map((b) => [b.toLowerCase(), b]));

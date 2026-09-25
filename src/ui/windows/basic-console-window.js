@@ -32,37 +32,52 @@ export class BasicConsoleWindow extends ConsoleWindow {
   }
 
   /**
+   * Compiles Crumb source and spawns it on the shared scheduler, printing to
+   * output (a TextPanel) and putting widgets on gui (an AppScreen's host), if given. Load errors are written to output instead. Does
+   * not start the scheduler. Used by run() and by LaunchWindow.
+   * @returns {{process: object|null, errorCount: number}}
+   */
+  static spawn(source, { name, output, gui = null, filename = 'console.crumb', onExit } = {}) {
+    const { chunk, errors } = compile(source, { filename });
+    if (!chunk || errors.length > 0) {
+      output.text = formatDiagnostics(errors, source, filename);
+      return { process: null, errorCount: errors.length };
+    }
+    const process = scheduler.spawn(chunk, {
+      name,
+      gui,
+      out: (text) => output.append(`${text}\n`),
+      transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
+      onExit: (p) => {
+        if (p.error) output.append(`${formatDiagnostics([p.error], source, filename)}\n`);
+        onExit?.(p);
+      },
+    });
+    return { process, errorCount: 0 };
+  }
+
+  /**
    * Compiles the source in the left pane and starts it on the shared
    * scheduler; output appears on the right as the program runs. Running again
    * stops this console's previous program. Returns the Process, or null if
    * there were load errors.
    */
   run() {
-    const source = this.input.text;
-    const filename = 'console.crumb';
     this.stop();
     this.output.text = '';
-
-    const { chunk, errors } = compile(source, { filename });
-    if (!chunk || errors.length > 0) {
-      this.output.text = formatDiagnostics(errors, source, filename);
-      this.reportLoadErrors(errors.length);
+    const { process, errorCount } = BasicConsoleWindow.spawn(this.input.text, {
+      name: this.title,
+      output: this.output,
+      onExit: (p) => this.reportExited(p),
+    });
+    if (!process) {
+      this.reportLoadErrors(errorCount);
       return null;
     }
-
-    const output = this.output;
-    this.process = scheduler.spawn(chunk, {
-      name: this.title,
-      out: (text) => output.append(`${text}\n`),
-      transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
-      onExit: (process) => {
-        if (process.error) output.append(`${formatDiagnostics([process.error], source, filename)}\n`);
-        this.reportExited(process);
-      },
-    });
-    this.reportStarted(this.process);
+    this.process = process;
+    this.reportStarted(process);
     scheduler.start();
-    return this.process;
+    return process;
   }
 
   /** Stops this console's program, if one is running. */

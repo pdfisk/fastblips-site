@@ -71,6 +71,9 @@ of the widget tree.
   - Hosts Windows, which float above the content area. The Viewport keeps
     their stacking order and brings a window to the front when it is
     clicked.
+  - content is the widget filling the space between the Navbar and the
+    StatusBar (or null); Windows float above it. Any widget with a height
+    can be docked as the StatusBar (the ?run= page docks a ButtonBar).
   - Listens for browser resize events and lays out the whole tree again.
   - windows returns the open Windows, back to front.
   - visibleWindows and minimizedWindows return the Windows that are
@@ -422,10 +425,16 @@ language consoles below. Any number of consoles can be open at once.
   - After Clear Input comes a Launch menu (console.launchMenu), placed like
     the other buttons, with Desktop and Mobile items. They call
     launch('desktop') and launch('mobile'), which open a new
-    DesktopLaunchWindow or MobileLaunchWindow for the console's source.
+    DesktopLaunchWindow or MobileLaunchWindow with a copy of the console's
+    source.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
     run() and stop() methods. In ConsoleWindow itself both do nothing.
+  - The static spawn(source, { name, output, onExit }) compiles source in
+    the console's language and spawns it on the shared Scheduler, printing
+    to output (a TextPanel); load errors are written to output instead. It
+    returns { process, errorCount } and does not start the scheduler. run()
+    and LaunchWindow's Go both use it. In ConsoleWindow it spawns nothing.
   - createInput(text) makes the source pane: a TextPanel unless a subclass
     overrides it (e.g. with a MonacoPanel).
   - Each subclass numbers its own windows: the first is titled with the
@@ -457,8 +466,7 @@ PythonConsoleWindow
 A ConsoleWindow for Python code, titled Python Console, Python Console 2, ...
 
   - Starts with print("Hello, world") as its source.
-  - There is no Python runtime yet: Run does nothing.
-
+ 
 
 LaunchWindow (abstract)
 -----------------------
@@ -468,19 +476,31 @@ opened from a console's Launch menu; any number can be open at once.
   - new DesktopLaunchWindow({ source, console }) or
     new MobileLaunchWindow({ source, console }): source is the program and
     console the ConsoleWindow it came from (kept as window.source and
-    window.console).
+    window.console). The source is a copy taken at launch: editing the
+    console afterwards does not change it. The console's class
+    (window.language) runs it, so Go still works after the console closes.
   - Titled with the name of the script loaded in the console that launched
     it (console.scriptName): the console's file name, e.g. fizzbuzz.crumb;
     for a console opened from a DatabaseWindow, the record's name; otherwise
     the console's title (e.g. Basic Console 2).
   - Each new launch window opens slightly below and to the right of the
     previous one.
-  - The content (window.screen) is the app's screen. It holds a TextPanel
-    (window.textPanel) that fills all of it, in both DesktopLaunchWindow and
-    MobileLaunchWindow. The program is not run yet.
+  - The content (window.screen) is the app's screen, an AppScreen: a
+    TextPanel (window.textPanel) that fills all of it, which the program
+    prints to, with the program's widgets (AddButton, ...) over it. The
+    same in DesktopLaunchWindow and MobileLaunchWindow.
   - Its ButtonBar has Go and Reset buttons (window.goButton and
-    window.resetButton), which call go() and reset(). Neither does anything
-    yet.
+    window.resetButton), which call go() and reset().
+  - go(), stop() and reset() are done by a ProgramRunner (window.runner),
+    shared with the ?run= page.
+  - go() stops any previous run, clears the text panel and removes the
+    program's widgets, and runs the source
+    on the Scheduler shared with the consoles, in the launching console's
+    language (ConsoleWindow.spawn). Output, and load and runtime errors,
+    appear in the text panel; the StatusBar reports when it starts and ends.
+  - reset() stops the program, clears the text panel and removes the
+    program's widgets.
+  - Closing a launch window stops its program.
 
 DesktopLaunchWindow
   - An ordinary window, 640 x 440 to start, that can be moved, resized,
@@ -630,3 +650,68 @@ a colour; they write var(--cr-title-bg) and so on.
     cr-fontchange event tells Monaco to switch font and re-measure.
   - A new theme is one more entry in THEMES. In the browser the API is
     Crumb.ui.setTheme(...).
+
+
+ProgramRunner
+-------------
+Runs one program for the Go and Reset buttons, in LaunchWindows and on the
+?run= page (src/ui/program-runner.js). Not a widget.
+
+  - new ProgramRunner({ language, source, screen, name }): language is the
+    ConsoleWindow class whose static spawn() compiles the source
+    (BasicConsoleWindow or PythonConsoleWindow), screen the AppScreen it
+    runs on (it prints to screen.textPanel and puts its widgets on
+    screen.host), and name (a string, or a function returning one) the name
+    shown in the scheduler and the StatusBar. Instead of a screen, output
+    can give a bare TextPanel; the program then cannot use widgets.
+  - go() stops any previous run, clears the output and the widgets, and
+    starts the source on the shared Scheduler. Output, and load and runtime
+    errors, appear in the output; the StatusBar reports when it starts and
+    ends.
+  - stop() stops the program; reset() stops it and clears the output and
+    the widgets.
+
+
+The ?run= page
+--------------
+Opening the page with ?run=<program name> runs that program as a full-page
+app instead of the playground (src/ui/run-app.js, startRuntime(name)). It
+works on any device, phone included.
+
+  - The browser window (tab) is titled with the program name.
+  - The source is read from the database server in use (Settings >
+    Database, or ?db=local): the record with that name in the Basic table,
+    else in the Python table, matching the name exactly, else ignoring
+    case. The table decides the language.
+  - The Viewport has no Navbar or windows: its content is an AppScreen that
+    fills it (a TextPanel with the program's widgets over it), and a
+    ButtonBar with Go and Reset buttons is docked along its bottom.
+  - Go and Reset act as in a LaunchWindow (a ProgramRunner does both).
+  - While the program loads, the text panel says so and the buttons are
+    disabled. If there is no such program, or the server cannot be reached,
+    the text panel says so and the buttons stay disabled.
+
+
+AppScreen
+---------
+The screen a program runs on, in a LaunchWindow and on the ?run= page
+(src/ui/widgets/app-screen.js).
+
+  - A TextPanel (screen.textPanel) fills it: the program's Print output.
+  - Over it, a transparent layer (screen.widgetLayer) holds the widgets the
+    program adds: Buttons and Labels, placed and sized by the program
+    (left, top, width, height in pixels from the top left of the screen).
+    Clicks outside the widgets go through to the text. The program's Labels
+    are opaque, so printed text does not show through them.
+  - screen.host, a WidgetHost, is what the VM calls to add and change the
+    widgets (its `gui` option; the interface is in src/vm/runtime/widgets.js):
+    create(kind, text, left, top, width, height) -> id, has(id),
+    setText(id, text), getText(id), setBounds(id, left, top, width, height)
+    and onClick(id, callback). Ids count from 1.
+  - clearWidgets() removes them all (Go and Reset do this).
+  - The widget built-ins are AddButton, AddLabel, SetText, GetText,
+    SetBounds and OnClick in Crumb, and add_button, add_label, set_text,
+    get_text, set_bounds and on_click in MiniPy (spec section 10.1). A
+    program that calls OnClick / on_click keeps running after its top-level
+    code, waiting for clicks (its process shows as 'waiting' in the Process
+    window), until it is stopped. examples/button-demo.crumb shows them all.

@@ -13,12 +13,35 @@ import {
   add, order, normIndex, toSequenceArray,
 } from './python-ops.js';
 import { RuntimeFault } from '../faults.js';
-import { UNBOUND } from '../values.js';
+import { UNBOUND, PyFunction, PyBoundMethod } from '../values.js';
+import { hostFor, checkWidget, checkBox } from './widgets.js';
 
 export const EXCEPTION_NAMES = [
   'Exception', 'TypeError', 'ValueError', 'ZeroDivisionError', 'IndexError',
   'KeyError', 'AttributeError', 'NameError', 'RuntimeError', 'RecursionError',
 ];
+
+// ---- Widgets (need a screen: vm.gui). See ./widgets.js. A widget is its
+// id, an int. Positions and sizes are numbers of CSS pixels.
+
+const guiOf = (vm, name) => hostFor(vm, `${name}()`, (m) => vm.raise('RuntimeError', m));
+
+function widgetArg(vm, name, id) {
+  if (!isInt(id) || typeof id === 'boolean') vm.raise('TypeError', `${name}() expects a widget (an int), not '${typeName(id)}'`);
+  return checkWidget(guiOf(vm, name), `${name}()`, toIndex(id), (m) => vm.raise('ValueError', m));
+}
+
+function boxArgs(vm, name, values) {
+  for (const v of values) {
+    if (!isNum(v)) vm.raise('TypeError', `${name}() expects numbers for left, top, width and height, not '${typeName(v)}'`);
+  }
+  return checkBox(`${name}()`, values.map(toFloat), (m) => vm.raise('ValueError', m));
+}
+
+const addWidget = (name, kind) => [5, 5, (vm, [text, ...box]) => {
+  const gui = guiOf(vm, name);
+  return BigInt(gui.create(kind, pyStr(text), ...boxArgs(vm, name, box)));
+}];
 
 /** Built-in functions: name -> [minArgs, maxArgs, fn(vm, args)] */
 const FUNCTIONS = {
@@ -135,6 +158,35 @@ const FUNCTIONS = {
   // str() does; with no values it writes an empty line. Like Crumb's
   // Transcript, a host without a transcript sends it to the output.
   transcript: [0, Infinity, (vm, args) => { vm.transcript(args.map(pyStr).join(' ')); return NOTHING; }],
+
+  // add_button / add_label(text, left, top, width, height) -> widget
+  add_button: addWidget('add_button', 'button'),
+  add_label: addWidget('add_label', 'label'),
+
+  // set_text(widget, value): the text shown, converted as str() does.
+  set_text: [2, 2, (vm, [w, text]) => {
+    vm.gui.setText(widgetArg(vm, 'set_text', w), pyStr(text));
+    return NOTHING;
+  }],
+  get_text: [1, 1, (vm, [w]) => vm.gui.getText(widgetArg(vm, 'get_text', w))],
+
+  // set_bounds(widget, left, top, width, height): moves and sizes it.
+  set_bounds: [5, 5, (vm, [w, ...box]) => {
+    const id = widgetArg(vm, 'set_bounds', w);
+    vm.gui.setBounds(id, ...boxArgs(vm, 'set_bounds', box));
+    return NOTHING;
+  }],
+
+  // on_click(widget, handler): calls handler each time the widget is
+  // clicked, with no arguments, or with the widget if it takes one.
+  on_click: [2, 2, (vm, [w, handler]) => {
+    const id = widgetArg(vm, 'on_click', w);
+    if (!(handler instanceof PyFunction || handler instanceof PyBoundMethod)) {
+      vm.raise('TypeError', `on_click() expects a function as the handler, not '${typeName(handler)}'`);
+    }
+    vm.listen(BigInt(id), { fn: handler }, (post) => vm.gui.onClick(id, post));
+    return NOTHING;
+  }],
 };
 
 export const FUNCTION_NAMES = Object.keys(FUNCTIONS);
