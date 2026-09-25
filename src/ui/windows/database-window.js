@@ -172,7 +172,8 @@ export class DatabaseWindow extends HSplitWindow {
   openInConsole() {
     const Console = this.constructor.consoleClass;
     if (!Console || !this.current || !this.parent) return null;
-    return new Console({ text: this.recordPanel.content }).open(this.parent);
+    const scriptName = this.recordPanel.name.trim() || this.current.name || null;
+    return new Console({ text: this.recordPanel.content, scriptName }).open(this.parent);
   }
 
 

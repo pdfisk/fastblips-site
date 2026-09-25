@@ -73,6 +73,9 @@ export class ConsoleWindow extends HSplitWindow {
     this.baseTitle = this.title;
     this.fileName = null;     // the file this console was opened from or saved to
     this.fileHandle = null;   // its handle, where the browser provides one
+    // The script's name when it did not come from a file (e.g. a database
+    // record opened in a console).
+    this.recordName = options.scriptName ?? null;
     this.input = this.createInput(options.text ?? cls.defaultText);
     // The right side is an OutputPanel (Text, Board and Canvas tabs);
     // output is its Text page, which programs print to.
@@ -123,6 +126,11 @@ export class ConsoleWindow extends HSplitWindow {
     this.output.text = '';
     this._setFile(name, handle);
   }
+
+  /** The name of the script in this console: its file name, else the
+   *  name it was opened with (options.scriptName, e.g. a database record's
+   *  name), else the console's title. */
+  get scriptName() { return this.fileName ?? this.recordName ?? this.baseTitle; }
 
   /** Writes the source back to its file, or asks where to save it. */
   async save() {

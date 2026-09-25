@@ -5,13 +5,20 @@
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
+import { TextPanel } from '../widgets/text-panel.js';
 
-// The app's screen: empty for now.
+// The app's screen: a TextPanel filling all of it.
 class ScreenPanel extends Panel {
   constructor() {
     super();
     this.element.classList.add('cr-launch-screen');
     this.element.style.background = 'var(--cr-output-bg)';
+    this.textPanel = this.add(new TextPanel());
+  }
+
+  layout() {
+    this.textPanel.setBounds(0, 0, this.bounds.width, this.bounds.height);
+    super.layout();
   }
 }
 
@@ -19,12 +26,13 @@ class ScreenPanel extends Panel {
 let opened = 0;
 
 export class LaunchWindow extends Window {
-  /** The kind of launch, shown in the title: 'Desktop' or 'Mobile'. */
+  /** The kind of launch: 'Desktop' or 'Mobile'. */
   static get kind() { return 'Launch'; }
 
   /**
    * @param {object} options - Window options, plus `source` (the program)
-   *   and `console` (the ConsoleWindow it was launched from).
+   *   and `console` (the ConsoleWindow it was launched from). The title
+   *   is the name of the console's script.
    */
   constructor({ source = '', console = null, ...options } = {}) {
     if (new.target === LaunchWindow) {
@@ -33,7 +41,7 @@ export class LaunchWindow extends Window {
     const kind = new.target.kind;
     const offset = (opened++ % 8) * 24;
     super({
-      title: console ? `${console.baseTitle} — ${kind}` : kind,
+      title: console ? console.scriptName : kind,
       x: 480 + offset, y: 70 + offset,
       ...options,
     });
@@ -41,8 +49,20 @@ export class LaunchWindow extends Window {
     this.source = source;
     this.console = console;
     this.screen = new ScreenPanel();
+    this.textPanel = this.screen.textPanel;
     this.content = this.screen;
+    this.goButton = this.buttonBar.addButton('Go', () => this.go());
+    this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());
   }
+
+  /** Starts the app (the Go button). Not implemented yet: does nothing. */
+  go() {
+    return null;
+  }
+
+  /** Puts the app back to its starting state (the Reset button). Not
+   *  implemented yet: does nothing. */
+  reset() {}
 }
 
 export class DesktopLaunchWindow extends LaunchWindow {

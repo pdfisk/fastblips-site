@@ -469,11 +469,18 @@ opened from a console's Launch menu; any number can be open at once.
     new MobileLaunchWindow({ source, console }): source is the program and
     console the ConsoleWindow it came from (kept as window.source and
     window.console).
-  - Titled '<console title> — Desktop' or '<console title> — Mobile'.
-    Each new launch window opens slightly below and to the right of the
+  - Titled with the name of the script loaded in the console that launched
+    it (console.scriptName): the console's file name, e.g. fizzbuzz.crumb;
+    for a console opened from a DatabaseWindow, the record's name; otherwise
+    the console's title (e.g. Basic Console 2).
+  - Each new launch window opens slightly below and to the right of the
     previous one.
-  - The content (window.screen) is the app's screen. For now it is empty:
-    the program is not run yet.
+  - The content (window.screen) is the app's screen. It holds a TextPanel
+    (window.textPanel) that fills all of it, in both DesktopLaunchWindow and
+    MobileLaunchWindow. The program is not run yet.
+  - Its ButtonBar has Go and Reset buttons (window.goButton and
+    window.resetButton), which call go() and reset(). Neither does anything
+    yet.
 
 DesktopLaunchWindow
   - An ordinary window, 640 x 440 to start, that can be moved, resized,
@@ -545,7 +552,7 @@ PythonDatabaseWindow.instance; closing it keeps its state.
   - Selecting another record, starting a new one or closing the window
     with unsaved changes asks before discarding them.
   - Open in Console opens a new console of the table's language holding
-    the record's content.
+    the record's content, with the record's name as its scriptName.
   - The list is reloaded each time the window opens, and by Refresh.
   - The server is the one chosen in Settings > Database: Remote by
     default, or Local when the page is opened with ?db=local.
