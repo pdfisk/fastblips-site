@@ -15,10 +15,37 @@ import {
 import { RuntimeFault } from '../faults.js';
 import { UNBOUND, PyFunction, PyBoundMethod } from '../values.js';
 import { hostFor, checkWidget, checkBox } from './widgets.js';
+import { checkUrl, startFetch } from './fetch.js';
+
+/**
+ * Parsed JSON as MiniPy values: objects are dicts, arrays lists, whole
+ * numbers ints (exactly, however large, where the host supports it) and
+ * other numbers floats, null None.
+ */
+export function pyFromJsonText(text) {
+  const ints = (key, value, context) => {
+    if (typeof value === 'number' && context?.source !== undefined) {
+      return /^-?\d+$/.test(context.source) ? BigInt(context.source) : value;
+    }
+    if (typeof value === 'number' && Number.isSafeInteger(value) && context === undefined) return BigInt(value);
+    return value;
+  };
+  const convert = (v) => {
+    if (Array.isArray(v)) return v.map(convert);
+    if (v !== null && typeof v === 'object' && typeof v !== 'bigint') {
+      const d = new PyDict();
+      for (const [k, item] of Object.entries(v)) d.set(k, convert(item));
+      return d;
+    }
+    return v;
+  };
+  return convert(JSON.parse(text, ints));
+}
 
 export const EXCEPTION_NAMES = [
   'Exception', 'TypeError', 'ValueError', 'ZeroDivisionError', 'IndexError',
   'KeyError', 'AttributeError', 'NameError', 'RuntimeError', 'RecursionError',
+  'OSError',
 ];
 
 // ---- Widgets (need a screen: vm.gui). See ./widgets.js. A widget is its
@@ -185,6 +212,25 @@ const FUNCTIONS = {
       vm.raise('TypeError', `on_click() expects a function as the handler, not '${typeName(handler)}'`);
     }
     vm.listen(BigInt(id), { fn: handler }, (post) => vm.gui.onClick(id, post));
+    return NOTHING;
+  }],
+
+  // fetch(url): the response at url. JSON comes back as dicts, lists, str,
+  // int, float, bool and None; anything else as a str. The program waits
+  // for it (other programs keep running); a failed request raises OSError.
+  fetch: [1, 1, (vm, [url]) => {
+    if (typeof url !== 'string') vm.raise('TypeError', `fetch() expects a URL (a str), not '${typeName(url)}'`);
+    const href = checkUrl('fetch()', url, (m) => vm.raise('ValueError', m));
+    startFetch(vm, 'fetch()', href, {
+      convert: (text) => {
+        try {
+          return pyFromJsonText(text);
+        } catch {
+          return text;
+        }
+      },
+      onError: (v, message) => v.raise('OSError', message),
+    });
     return NOTHING;
   }],
 };

@@ -67,31 +67,62 @@ export function formatFault(fault, source, filename = '<program>') {
  *            fault: RuntimeFault|null, steps: number}}
  */
 export function run(source, options = {}) {
+  const prepared = prepare(source, options);
+  if (!prepared.vm) return prepared.result;
+  try {
+    prepared.vm.run();
+  } catch (err) {
+    return prepared.failed(err);
+  }
+  return prepared.succeeded();
+}
+
+/**
+ * Like run(), but waits for sleep() and fetch() without blocking the
+ * thread. Resolves to the same result.
+ */
+export async function runAsync(source, options = {}) {
+  const prepared = prepare(source, options);
+  if (!prepared.vm) return prepared.result;
+  try {
+    await prepared.vm.runAsync();
+  } catch (err) {
+    return prepared.failed(err);
+  }
+  return prepared.succeeded();
+}
+
+/** Compiles source and makes its VM, for run() and runAsync(). */
+function prepare(source, options) {
   const {
     filename = '<program>', out, maxSteps = DEFAULT_MAX_STEPS, maxDepth = DEFAULT_MAX_DEPTH, ...vmOptions
   } = options;
 
-  const result = compile(source, { filename });
-  if (!result.ok) {
+  const compiled = compile(source, { filename });
+  if (!compiled.ok) {
     return {
-      ok: false, output: [], loadErrors: formatLoadErrors(result.loadErrors, filename), error: null, fault: null, steps: 0,
+      vm: null,
+      result: {
+        ok: false, output: [], loadErrors: formatLoadErrors(compiled.loadErrors, filename), error: null, fault: null, steps: 0,
+      },
     };
   }
 
   const output = [];
-  const vm = new VM(result.chunk, {
+  const vm = new VM(compiled.chunk, {
     ...vmOptions,
     maxSteps,
     maxDepth,
     out: (line) => { output.push(line); if (out) out(line); },
   });
-  try {
-    vm.run();
-  } catch (err) {
-    if (!(err instanceof RuntimeFault)) throw err;
-    return {
-      ok: false, output, loadErrors: [], error: formatFault(err, source, filename), fault: err, steps: vm.steps,
-    };
-  }
-  return { ok: true, output, loadErrors: [], error: null, fault: null, steps: vm.steps };
+  return {
+    vm,
+    failed(err) {
+      if (!(err instanceof RuntimeFault)) throw err;
+      return {
+        ok: false, output, loadErrors: [], error: formatFault(err, source, filename), fault: err, steps: vm.steps,
+      };
+    },
+    succeeded: () => ({ ok: true, output, loadErrors: [], error: null, fault: null, steps: vm.steps }),
+  };
 }

@@ -6,7 +6,8 @@
 //
 // A process that calls Sleep goes to `sleeping`; the Scheduler wakes it later.
 // One that has registered event handlers and finished its module code goes
-// to `waiting` until an event arrives (the VM calls its onWake).
+// to `waiting` until an event arrives (the VM calls its onWake), and so does
+// one waiting for a Fetch, until the response arrives.
 // Any waiting or ready process can be `suspended`, and later resumed.
 
 import { VM } from '../vm/vm.js';
@@ -16,7 +17,7 @@ export const ProcessState = Object.freeze({
   READY: 'ready',
   RUNNING: 'running',
   SLEEPING: 'sleeping',
-  WAITING: 'waiting',   // for an event (a widget click); see VM.listen
+  WAITING: 'waiting',   // for an event (a widget click; see VM.listen) or a Fetch (VM.block)
   SUSPENDED: 'suspended',
   DONE: 'done',
   FAILED: 'failed',
@@ -60,7 +61,7 @@ export class Process {
       this.sleepMs = halted ? null : this.vm.takeSleep();
       if (halted) this.finish(ProcessState.DONE);
       else if (this.sleepMs !== null) this.state = ProcessState.SLEEPING;
-      else this.state = this.vm.waiting ? ProcessState.WAITING : ProcessState.READY;
+      else this.state = this.vm.waiting || this.vm.blocked ? ProcessState.WAITING : ProcessState.READY;
     } catch (error) {
       this.error = error;
       this.finish(ProcessState.FAILED);

@@ -1,4 +1,4 @@
-// The 23 built-ins of spec section 10 (the last 6 are the widgets of 10.1). Fixed arity, checked at compile time;
+// The 27 built-ins of spec section 10 (widgets: 10.1; Fetch and JSON: 10.2). Fixed arity, checked at compile time;
 // argument types checked here, at the call.
 //
 // String positions are 1-based throughout, following VB.
@@ -8,6 +8,7 @@ import {
   isNumber, isString, isArray,
 } from './crumb-values.js';
 import { hostFor, checkWidget, checkBox } from './widgets.js';
+import { checkUrl, startFetch, followPath } from './fetch.js';
 
 /** Thrown by a builtin; the VM turns it into a positioned runtime error. */
 export class BuiltinError extends Error {}
@@ -61,6 +62,21 @@ function addWidget(name, kind) {
       return host.create(kind, toStr(text), ...wantBox(name, 2, box));
     },
   };
+}
+
+/** A JSON value as a Crumb value: objects and arrays stay JSON text, so
+ *  they can be given to JsonGet again; null is Nothing. */
+function fromJson(value) {
+  if (value === null || value === undefined) return NOTHING;
+  if (typeof value === 'object') return JSON.stringify(value);
+  return value;   // String, Number or Boolean
+}
+
+/** JsonGet / JsonCount / JsonKey: (json, path) checked and followed. */
+function jsonAt(name, json, path) {
+  wantString(name, 1, json);
+  wantString(name, 2, path);
+  return followPath(name, json, path, fail);
 }
 
 /**
@@ -217,6 +233,62 @@ export const BUILTIN_LIST = [
       if (proc.arity > 1) fail(`OnClick: Sub '${proc.name}' takes ${proc.arity} arguments; a click handler takes none, or one (the widget)`);
       vm.listen(id, { proc }, (handler) => vm.gui.onClick(id, handler));
       return NOTHING;
+    },
+  },
+
+  // ---- Fetch and JSON (spec 10.2). See ./fetch.js.
+  {
+    // Fetch(url): the body of the web page or API response at url, a
+    // String. The program waits for it; other programs keep running.
+    name: 'Fetch',
+    arity: 1,
+    fn: ([url], vm) => {
+      wantString('Fetch', 1, url);
+      const href = checkUrl('Fetch', url, fail);
+      startFetch(vm, 'Fetch', href, {
+        convert: (text) => text,
+        onError: (v, message) => v.fail(message),
+      });
+      return NOTHING;
+    },
+  },
+  {
+    // JsonGet(json, path): the value at path in the JSON text json, e.g.
+    // JsonGet(data, "current_weather.temperature"). A String, Number or
+    // Boolean; an object or array comes back as JSON text; a JSON null,
+    // or a path that is not there, is Nothing.
+    name: 'JsonGet',
+    arity: 2,
+    fn: ([json, path]) => {
+      const at = jsonAt('JsonGet', json, path);
+      return at.found ? fromJson(at.value) : NOTHING;
+    },
+  },
+  {
+    // JsonCount(json, path): how many items the array at path holds, or
+    // how many names the object there has; 0 for anything else or nothing.
+    name: 'JsonCount',
+    arity: 2,
+    fn: ([json, path]) => {
+      const at = jsonAt('JsonCount', json, path);
+      if (!at.found || at.value === null || typeof at.value !== 'object') return 0;
+      return Array.isArray(at.value) ? at.value.length : Object.keys(at.value).length;
+    },
+  },
+  {
+    // JsonKey(json, path, n): the name of the object's nth member (from 0),
+    // at path, so a program can walk an object it does not know the names of.
+    name: 'JsonKey',
+    arity: 3,
+    fn: ([json, path, n]) => {
+      const at = jsonAt('JsonKey', json, path);
+      wantWholeNumber('JsonKey', 3, n);
+      if (!at.found || at.value === null || typeof at.value !== 'object' || Array.isArray(at.value)) {
+        fail(`JsonKey expects the path "${path}" to lead to a JSON object`);
+      }
+      const keys = Object.keys(at.value);
+      if (n < 0 || n >= keys.length) fail(`JsonKey: the object has ${keys.length} member${keys.length === 1 ? '' : 's'} (0 to ${keys.length - 1}), got ${formatNumber(n)}`);
+      return keys[n];
     },
   },
 ];

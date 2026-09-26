@@ -177,17 +177,25 @@ export class Scheduler {
   }
 
   /**
-   * Runs until every process, including scheduled ones, has finished,
-   * sleeping while nothing is ready.
+   * Runs until every process, including scheduled ones and ones waiting for
+   * a Fetch, has finished, sleeping while nothing is ready. (Processes
+   * waiting for clicks are left waiting.)
    * @param {(ms: number) => Promise<void>} sleep  injectable for tests
    */
   async runToCompletion(sleep = defaultSleep) {
-    while (!this.empty) {
+    for (;;) {
       this.runAll();
-      if (this.scheduledQueue.length > 0) {
-        await sleep(Math.max(0, this.nextStartAt - this.now()));
-      }
+      const fetching = this.fetching;
+      if (this.empty && fetching.length === 0) return;
+      const waits = fetching.map((p) => p.vm.blockedOn);
+      if (this.scheduledQueue.length > 0) waits.push(sleep(Math.max(0, this.nextStartAt - this.now())));
+      await Promise.race(waits);
     }
+  }
+
+  /** Processes waiting for a Fetch (not counting suspended ones). */
+  get fetching() {
+    return [...this.processes.values()].filter((p) => p.state === ProcessState.WAITING && p.vm.blocked);
   }
 
   /**

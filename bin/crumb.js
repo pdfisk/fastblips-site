@@ -17,6 +17,7 @@ import {
   parse, compile, run, formatAst, formatTokens, formatDiagnostics, disassemble,
 } from '../src/index.js';
 import * as python from '../src/vm/compiler/python/loader.js';
+import { runAsync } from '../src/vm/vm.js';
 
 const COMMANDS = new Set(['run', 'parse', 'tokens', 'json', 'check', 'dis']);
 
@@ -68,7 +69,7 @@ if (extname(file) === '.py') {
   }
   if (command === 'check') { process.stdout.write(`${filename}: ok\n`); process.exit(0); }
   if (command === 'dis') { process.stdout.write(`${disassemble(chunk)}\n`); process.exit(0); }
-  const result = python.run(source, { filename, out: (text) => process.stdout.write(`${text}\n`) });
+  const result = await python.runAsync(source, { filename, out: (text) => process.stdout.write(`${text}\n`) });
   if (result.error) {
     process.stderr.write(`${result.error}\n`);
     process.exit(1);
@@ -108,8 +109,8 @@ if (command === 'dis') {
   process.exit(0);
 }
 
-const result = run(source, {
-  filename,
+// runAsync, so Sleep and Fetch wait without blocking.
+const result = await runAsync(chunk, {
   out: (text) => process.stdout.write(`${text}\n`),
 });
 

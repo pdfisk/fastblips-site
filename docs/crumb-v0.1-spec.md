@@ -124,13 +124,13 @@ fixed — no `ReDim`, no `Option Base`, one dimension only. Index must be an int
 Number in range. Arrays are references (assignment aliases). `a(i)` and `f(i)` share
 syntax; resolved when the name is resolved.
 
-## 10. Built-ins (23, not reserved words, not shadowable)
+## 10. Built-ins (27, not reserved words, not shadowable)
 
 `Len(s)` · `Mid(s, start, count)` (1-based, truncates past end) · `InStr(hay, needle)`
 (1-based or 0) · `UCase(s)` · `LCase(s)` · `Trim(s)` · `Str(v)` · `Val(s)` · `Int(n)` ·
 `Abs(n)` · `Sqr(n)` · `Rnd()` → `[0,1)` · `Chr(n)` · `Asc(s)` · `UBound(a)` ·
 `Transcript(v)` · `Sleep(n)` · widgets: `AddButton` · `AddLabel` · `SetText` · `GetText` ·
-`SetBounds` · `OnClick` (§10.1)
+`SetBounds` · `OnClick` (§10.1) · web: `Fetch` · `JsonGet` · `JsonCount` · `JsonKey` (§10.2)
 
 `Transcript(v)` writes `v`, converted as by `Str`, as one line to the transcript — a
 host-provided log separate from `Print` output (in the playground, the Transcript
@@ -197,6 +197,42 @@ End Sub
 MiniPy has the same built-ins, named `add_button`, `add_label`, `set_text`, `get_text`,
 `set_bounds` and `on_click`; the handler given to `on_click` is a function, called with no
 arguments or with the widget.
+
+### 10.2 Fetch and JSON
+
+`Fetch(url)` reads a web address and returns the response body as a String; the program
+waits for it, and under a scheduler other programs keep running meanwhile (the process
+shows as `waiting`). `url` must be an `http:` or `https:` address. A failed request — no
+network, an error status such as 404, no answer within 30 s, or a site that does not allow
+requests from web pages (CORS) — is a runtime error at the call.
+
+Most web APIs answer in JSON. Crumb has no records, so a JSON document stays a String and
+three built-ins read it. A **path** names a value: names and array indexes separated by
+dots, indexes counting from 0 as in the JSON — `"current_weather.temperature"`,
+`"features.0.properties.place"`. An index may also be bracketed:
+`"features[0].properties.place"`. `""` is the whole document.
+
+| Built-in | Does |
+|---|---|
+| `JsonGet(json, path)` | The value at `path`: a String, Number or Boolean. An object or array comes back as JSON text, which can be given to `JsonGet` again. A JSON `null`, or a path that is not there, is `Nothing`. |
+| `JsonCount(json, path)` | The number of items in the array at `path`, or of names in the object there; 0 for anything else, or if nothing is there. |
+| `JsonKey(json, path, n)` | The name of the `n`th member (from 0) of the object at `path`, a String. |
+
+Text that is not valid JSON is a runtime error in all three.
+
+```vb
+Dim data = Fetch("https://api.open-meteo.com/v1/forecast?latitude=43.65&longitude=-79.38&current_weather=true")
+Print "Now:", JsonGet(data, "current_weather.temperature"), "C"
+
+Dim quakes = Fetch("https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson")
+For i = 0 To JsonCount(quakes, "features") - 1
+  Print JsonGet(quakes, "features." & i & ".properties.place")
+Next
+```
+
+MiniPy's `fetch(url)` returns the parsed JSON instead: objects are dicts, arrays lists,
+whole numbers ints, other numbers floats, `null` None; a body that is not JSON comes back
+as a str. A failed request raises `OSError`, which `try` can catch.
 
 ## 11. Errors
 

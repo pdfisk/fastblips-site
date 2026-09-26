@@ -65,6 +65,7 @@ export class VM {
     random = Math.random,
     sleep = blockingSleep,   // (ms) => void, used by run() for Sleep / sleep()
     gui = null,              // widget host for AddButton / add_button etc. (runtime/widgets.js)
+    fetch = globalThis.fetch?.bind(globalThis) ?? null,   // for Fetch / fetch() (runtime/fetch.js)
   } = {}) {
     this.chunk = chunk;
     this.language = chunk.language ?? 'crumb';
@@ -76,6 +77,7 @@ export class VM {
     this.random = random;
     this.sleep = sleep;
     this.gui = gui;
+    this.fetch = fetch;
 
     this.slotFill = 'initialSlot' in chunk ? chunk.initialSlot : NOTHING;
     this.globals = chunk.globalInit
@@ -90,6 +92,11 @@ export class VM {
     this.steps = 0;
     this.halted = false;
     this.sleepMs = null;   // set by Sleep / sleep(); makes runSlice yield
+
+    // A call waiting for a promise (Fetch / fetch()): see block().
+    this.blocked = null;   // the pending request's token while waiting
+    this.blockedOn = null; // a promise that settles when the wait is over
+    this.resumed = null;   // { value } or { error, onError }, applied on the next slice
 
     // Events (widget clicks). Once a handler is registered the program does
     // not halt at the end of its module code: it waits there for events and
@@ -115,6 +122,39 @@ export class VM {
     if (this.halted) return;
     this.events.push({ handler, args });
     if (this.waiting) this.onWake?.();
+  }
+
+  /**
+   * Makes the builtin being called wait for promise. The call ends the time
+   * slice without pushing a result; when promise resolves its value is
+   * pushed as the call's result and the program continues. If it rejects,
+   * onError(vm, message) is called at the call on the next slice (it
+   * throws the language's error). onWake tells the Scheduler to run the
+   * program again.
+   */
+  block(promise, onError) {
+    const token = {};
+    this.blocked = token;
+    this.blockedOn = promise.then(
+      (value) => { this.unblock(token, { value }); },
+      (err) => { this.unblock(token, { error: String(err?.message ?? err), onError }); },
+    );
+  }
+
+  unblock(token, result) {
+    if (this.blocked !== token || this.halted) return;
+    this.blocked = null;
+    this.blockedOn = null;
+    this.resumed = result;
+    this.onWake?.();
+  }
+
+  /** Applies a finished wait: pushes the call's result, or throws its error. */
+  takeResumed() {
+    const r = this.resumed;
+    this.resumed = null;
+    if ('error' in r) r.onError(this, r.error);
+    else this.push(r.value);
   }
 
   /** Runs a queued event's handler: enters it as a call from the HALT at ip. */
@@ -200,12 +240,30 @@ export class VM {
 
   // ---------------------------------------------------------------------- run
 
-  /** Runs to completion, blocking for each sleep. */
+  /** Runs to completion, blocking for each sleep. It cannot wait for a
+   *  Fetch: use runAsync() (or a Scheduler) for programs that fetch. */
   run() {
     while (!this.runSlice()) {
       if (this.waiting) return;   // no one to send events: stop here
+      if (this.blocked) {
+        this.blocked = null;
+        this.fail(this.language === 'python'
+          ? 'fetch() needs a program run by the scheduler or runAsync'
+          : 'Fetch needs a program run by the scheduler or runAsync');
+      }
       const ms = this.takeSleep();
       if (ms !== null) this.sleep(ms);
+    }
+  }
+
+  /** Runs to completion, waiting (without blocking the thread) for each
+   *  sleep and each Fetch. */
+  async runAsync() {
+    while (!this.runSlice(1000)) {
+      if (this.waiting) return;
+      if (this.blocked) { await this.blockedOn; continue; }
+      const ms = this.takeSleep();
+      if (ms !== null) await new Promise((resolve) => setTimeout(resolve, ms));
     }
   }
 
@@ -226,9 +284,11 @@ export class VM {
    */
   runSlice(budget = 10) {
     if (this.halted) return true;
+    if (this.blocked) return false;   // still waiting for a Fetch
     let used = 0;
     for (;;) {
       try {
+        if (this.resumed) { this.sliceUsed = used; this.takeResumed(); }
         return this.execute(budget, used);
       } catch (signal) {
         if (!(signal instanceof PyRaise)) throw signal;
@@ -401,12 +461,15 @@ export class VM {
           const argc = code[this.ip + 1];
           this.ip += 2;
           const args = this.popN(argc);
+          let result;
           try {
-            this.push(builtin.fn(args, this));
+            result = builtin.fn(args, this);
           } catch (err) {
             if (err instanceof BuiltinError) this.fail(err.message);
             throw err;
           }
+          if (this.blocked) return false;             // wait for Fetch; its result is pushed later
+          this.push(result);
           if (this.sleepMs !== null) return false;   // yield for Sleep
           break;
         }
@@ -514,6 +577,7 @@ export class VM {
           this.ip += 1;
           const args = this.popN(argc);
           this.callValue(this.pop(), args);
+          if (this.blocked) return false;            // wait for fetch()
           if (this.sleepMs !== null) return false;   // yield for sleep()
           break;
         }
@@ -655,7 +719,11 @@ export class VM {
   /** CALL_VALUE: call whatever MiniPy value is being called. */
   callValue(callee, args) {
     if (callee instanceof PyFunction) { this.callFunction(callee, args); return; }
-    if (callee instanceof PyBuiltinFunction) { this.push(callee.fn(this, args)); return; }
+    if (callee instanceof PyBuiltinFunction) {
+      const result = callee.fn(this, args);
+      if (!this.blocked) this.push(result);   // a fetch() pushes its result when it arrives
+      return;
+    }
     if (callee instanceof PyBoundMethod) { this.callValue(callee.func, [callee.instance, ...args]); return; }
     if (callee instanceof PyClass) {
       const init = callee.findMethod('__init__');
@@ -836,6 +904,23 @@ export function run(chunk, options = {}) {
   const vm = new VM(chunk, { ...options, out: collect });
   try {
     vm.run();
+    return { output, error: null, steps: vm.steps };
+  } catch (err) {
+    if (err instanceof RuntimeFault) return { output, error: err, steps: vm.steps };
+    throw err;
+  }
+}
+
+/**
+ * Runs a compiled chunk to completion, waiting for Sleep and Fetch without
+ * blocking. Resolves to the same result as run().
+ */
+export async function runAsync(chunk, options = {}) {
+  const output = [];
+  const collect = options.out ?? ((text) => output.push(text));
+  const vm = new VM(chunk, { ...options, out: collect });
+  try {
+    await vm.runAsync();
     return { output, error: null, steps: vm.steps };
   } catch (err) {
     if (err instanceof RuntimeFault) return { output, error: err, steps: vm.steps };

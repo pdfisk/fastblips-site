@@ -21,13 +21,14 @@ src/vm/                           the shared back end
   disasm.js           bytecode listing for any chunk
   runtime/
     crumb-values.js   Crumb's type names and Str conversion   (sections 3, 10)
-    crumb-builtins.js the 17 Crumb built-in functions        (section 10)
+    crumb-builtins.js the 27 Crumb built-in functions        (section 10)
     python-values.js  MiniPy's type names, truthiness, str/repr, numeric tower
     python-ops.js     MiniPy's operators, subscripts, attributes, iteration
     python-builtins.js MiniPy's built-ins, exceptions and methods
+    fetch.js          Fetch / fetch(): web requests, and Crumb's JSON paths
 
 src/vm/compiler/basic/            Crumb — the language this repo specifies
-  tokens.js           token classes, the 24 reserved words, the 17 built-ins
+  tokens.js           token classes, the 24 reserved words, the 27 built-ins
   lexer.js            source text -> tokens              (spec section 2)
   parser.js           tokens      -> AST                 (spec section 13)
   compiler.js         AST -> bytecode, and the resolver  (sections 5, 7, 9, 10)
@@ -137,6 +138,18 @@ one. The VM never waits itself: the built-in records the request and
 `runSlice` returns early. `run()` then blocks (with `Atomics.wait`, or a
 busy-wait where that is unavailable); a `Scheduler` instead parks the
 process and runs the others.
+
+`Fetch(url)` (MiniPy: `fetch(url)`) reads a web API. The request is
+asynchronous, but the program sees an ordinary call: the built-in hands the
+promise to the VM (`vm.block`), `runSlice` returns early, and when the
+response arrives it is pushed as the call's result (`src/vm/runtime/fetch.js`).
+A `Scheduler` shows the process as `waiting` meanwhile and runs the others.
+`run()` cannot wait, so a program that fetches needs a `Scheduler` or
+`runAsync()` (the `crumb` command uses `runAsync`). The `fetch` VM option
+replaces the global `fetch`, for tests. Crumb gets the response as a String
+and reads it with `JsonGet`, `JsonCount` and `JsonKey`; MiniPy gets dicts
+and lists. `docs/apis.md` lists free APIs to try, and `examples/api-tour.crumb`
+and `examples/api-tour.py` visit twelve of them.
 
 ## Scheduling
 
