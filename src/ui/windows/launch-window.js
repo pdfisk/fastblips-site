@@ -17,9 +17,10 @@ export class LaunchWindow extends Window {
   /**
    * @param {object} options - Window options, plus `source` (the program)
    *   and `console` (the ConsoleWindow it was launched from). The title
-   *   is the name of the console's script.
+   *   is the name of the console's script. `autoStart` (default true)
+   *   runs the program as soon as the window is first opened.
    */
-  constructor({ source = '', console = null, ...options } = {}) {
+  constructor({ source = '', console = null, autoStart = true, ...options } = {}) {
     if (new.target === LaunchWindow) {
       throw new TypeError('LaunchWindow is abstract; use DesktopLaunchWindow or MobileLaunchWindow');
     }
@@ -49,7 +50,28 @@ export class LaunchWindow extends Window {
     });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());
+    this.autoStart = Boolean(autoStart);
+    this._autoStarted = false;
   }
+
+  /**
+   * Shows the window. The first time, once it is in the Viewport and laid
+   * out (for a MobileLaunchWindow, fitted to the phone screen), the program
+   * starts, as if Go were pressed, unless autoStart is false. Restoring a
+   * minimized or hidden window does not run it again.
+   */
+  open(viewport) {
+    super.open(viewport);
+    this.fitScreen();
+    if (this.autoStart && !this._autoStarted) {
+      this._autoStarted = true;
+      this.go();
+    }
+    return this;
+  }
+
+  /** Fits the window to its screen; only MobileLaunchWindow has one. */
+  fitScreen() {}
 
   /**
    * Runs the program (the Go button): stops any previous run, clears the
@@ -103,12 +125,6 @@ export class MobileLaunchWindow extends LaunchWindow {
     // A theme can change the title bar and borders: keep the screen exact.
     this._onTheme = () => requestAnimationFrame(() => this.fitScreen());
     document.addEventListener('cr-themechange', this._onTheme);
-  }
-
-  open(viewport) {
-    super.open(viewport);
-    this.fitScreen();
-    return this;
   }
 
   /** Sizes the window so its content area is exactly screenSize. */

@@ -491,6 +491,11 @@ opened from a console's Launch menu; any number can be open at once.
     same in DesktopLaunchWindow and MobileLaunchWindow.
   - Its ButtonBar has Go and Reset buttons (window.goButton and
     window.resetButton), which call go() and reset().
+  - The program starts by itself the first time the window is opened, once
+    it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
+    its phone screen first), as if Go were pressed. Restoring the window
+    after minimizing or hiding it does not run it again. Pass
+    autoStart: false to the constructor to wait for Go instead.
   - go(), stop() and reset() are done by a ProgramRunner (window.runner),
     shared with the ?run= page.
   - go() stops any previous run, clears the text panel and removes the
@@ -687,6 +692,8 @@ works on any device, phone included.
     fills it (a TextPanel with the program's widgets over it), and a
     ButtonBar with Go and Reset buttons is docked along its bottom.
   - Go and Reset act as in a LaunchWindow (a ProgramRunner does both).
+  - The program starts by itself as soon as it has loaded from the
+    database, as if Go were pressed.
   - While the program loads, the text panel says so and the buttons are
     disabled. If there is no such program, or the server cannot be reached,
     the text panel says so and the buttons stay disabled.
