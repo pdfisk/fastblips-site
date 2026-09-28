@@ -519,6 +519,8 @@ MobileLaunchWindow
     moved and minimized.
   - When opened it moves up, if need be, so it does not reach below the
     StatusBar.
+  - Its text output is 2px larger than the theme's font size, and its
+    colour is the theme's text colour mixed 25% towards black.
 
 
 TranscriptWindow (singleton)

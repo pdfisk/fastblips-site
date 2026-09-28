@@ -122,6 +122,11 @@ export class MobileLaunchWindow extends LaunchWindow {
     // Roughly the window's size; open() makes the content area exact.
     super({ width: width + 8, height: height + 62, ...options, resizable: false });
     this.element.classList.add('cr-mobile-launch-window');
+    // Text output a little larger and darker than elsewhere, easier to read
+    // on the phone-sized screen.
+    const { style } = this.textPanel.textArea;
+    style.fontSize = 'calc(var(--cr-font-size) + 2px)';
+    style.color = 'color-mix(in srgb, var(--cr-text) 75%, #000)';
     // A theme can change the title bar and borders: keep the screen exact.
     this._onTheme = () => requestAnimationFrame(() => this.fitScreen());
     document.addEventListener('cr-themechange', this._onTheme);
