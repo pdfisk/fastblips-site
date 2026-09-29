@@ -80,6 +80,15 @@ export class BasicConsoleWindow extends ConsoleWindow {
     return process;
   }
 
+  /** Compiles Crumb source without running it (a DatabaseWindow's Compile button). */
+  static compileSource(source, filename = 'console.crumb') {
+    const { chunk, errors } = compile(source, { filename });
+    if (!chunk || errors.length > 0) {
+      return { chunk: null, errors: formatDiagnostics(errors, source, filename), errorCount: errors.length };
+    }
+    return { chunk, errors: '', errorCount: 0 };
+  }
+
   /** Stops this console's program, if one is running. */
   stop() {
     if (this.process && !this.process.finished) scheduler.kill(this.process.pid);

@@ -84,6 +84,15 @@ export class PythonConsoleWindow extends ConsoleWindow {
     return process;
   }
 
+  /** Compiles MiniPy source without running it (a DatabaseWindow's Compile button). */
+  static compileSource(source, filename = 'console.py') {
+    const { chunk, loadErrors } = compilePython(source, { filename });
+    if (!chunk) {
+      return { chunk: null, errors: `${formatLoadErrors(loadErrors, filename).join('\n')}\n`, errorCount: loadErrors.length };
+    }
+    return { chunk, errors: '', errorCount: 0 };
+  }
+
   /** Stops this console's program, if one is running. */
   stop() {
     if (this.process && !this.process.finished) scheduler.kill(this.process.pid);

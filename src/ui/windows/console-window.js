@@ -1,6 +1,6 @@
 // ConsoleWindow: the language-neutral base for consoles - an HSplitWindow
 // with source on the left, an OutputPanel on the right, and Run, Clear Output and
-// Clear Input buttons. Subclasses supply the language: a title prefix, the
+// Clear Input buttons and a Priority menu. Subclasses supply the language: a title prefix, the
 // starting source, and run().
 
 import { HSplitWindow } from './hsplit-window.js';
@@ -88,6 +88,13 @@ export class ConsoleWindow extends HSplitWindow {
     this.buttonBar.addButton('Run', () => this.run());
     this.buttonBar.addButton('Clear Output', () => { this.outputPanel.clear(); });
     this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.focus(); });
+    // Priority: a setting from 1 to 5 for this console's programs (default 3).
+    this.priority = options.priority ?? 3;
+    this.priorityMenu = this.buttonBar.add(new Menu('Priority'));
+    for (let level = 1; level <= 5; level++) {
+      this.priorityMenu.addItem(String(level), () => { this.priority = level; },
+        { checked: () => this.priority === level });
+    }
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
     this.launchMenu.addItem('Desktop', () => this.launch('desktop'));
     this.launchMenu.addItem('Mobile', () => this.launch('mobile'));
@@ -110,6 +117,16 @@ export class ConsoleWindow extends HSplitWindow {
   /** Runs the source in the left pane. The base class does nothing. */
   run() {
     return null;
+  }
+
+  /**
+   * Compiles source in this console's language without running it. Returns
+   * { chunk, errors, errorCount }: chunk is null if there were load errors,
+   * and errors is their formatted text ('' if none). Used by
+   * DatabaseWindow's Compile button. The base class has no language.
+   */
+  static compileSource(source, filename) { // eslint-disable-line no-unused-vars
+    return { chunk: null, errors: '', errorCount: 0 };
   }
 
   /**

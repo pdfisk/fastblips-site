@@ -9,11 +9,14 @@ import { ListPanel } from '../widgets/list-panel.js';
 import { RecordPanel } from '../widgets/record-panel.js';
 import { Spacer } from '../widgets/spacer.js';
 import { Label } from '../widgets/label.js';
+import { Menu } from '../widgets/menu.js';
 import { SourceStore, TABLES } from '../db-client.js';
 import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
+import { chunkToJsonString } from '../../vm/chunk-json.js';
 
 const instances = new Map();   // one window per subclass
+const DEFAULT_PRIORITY = 3;
 
 export class DatabaseWindow extends HSplitWindow {
   /** The table: a key of TABLES in db-client.js. Subclasses override. */
@@ -55,6 +58,16 @@ export class DatabaseWindow extends HSplitWindow {
     this.deleteButton = this.buttonBar.addButton('Delete', () => this.deleteRecord());
     this.buttonBar.addButton('Refresh', () => this.refresh());
     if (cls.consoleClass) {
+      this.compileButton = this.buttonBar.addButton('Compile', () => this.compile());
+    }
+    // Priority: the record's priority, 1 to 5 (default 3), saved with it.
+    this.priority = DEFAULT_PRIORITY;
+    this.priorityMenu = this.buttonBar.add(new Menu('Priority'));
+    for (let level = 1; level <= 5; level++) {
+      this.priorityMenu.addItem(String(level), () => { this.priority = level; this.updateButtons(); },
+        { checked: () => this.priority === level, enabled: () => Boolean(this.current) });
+    }
+    if (cls.consoleClass) {
       this.consoleButton = this.buttonBar.addButton('Open in Console', () => this.openInConsole());
     }
     this.buttonBar.add(new Spacer());
@@ -77,7 +90,8 @@ export class DatabaseWindow extends HSplitWindow {
   get dirty() {
     if (!this.current) return false;
     return this.recordPanel.name !== (this.current.name ?? '')
-      || this.recordPanel.content !== (this.current.content ?? '');
+      || this.recordPanel.content !== (this.current.content ?? '')
+      || this.priority !== (this.current.priority ?? DEFAULT_PRIORITY);
   }
 
   open(viewport) {
@@ -133,7 +147,8 @@ export class DatabaseWindow extends HSplitWindow {
       this.recordPanel.focusName();
       return null;
     }
-    const fields = { name, content: this.recordPanel.content };
+    const fields = { name, content: this.recordPanel.content, priority: this.priority };
+    if (this.current.compiled_code !== undefined) fields.compiled_code = this.current.compiled_code;
     this.setStatus('Saving…');
     try {
       const saved = this.current.id == null
@@ -168,6 +183,41 @@ export class DatabaseWindow extends HSplitWindow {
     }
   }
 
+  /**
+   * Compiles the record's source (as it is in the editor) with the matching
+   * console's compiler. On success the compiled chunk, as JSON, goes in the
+   * record's compiled_code field and the record is saved. On failure nothing is
+   * stored or saved, and the errors are shown in the status (the full text
+   * in its tooltip). Returns the saved record, or null.
+   */
+  async compile() {
+    const Console = this.constructor.consoleClass;
+    if (!Console || !this.current) return null;
+    const source = this.recordPanel.content;
+    const filename = `${this.recordPanel.name.trim() || 'record'}${Console.fileExtension}`;
+    let result;
+    try {
+      result = Console.compileSource(source, filename);
+    } catch (e) {
+      this.setStatus(`Compile failed: ${e.message}`, 'error');
+      return null;
+    }
+    if (!result.chunk) {
+      const n = result.errorCount;
+      this.setStatus(`${n} compile error${n === 1 ? '' : 's'}: ${result.errors.trim().split('\n')[0]}`, 'error');
+      this.status.element.title = result.errors;
+      return null;
+    }
+    this.current.compiled_code = chunkToJsonString(result.chunk);
+    const saved = await this.save();
+    if (saved) {
+      const stored = typeof saved.compiled_code === 'string' && saved.compiled_code.length > 0;
+      this.setStatus(stored ? `Compiled and saved "${saved.name}"`
+        : `Compiled "${saved.name}", but the server did not store the compiled code`, stored ? undefined : 'error');
+    }
+    return saved;
+  }
+
   /** Opens the record's content in a new console of the matching language. */
   openInConsole() {
     const Console = this.constructor.consoleClass;
@@ -189,6 +239,7 @@ export class DatabaseWindow extends HSplitWindow {
     this.saveButton.enabled = editing && (this.dirty || this.current.id == null);
     this.deleteButton.enabled = editing;
     if (this.consoleButton) this.consoleButton.enabled = editing;
+    if (this.compileButton) this.compileButton.enabled = editing;
     this.buttonBar.layout();
   }
 
@@ -219,6 +270,7 @@ export class DatabaseWindow extends HSplitWindow {
     this.current = record ? { ...record } : null;
     this.recordPanel.name = record?.name ?? '';
     this.recordPanel.content = record?.content ?? '';
+    this.priority = record?.priority ?? DEFAULT_PRIORITY;
     this.recordPanel.enabled = Boolean(record);
     this.recordPanel.caption = !record ? ''
       : record.id == null ? 'new record'

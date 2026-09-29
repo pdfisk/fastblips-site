@@ -53,3 +53,9 @@ test('not found and network failures', async () => {
   await assert.rejects(s.get(9), /Couldn't find BasicSource/);
   await assert.rejects(s.list(), /Cannot reach the database server at http:\/\/db\.test/);
 });
+
+test('priority and compiled_code are sent in the record body', async () => {
+  const fetch = fakeFetch({ status: 200, body: { id: 3, name: 'p.bas', priority: 5, compiled_code: '{}' } });
+  await store(fetch).update(3, { name: 'p.bas', priority: 5, compiled_code: '{}' });
+  assert.deepEqual(fetch.calls[0].body, { basic_source: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
+});

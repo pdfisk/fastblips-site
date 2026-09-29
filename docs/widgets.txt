@@ -422,7 +422,9 @@ language consoles below. Any number of consoles can be open at once.
   - Its ButtonBar has, from the left, Run (runs the source), Clear Output
     (empties every page of the OutputPanel) and Clear Input (empties the
     source) buttons. Ctrl+Enter in the source also runs it.
-  - After Clear Input comes a Launch menu (console.launchMenu), placed like
+  - After Clear Input comes a Priority menu (console.priorityMenu) with items 1 to 5; the
+    chosen one is checked and kept in console.priority (default 3).
+  - After Priority comes a Launch menu (console.launchMenu), placed like
     the other buttons, with Desktop and Mobile items. They call
     launch('desktop') and launch('mobile'), which open a new
     DesktopLaunchWindow or MobileLaunchWindow with a copy of the console's
@@ -570,8 +572,16 @@ language (the Monaco language id) and consoleClass. There is one window per
 subclass, obtained with BasicDatabaseWindow.instance and
 PythonDatabaseWindow.instance; closing it keeps its state.
 
-  - Its ButtonBar has New, Save, Delete, Refresh, Open in Console
-    buttons, and a status line at the right end.
+  - Its ButtonBar has New, Save, Delete, Refresh, Compile and Open in
+    Console buttons, a Priority menu (items 1 to 5; the chosen one is
+    checked), and a status line at the right end.
+  - Priority is the record's priority field (1 to 5, default 3). Choosing
+    one marks the record changed; Save stores it.
+  - Compile compiles the content in the editor with the consoleClass's
+    static compileSource(). On success the chunk is stored as JSON (see
+    src/vm/chunk-json.js) in the record's compiled_code field and the record is
+    saved. On failure nothing is stored or saved; the error count and first
+    error show in the status line, with the full text in its tooltip.
   - Selecting a row loads that record. New starts an empty record, which
     Save creates on the server; Save on an existing record updates it.
     Enter in the name, Ctrl+Enter in the content, or Ctrl+S also saves.

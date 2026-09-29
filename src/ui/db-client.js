@@ -108,10 +108,12 @@ export class SourceStore {
   /** Deletes a record. */
   async remove(id) { await this._request('DELETE', `/${encodeURIComponent(id)}`); }
 
-  _body({ name, content }) {
+  _body({ name, content, priority, compiled_code: compiledCode }) {
     const record = {};
     if (name !== undefined) record.name = name;
     if (content !== undefined) record.content = content;
+    if (priority !== undefined) record.priority = priority;
+    if (compiledCode !== undefined) record.compiled_code = compiledCode;
     return { [this.key]: record };
   }
 
