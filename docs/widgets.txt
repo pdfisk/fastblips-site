@@ -423,7 +423,14 @@ language consoles below. Any number of consoles can be open at once.
     (empties every page of the OutputPanel) and Clear Input (empties the
     source) buttons. Ctrl+Enter in the source also runs it.
   - After Clear Input comes a Priority menu (console.priorityMenu) with items 1 to 5; the
-    chosen one is checked and kept in console.priority (default 3).
+    chosen one is checked and kept in console.priority (default 3). The
+    console's programs run at that priority on the Scheduler (1 highest,
+    5 lowest), and choosing one also changes the priority of the program
+    running now (setPriority(level)).
+  - console.compiled is compiled code that came with the source (a
+    record's compiled_code, when opened from a DatabaseWindow). Run and
+    Launch use it instead of compiling for as long as the source still
+    matches it; see "Compiled code" below.
   - After Priority comes a Launch menu (console.launchMenu), placed like
     the other buttons, with Desktop and Mobile items. They call
     launch('desktop') and launch('mobile'), which open a new
@@ -551,13 +558,16 @@ suspended, resumed or killed.
   - There is only one; SchedulerWindow.instance creates it on first use,
     and constructing a second one throws.
   - Its content is a ListPanel with one row per unfinished process: pid,
-    name (the title of the console that started it), state (ready,
+    name (the title of the console that started it), priority (P1 to P5),
+    state (ready,
     running, sleeping, scheduled or suspended) and instructions executed.
     The list is refreshed every 250ms while the window is open, keeping
     the selection.
   - Its ButtonBar has Suspend and Kill buttons, which act on the selected
     process and are disabled when nothing is selected. When the selected
     process is suspended, Suspend reads Resume.
+  - Then a Priority menu (items 1 to 5, the selected process's priority
+    checked) that changes the selected process's priority.
   - A suspended process gets no turns; a sleeping one keeps the rest of its
     sleep for when it is resumed.
 
@@ -579,8 +589,8 @@ PythonDatabaseWindow.instance; closing it keeps its state.
     one marks the record changed; Save stores it.
   - Compile compiles the content in the editor with the consoleClass's
     static compileSource(). On success the chunk is stored as JSON (see
-    src/vm/chunk-json.js) in the record's compiled_code field and the record is
-    saved. On failure nothing is stored or saved; the error count and first
+    src/vm/chunk-json.js), with a hash of the source it was compiled from,
+    in the record's compiled_code field and the record is saved. On failure nothing is stored or saved; the error count and first
     error show in the status line, with the full text in its tooltip.
   - Selecting a row loads that record. New starts an empty record, which
     Save creates on the server; Save on an existing record updates it.
@@ -674,13 +684,17 @@ ProgramRunner
 Runs one program for the Go and Reset buttons, in LaunchWindows and on the
 ?run= page (src/ui/program-runner.js). Not a widget.
 
-  - new ProgramRunner({ language, source, screen, name }): language is the
+  - new ProgramRunner({ language, source, screen, name, compiled,
+    priority }): language is the
     ConsoleWindow class whose static spawn() compiles the source
     (BasicConsoleWindow or PythonConsoleWindow), screen the AppScreen it
     runs on (it prints to screen.textPanel and puts its widgets on
     screen.host), and name (a string, or a function returning one) the name
-    shown in the scheduler and the StatusBar. Instead of a screen, output
-    can give a bare TextPanel; the program then cannot use widgets.
+    shown in the scheduler and the StatusBar. compiled is compiled code for
+    the source (see "Compiled code") and priority the process's priority,
+    1 to 5; each may also be a function, read at every Go. Instead of a
+    screen, output can give a bare TextPanel; the program then cannot use
+    widgets.
   - go() stops any previous run, clears the output and the widgets, and
     starts the source on the shared Scheduler. Output, and load and runtime
     errors, appear in the output; the StatusBar reports when it starts and
@@ -699,7 +713,9 @@ works on any device, phone included.
   - The source is read from the database server in use (Settings >
     Database, or ?db=local): the record with that name in the Basic table,
     else in the Python table, matching the name exactly, else ignoring
-    case. The table decides the language.
+    case. The table decides the language. The record's compiled_code, if
+    it matches the content, is run without compiling, and the program runs
+    at the record's priority.
   - The Viewport has no Navbar or windows: its content is an AppScreen that
     fills it (a TextPanel with the program's widgets over it), and a
     ButtonBar with Go and Reset buttons is docked along its bottom.
@@ -709,6 +725,31 @@ works on any device, phone included.
   - While the program loads, the text panel says so and the buttons are
     disabled. If there is no such program, or the server cannot be reached,
     the text panel says so and the buttons stay disabled.
+
+
+Compiled code
+-------------
+A program runs from compiled code instead of being compiled each time,
+wherever it runs in the browser: consoles (Run), launch windows (Go) and
+the ?run= page. ConsoleWindow.spawn gets a chunk from loadProgram
+(src/vm/program-loader.js), which tries, in order:
+
+  1. The compiled code given with the program (a record's compiled_code,
+     made by a DatabaseWindow's Compile button). It is used if it loads
+     (right format, made for this instruction set) and records the hash
+     of the same source; compiled code left over from before the content
+     was edited, or saved without a hash, is ignored and the source
+     compiled instead. A record with compiled code and no source runs from
+     the compiled code alone.
+  2. The page's compile cache: the last 64 programs compiled or loaded,
+     by language and source, so running a program again (Run, Go, Reset
+     and Go) does not compile it again.
+  3. Compiling the source, which adds it to the cache.
+
+Every load builds a fresh chunk (MiniPy's runtime library included), so
+two runs never share state. The StatusBar says which was used:
+"running (pid 4, compiled code)", "(pid 4, cached)", or just "(pid 4)"
+when the source was compiled.
 
 
 AppScreen

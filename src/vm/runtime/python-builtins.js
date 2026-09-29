@@ -427,6 +427,21 @@ function strMethod(s, name) {
 }
 
 /**
+ * Gives a MiniPy chunk its live runtime: a fresh runtime library, the
+ * built-in values in their global slots (globalInit), and UNBOUND as the
+ * starting value of every other slot. The compiler calls this, and so does
+ * chunkFromJson (src/vm/chunk-json.js) for a chunk loaded from compiled code,
+ * so both give the VM the same thing. Returns the chunk.
+ */
+export function attachPythonRuntime(chunk) {
+  const runtime = createPythonRuntime();
+  chunk.runtime = runtime;
+  chunk.globalInit = chunk.globalNames.map((name) => (runtime.globals.has(name) ? runtime.globals.get(name) : UNBOUND));
+  chunk.initialSlot = UNBOUND;
+  return chunk;
+}
+
+/**
  * A fresh runtime library for one chunk.
  * @returns {{ globals: Map<string, any>, exceptionClasses: object, method: Function }}
  */

@@ -13,7 +13,7 @@ import { Menu } from '../widgets/menu.js';
 import { SourceStore, TABLES } from '../db-client.js';
 import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
-import { chunkToJsonString } from '../../vm/chunk-json.js';
+import { chunkToJsonString, sourceHash } from '../../vm/chunk-json.js';
 
 const instances = new Map();   // one window per subclass
 const DEFAULT_PRIORITY = 3;
@@ -208,7 +208,9 @@ export class DatabaseWindow extends HSplitWindow {
       this.status.element.title = result.errors;
       return null;
     }
-    this.current.compiled_code = chunkToJsonString(result.chunk);
+    // The hash of the source lets a loader tell later whether the code still
+    // matches the record's content (src/vm/program-loader.js).
+    this.current.compiled_code = chunkToJsonString(result.chunk, { sourceHash: sourceHash(source) });
     const saved = await this.save();
     if (saved) {
       const stored = typeof saved.compiled_code === 'string' && saved.compiled_code.length > 0;
@@ -223,7 +225,12 @@ export class DatabaseWindow extends HSplitWindow {
     const Console = this.constructor.consoleClass;
     if (!Console || !this.current || !this.parent) return null;
     const scriptName = this.recordPanel.name.trim() || this.current.name || null;
-    return new Console({ text: this.recordPanel.content, scriptName }).open(this.parent);
+    return new Console({
+      text: this.recordPanel.content,
+      scriptName,
+      compiled: this.current.compiled_code ?? null,
+      priority: this.priority,
+    }).open(this.parent);
   }
 
 

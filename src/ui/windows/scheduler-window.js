@@ -1,8 +1,10 @@
 // SchedulerWindow: the singleton window listing the programs on the UI's
-// scheduler, with buttons to suspend, resume or kill the selected one.
+// scheduler, with buttons to suspend, resume or kill the selected one and a
+// menu to change its priority.
 
 import { Window } from './window.js';
 import { ListPanel } from '../widgets/list-panel.js';
+import { Menu } from '../widgets/menu.js';
 import { scheduler as sharedScheduler } from '../runtime.js';
 
 const REFRESH_MS = 250;
@@ -17,7 +19,7 @@ export class SchedulerWindow extends Window {
 
   constructor({ scheduler = sharedScheduler } = {}) {
     if (instance) throw new Error('SchedulerWindow is a singleton; use SchedulerWindow.instance');
-    super({ title: 'Process', x: 440, y: 400, width: 420, height: 220 });
+    super({ title: 'Process', x: 440, y: 400, width: 460, height: 220 });
     instance = this;
     this.scheduler = scheduler;
     this.element.classList.add('cr-scheduler-window');
@@ -25,6 +27,14 @@ export class SchedulerWindow extends Window {
     this.content = this.listPanel;
     this.suspendButton = this.buttonBar.addButton('Suspend', () => this.toggleSuspend());
     this.killButton = this.buttonBar.addButton('Kill', () => this.killSelected());
+    // Priority: 1 (highest) to 5 (lowest), for the selected process.
+    this.priorityMenu = this.buttonBar.add(new Menu('Priority'));
+    for (let level = 1; level <= 5; level++) {
+      this.priorityMenu.addItem(String(level), () => this.setPriority(level), {
+        checked: () => this.selectedProcess?.priority === level,
+        enabled: () => Boolean(this.selectedProcess),
+      });
+    }
     this.listPanel.element.addEventListener('select', () => this.updateButtons());
     this.timer = null;
     this.refresh();
@@ -41,7 +51,7 @@ export class SchedulerWindow extends Window {
     this.listPanel.items = this.scheduler.list().map((p) => ({
       value: p.pid,
       label: `${String(p.pid).padStart(4)}  ${p.name.padEnd(14).slice(0, 14)}  `
-        + `${p.state.padEnd(9)}  ${p.vm.steps} steps`,
+        + `P${p.priority}  ${p.state.padEnd(9)}  ${p.vm.steps} steps`,
     }));
     this.updateButtons();
   }
@@ -65,6 +75,14 @@ export class SchedulerWindow extends Window {
       this.scheduler.suspend(process.pid);
       this.scheduler.wake?.();   // let a sleeping loop notice it may be done
     }
+    this.refresh();
+  }
+
+  /** Gives the selected process a new priority, 1 (highest) to 5 (lowest). */
+  setPriority(level) {
+    const process = this.selectedProcess;
+    if (!process) return;
+    this.scheduler.setPriority(process.pid, level);
     this.refresh();
   }
 

@@ -21,8 +21,7 @@
 import {
   Op, FORMAT, PY_BINARY_OPS, PY_COMPARE_OPS,
 } from '../../opcodes.js';
-import { UNBOUND } from '../../values.js';
-import { BUILTIN_NAMES, createPythonRuntime } from '../../runtime/python-builtins.js';
+import { BUILTIN_NAMES, attachPythonRuntime } from '../../runtime/python-builtins.js';
 
 export class CompileError {
   constructor(message, line) { this.message = message; this.line = line; }
@@ -198,8 +197,7 @@ export class Compiler {
       this.emit(Op.RETURN_NOTHING);
     }
 
-    const runtime = createPythonRuntime();
-    return {
+    return attachPythonRuntime({
       language: 'python',
       filename: this.filename,
       code: this.code,
@@ -207,8 +205,6 @@ export class Compiler {
       constants: this.constants,
       globalCount: this.globalNames.length,
       globalNames: this.globalNames,
-      globalInit: this.globalNames.map((name) => (runtime.globals.has(name) ? runtime.globals.get(name) : UNBOUND)),
-      initialSlot: UNBOUND,
       procedures: this.procedures.map((p) => ({
         name: p.name,
         kind: p.kind,
@@ -219,8 +215,7 @@ export class Compiler {
         line: p.line,
       })),
       entry: 0,
-      runtime,
-    };
+    });
   }
 
   enterBody(proc) {

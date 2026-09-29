@@ -47,6 +47,10 @@ export class LaunchWindow extends Window {
       source: this.source,
       screen: this.screen,
       name: () => this.title,
+      // The console's compiled code (if its source came with some) and its
+      // Priority menu's setting, as they are at each Go.
+      compiled: () => this.console?.compiled ?? null,
+      priority: () => this.console?.priority,
     });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());

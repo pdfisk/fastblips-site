@@ -1,25 +1,47 @@
-// Round-robin scheduler with delayed starts.
+// Priority scheduler with delayed starts.
 //
 // Two queues:
-//   activeQueue    - ready processes, in run order. Each gets a time slice
-//                    (`quantum` instructions) in turn.
+//   activeQueue    - ready processes, in the order they became ready. Each
+//                    turn goes to one of them for a time slice (`quantum`
+//                    instructions).
 //   scheduledQueue - processes waiting to start or to wake from Sleep, sorted
 //                    by startAt (earliest first). A process moves to
 //                    activeQueue once that time has arrived.
+//
+// Priorities: every process has a priority from 1 (highest) to 5 (lowest),
+// 3 by default. Each turn goes to the ready process with the highest
+// priority; processes of equal priority take turns round robin. So that a
+// busy high-priority program cannot starve the others completely, a ready
+// process that keeps being passed over is aged: for every `aging` turns it
+// has waited it counts as one level higher, until it gets a turn and drops
+// back to its own priority. aging: Infinity makes priorities strict.
 
-import { Process, ProcessState } from './process.js';
+import {
+  Process, ProcessState, normalizePriority, DEFAULT_PRIORITY,
+} from './process.js';
+
+/** Instructions per time slice unless the Scheduler is given a quantum. */
+export const DEFAULT_QUANTUM = 10;
+
+/** Turns a ready process waits before it counts as one priority level higher. */
+export const DEFAULT_AGING = 20;
 
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export class Scheduler {
   /**
    * @param {object} options
-   *   quantum: instructions per time slice
+   *   quantum: instructions per time slice (default 10)
+   *   aging:   turns a ready process may be passed over before it counts as
+   *            one priority level higher (default 20; Infinity: never)
    *   now:     clock returning milliseconds (injectable for tests)
    */
-  constructor({ quantum = 100, now = () => Date.now() } = {}) {
+  constructor({ quantum = DEFAULT_QUANTUM, aging = DEFAULT_AGING, now = () => Date.now() } = {}) {
+    if (!(aging > 0)) throw new RangeError(`aging must be more than 0, got ${aging}`);
     this.quantum = quantum;
+    this.aging = aging;
     this.now = now;
+    this.turns = 0;               // turns given so far; ages the ready processes
     this.processes = new Map();   // pid -> Process
     this.activeQueue = [];        // ready processes, in run order
     this.scheduledQueue = [];     // waiting processes, sorted by startAt
@@ -32,6 +54,7 @@ export class Scheduler {
   /**
    * Creates a process for a compiled chunk and schedules it. Returns the Process.
    * options.delay: milliseconds to wait before the process starts (default 0).
+   * options.priority: 1 (highest) to 5 (lowest), default 3.
    * Other options are passed to the Process / VM.
    */
   spawn(chunk, { delay = 0, ...options } = {}) {
@@ -52,8 +75,7 @@ export class Scheduler {
 
     if (delay <= 0) {
       process.startAt = this.now();
-      process.state = ProcessState.READY;
-      this.activeQueue.push(process);
+      this.makeReady(process);
       return;
     }
 
@@ -66,7 +88,27 @@ export class Scheduler {
     else this.scheduledQueue.splice(index, 0, process);
   }
 
+  /** Puts a process at the back of activeQueue, ready for a turn. */
+  makeReady(process) {
+    process.state = ProcessState.READY;
+    process.readySince = this.turns;
+    this.activeQueue.push(process);
+  }
+
   get(pid) { return this.processes.get(pid); }
+
+  /**
+   * Changes a process's priority: 1 (highest) to 5 (lowest). It takes effect
+   * from the next turn. Returns false if the process is unknown or finished;
+   * throws a RangeError for a priority out of range.
+   */
+  setPriority(pid, priority) {
+    const level = normalizePriority(priority);
+    const process = this.processes.get(pid);
+    if (!process || process.finished) return false;
+    process.priority = level;
+    return true;
+  }
 
   /** Every process that has not finished (ready, waiting or suspended), by pid. */
   list() {
@@ -134,11 +176,10 @@ export class Scheduler {
 
   /** Moves every waiting process whose time has arrived to activeQueue. */
   promoteDue() {
+    if (this.scheduledQueue.length === 0) return;
     const now = this.now();
     while (this.scheduledQueue.length > 0 && this.scheduledQueue[0].startAt <= now) {
-      const process = this.scheduledQueue.shift();
-      process.state = ProcessState.READY;
-      this.activeQueue.push(process);
+      this.makeReady(this.scheduledQueue.shift());
     }
   }
 
@@ -158,16 +199,35 @@ export class Scheduler {
     return this.scheduledQueue[0]?.startAt ?? null;
   }
 
+  /**
+   * Takes the process whose turn it is out of activeQueue: the one with the
+   * best priority after ageing (the lowest number), the earliest to become
+   * ready among equals. Returns undefined if none is ready.
+   */
+  takeNext() {
+    const queue = this.activeQueue;
+    if (queue.length <= 1) return queue.shift();
+    let best = 0;
+    let bestLevel = Infinity;
+    for (let i = 0; i < queue.length; i++) {
+      const p = queue[i];
+      const level = (p.priority ?? DEFAULT_PRIORITY) - Math.floor((this.turns - p.readySince) / this.aging);
+      if (level < bestLevel) { best = i; bestLevel = level; }
+    }
+    return best === 0 ? queue.shift() : queue.splice(best, 1)[0];
+  }
+
   /** Runs one slice of the next ready process. Returns it, or null if idle. */
   tick() {
     this.promoteDue();
-    const process = this.activeQueue.shift();
+    const process = this.takeNext();
     if (!process) return null;
+    this.turns += 1;
     if (process.step(this.quantum)) return process;
     const sleepMs = process.takeSleep();
     if (sleepMs !== null) this.scheduleProcess(process, sleepMs, ProcessState.SLEEPING);
     else if (process.state === ProcessState.WAITING) { /* off the queues until notify() */ }
-    else this.activeQueue.push(process);
+    else this.makeReady(process);
     return process;
   }
 
@@ -215,7 +275,15 @@ export class Scheduler {
       try {
         while (!this.empty) {
           const deadline = this.now() + sliceMs;
-          while (!this.idle && this.now() < deadline) this.tick();
+          // Reading the clock costs about as much as a short turn, so with a
+          // small quantum it is read every few turns (about every 1000
+          // instructions), not after each one.
+          const turnsPerCheck = Math.max(1, Math.floor(1000 / this.quantum));
+          let turns = 0;
+          while (!this.idle) {
+            this.tick();
+            if (++turns % turnsPerCheck === 0 && this.now() >= deadline) break;
+          }
           const wait = this.idle ? Math.max(0, this.nextStartAt - this.now()) : 0;
           const woken = new Promise((resolve) => { this.wake = resolve; });
           await Promise.race([sleep(wait), woken]);

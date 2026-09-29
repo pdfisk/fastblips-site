@@ -14,6 +14,7 @@ import {
   compile as compilePython, formatLoadErrors, formatFault, DEFAULT_MAX_DEPTH,
 } from '../../vm/compiler/python/loader.js';
 import { scheduler } from '../runtime.js';
+import { loadProgram } from '../../vm/program-loader.js';
 
 export class PythonConsoleWindow extends ConsoleWindow {
   static get titlePrefix() { return 'Python Console'; }
@@ -35,20 +36,30 @@ export class PythonConsoleWindow extends ConsoleWindow {
   }
 
   /**
-   * Compiles MiniPy source and spawns it on the shared scheduler, printing
-   * to output (a TextPanel) and putting widgets on gui (an AppScreen's host), if given. Load errors are written to output instead. Does
-   * not start the scheduler. Used by run() and by LaunchWindow.
-   * @returns {{process: object|null, errorCount: number}}
+   * Spawns a MiniPy program on the shared scheduler, printing to output (a
+   * TextPanel) and putting widgets on gui (an AppScreen's host), if given.
+   * The program runs from its compiled code when that is given and still
+   * matches the source, else from this page's compile cache, else the source
+   * is compiled (see src/vm/program-loader.js). Load errors are written to
+   * output instead. priority is the process's priority, 1 (highest) to 5.
+   * Does not start the scheduler. Used by run() and by LaunchWindow.
+   * @returns {{process: object|null, errorCount: number, origin: string|null}}
    */
-  static spawn(source, { name, output, gui = null, filename = 'console.py', onExit } = {}) {
-    const { chunk, loadErrors } = compilePython(source, { filename });
+  static spawn(source, {
+    name, output, gui = null, filename = 'console.py', onExit, priority, compiled = null,
+  } = {}) {
+    const { chunk, errors, errorCount, origin } = loadProgram({
+      language: 'python', source, compiled, filename,
+      compile: (text, file) => PythonConsoleWindow.compileSource(text, file),
+    });
     if (!chunk) {
-      output.text = `${formatLoadErrors(loadErrors, filename).join('\n')}\n`;
-      return { process: null, errorCount: loadErrors.length };
+      output.text = errors;
+      return { process: null, errorCount, origin: null };
     }
     const process = scheduler.spawn(chunk, {
       name,
       gui,
+      priority,
       maxDepth: DEFAULT_MAX_DEPTH,
       out: (text) => output.append(`${text}\n`),
       transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
@@ -57,7 +68,8 @@ export class PythonConsoleWindow extends ConsoleWindow {
         onExit?.(p);
       },
     });
-    return { process, errorCount: 0 };
+    process.origin = origin;
+    return { process, errorCount: 0, origin };
   }
 
   /**
@@ -72,6 +84,8 @@ export class PythonConsoleWindow extends ConsoleWindow {
     const { process, errorCount } = PythonConsoleWindow.spawn(this.input.text, {
       name: this.title,
       output: this.output,
+      priority: this.priority,
+      compiled: this.compiled,
       onExit: (p) => this.reportExited(p),
     });
     if (!process) {

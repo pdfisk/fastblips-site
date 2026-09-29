@@ -19,6 +19,8 @@ src/vm/                           the shared back end
   values.js           runtime value kinds shared by both languages
   faults.js           runtime fault codes and their per-language wording
   disasm.js           bytecode listing for any chunk
+  chunk-json.js       compiled code as JSON and back (stored with a record)
+  program-loader.js   matching compiled code, else the compile cache, else compile
   runtime/
     crumb-values.js   Crumb's type names and Str conversion   (sections 3, 10)
     crumb-builtins.js the 27 Crumb built-in functions        (section 10)
@@ -41,7 +43,7 @@ src/vm/compiler/python/           MiniPy — a Python subset
   loader.js           parse() / compile() / run() for MiniPy
 
 src/scheduling/process.js    Process: one running program (a VM + state)
-src/scheduling/scheduler.js  Scheduler: round-robin time slicing, delayed starts
+src/scheduling/scheduler.js  Scheduler: priority time slicing, delayed starts
 
 src/ui/               widgets and windows (see docs/widgets.txt)
 src/ui/runtime.js     the Scheduler the browser UI runs programs on
@@ -158,8 +160,8 @@ Several programs can share one thread, taking turns.
 ```js
 import { Scheduler } from './src/scheduling/scheduler.js';
 
-const scheduler = new Scheduler({ quantum: 100 });  // instructions per turn
-scheduler.spawn(compile(a).chunk, { name: 'a' });
+const scheduler = new Scheduler();   // quantum: 10 instructions per turn
+scheduler.spawn(compile(a).chunk, { name: 'a', priority: 1 });  // 1 highest .. 5 lowest
 scheduler.spawn(compile(b).chunk, { name: 'b', delay: 500 });  // starts in 500 ms
 await scheduler.runToCompletion();
 ```
@@ -178,11 +180,21 @@ for any reason.
 
 The `Scheduler` keeps two queues:
 
-- `activeQueue` — ready processes in run order. `tick()` gives the next one a
-  turn of `quantum` instructions and requeues it if it has not finished.
+- `activeQueue` — ready processes in the order they became ready. `tick()`
+  gives a turn of `quantum` instructions (default 10) to the one with the
+  highest priority and requeues it if it has not finished.
 - `scheduledQueue` — processes spawned with a `delay`, or sleeping, sorted
   by `startAt` (the time each next becomes ready; ties keep insertion order).
   Each `tick()` first moves the ones that are due to `activeQueue`.
+
+Every process has a priority from 1 (highest) to 5 (lowest), 3 unless
+`spawn` is given `priority`. Each turn goes to the ready process with the
+best priority; equal priorities take turns round robin. A ready process that
+keeps being passed over is aged: for every `aging` turns it has waited
+(default 20) it counts as one level higher, until it gets a turn, so a busy
+priority-1 program slows the others down a lot but never stops them.
+`new Scheduler({ aging: Infinity })` makes priorities strict.
+`setPriority(pid, level)` changes a process's priority from its next turn.
 
 `runAll()` ticks until nothing is ready; processes not yet due keep waiting.
 `runToCompletion()` also sleeps until the next start time and returns when
@@ -337,7 +349,7 @@ exhausted by runaway recursion, and the instruction budget.
 npm test
 ```
 
-167 tests. For Crumb: lexer behaviour; every precedence rule and associativity in section
+226 tests. For Crumb: lexer behaviour; every precedence rule and associativity in section
 8; each statement form; the procedure rules; error collection and recovery;
 resolution, arity and slot allocation; the VM's arithmetic, comparison,
 short-circuiting, control flow, arrays, procedures and built-ins; and the

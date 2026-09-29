@@ -94,6 +94,10 @@ export function startRuntime(name) {
     page.runner = new ProgramRunner({
       language: found.language,
       source: found.record.content ?? '',
+      // Compiled code saved with the record (the Database window's Compile
+      // button) runs without compiling, while it matches the source.
+      compiled: found.record.compiled_code ?? null,
+      priority: found.record.priority ?? undefined,
       screen,
       name,
     });

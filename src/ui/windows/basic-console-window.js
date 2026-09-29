@@ -7,6 +7,7 @@ import { TranscriptWindow } from './transcript-window.js';
 import { compile } from '../../index.js';
 import { formatDiagnostics } from '../../vm/compiler/basic/diagnostics.js';
 import { scheduler } from '../runtime.js';
+import { loadProgram } from '../../vm/program-loader.js';
 
 // Programs from every console share one scheduler (see ../runtime.js), so they
 // take turns, and a Sleep in one never blocks the page or the others.
@@ -32,20 +33,30 @@ export class BasicConsoleWindow extends ConsoleWindow {
   }
 
   /**
-   * Compiles Crumb source and spawns it on the shared scheduler, printing to
-   * output (a TextPanel) and putting widgets on gui (an AppScreen's host), if given. Load errors are written to output instead. Does
-   * not start the scheduler. Used by run() and by LaunchWindow.
-   * @returns {{process: object|null, errorCount: number}}
+   * Spawns a Crumb program on the shared scheduler, printing to output (a
+   * TextPanel) and putting widgets on gui (an AppScreen's host), if given.
+   * The program runs from its compiled code when that is given and still
+   * matches the source, else from this page's compile cache, else the source
+   * is compiled (see src/vm/program-loader.js). Load errors are written to
+   * output instead. priority is the process's priority, 1 (highest) to 5.
+   * Does not start the scheduler. Used by run() and by LaunchWindow.
+   * @returns {{process: object|null, errorCount: number, origin: string|null}}
    */
-  static spawn(source, { name, output, gui = null, filename = 'console.crumb', onExit } = {}) {
-    const { chunk, errors } = compile(source, { filename });
-    if (!chunk || errors.length > 0) {
-      output.text = formatDiagnostics(errors, source, filename);
-      return { process: null, errorCount: errors.length };
+  static spawn(source, {
+    name, output, gui = null, filename = 'console.crumb', onExit, priority, compiled = null,
+  } = {}) {
+    const { chunk, errors, errorCount, origin } = loadProgram({
+      language: 'crumb', source, compiled, filename,
+      compile: (text, file) => BasicConsoleWindow.compileSource(text, file),
+    });
+    if (!chunk) {
+      output.text = errors;
+      return { process: null, errorCount, origin: null };
     }
     const process = scheduler.spawn(chunk, {
       name,
       gui,
+      priority,
       out: (text) => output.append(`${text}\n`),
       transcript: (text) => TranscriptWindow.instance.textPanel.append(`${text}\n`),
       onExit: (p) => {
@@ -53,7 +64,8 @@ export class BasicConsoleWindow extends ConsoleWindow {
         onExit?.(p);
       },
     });
-    return { process, errorCount: 0 };
+    process.origin = origin;
+    return { process, errorCount: 0, origin };
   }
 
   /**
@@ -68,6 +80,8 @@ export class BasicConsoleWindow extends ConsoleWindow {
     const { process, errorCount } = BasicConsoleWindow.spawn(this.input.text, {
       name: this.title,
       output: this.output,
+      priority: this.priority,
+      compiled: this.compiled,
       onExit: (p) => this.reportExited(p),
     });
     if (!process) {

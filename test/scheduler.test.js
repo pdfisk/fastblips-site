@@ -226,3 +226,121 @@ test('start() while sleeping wakes the loop for a new process', async () => {
   scheduler.start();                                    // wake so the loop sees it is empty
   await done;
 });
+
+// ------------------------------------------------------------- priorities
+
+import { DEFAULT_QUANTUM, DEFAULT_AGING } from '../src/scheduling/scheduler.js';
+import { DEFAULT_PRIORITY, normalizePriority } from '../src/scheduling/process.js';
+
+// A program that prints its label n times.
+const loop = (label, n = 20) => chunkOf(`For i = 1 To ${n}\n  Print "${label}"\nNext`);
+
+// Runs the scheduler to the end, returning the label of each process turn
+// that printed something, run-length collapsed ("a", "b", "a", ...).
+function turnOrder(scheduler) {
+  const order = [];
+  while (!scheduler.idle) {
+    const p = scheduler.tick();
+    if (order[order.length - 1] !== p.name) order.push(p.name);
+  }
+  return order;
+}
+
+test('the default quantum is 10 instructions and the default priority is 3', () => {
+  const scheduler = new Scheduler();
+  assert.equal(DEFAULT_QUANTUM, 10);
+  assert.equal(scheduler.quantum, 10);
+  assert.equal(scheduler.aging, DEFAULT_AGING);
+  const p = scheduler.spawn(loop('a', 50), { out: () => {} });
+  assert.equal(p.priority, DEFAULT_PRIORITY);
+  assert.equal(DEFAULT_PRIORITY, 3);
+  scheduler.tick();
+  assert.equal(p.vm.steps, 10, 'one turn is 10 instructions');
+});
+
+test('a higher priority (lower number) process runs first', () => {
+  const scheduler = new Scheduler({ quantum: 5, aging: Infinity });
+  const lines = [];
+  const out = (t) => lines.push(t);
+  scheduler.spawn(loop('low', 5), { name: 'low', priority: 5, out });
+  scheduler.spawn(loop('mid', 5), { name: 'mid', priority: 3, out });
+  scheduler.spawn(loop('high', 5), { name: 'high', priority: 1, out });
+  scheduler.runAll();
+  assert.deepEqual(lines, [...Array(5).fill('high'), ...Array(5).fill('mid'), ...Array(5).fill('low')]);
+});
+
+test('processes of equal priority take turns round robin', () => {
+  const scheduler = new Scheduler({ quantum: 5, aging: Infinity });
+  scheduler.spawn(loop('a', 6), { name: 'a', priority: 2, out: () => {} });
+  scheduler.spawn(loop('b', 6), { name: 'b', priority: 2, out: () => {} });
+  scheduler.spawn(loop('c', 6), { name: 'c', priority: 4, out: () => {} });
+  const order = turnOrder(scheduler);
+  const firstC = order.indexOf('c');
+  assert.deepEqual(order.slice(0, 4), ['a', 'b', 'a', 'b']);
+  assert.ok(!order.slice(firstC).includes('a') && !order.slice(firstC).includes('b'), 'c only once a and b are done');
+});
+
+test('ageing: a low priority process still gets turns behind a busy high one', () => {
+  const scheduler = new Scheduler({ quantum: 10, aging: 5 });
+  const busy = scheduler.spawn(chunkOf('While True\nEnd While'), { name: 'busy', priority: 1 });
+  const low = scheduler.spawn(loop('low', 3), { name: 'low', priority: 5, out: () => {} });
+  for (let i = 0; i < 400 && !low.finished; i++) scheduler.tick();
+  assert.equal(low.state, ProcessState.DONE, 'the low priority process finished');
+  assert.ok(busy.slices > low.slices * 10, `busy ran far more (${busy.slices} vs ${low.slices})`);
+});
+
+test('with aging Infinity, priorities are strict', () => {
+  const scheduler = new Scheduler({ quantum: 10, aging: Infinity });
+  scheduler.spawn(chunkOf('While True\nEnd While'), { name: 'busy', priority: 1 });
+  const low = scheduler.spawn(loop('low', 3), { name: 'low', priority: 5, out: () => {} });
+  for (let i = 0; i < 1000; i++) scheduler.tick();
+  assert.equal(low.slices, 0);
+});
+
+test('setPriority changes a process\'s priority from its next turn', () => {
+  const scheduler = new Scheduler({ quantum: 5, aging: Infinity });
+  const lines = [];
+  const out = (t) => lines.push(t);
+  const a = scheduler.spawn(loop('a', 4), { name: 'a', priority: 1, out });
+  const b = scheduler.spawn(loop('b', 4), { name: 'b', priority: 5, out });
+  scheduler.tick();
+  assert.equal(scheduler.setPriority(b.pid, 1), true);
+  assert.equal(scheduler.setPriority(a.pid, '5'), true, 'numeric strings are accepted');
+  assert.equal(a.priority, 5);
+  scheduler.runAll();
+  const firstB = lines.indexOf('b');
+  const lastB = lines.lastIndexOf('b');
+  assert.ok(firstB >= 0 && !lines.slice(firstB, lastB).includes('a'), `b ran to the end before a resumed: ${lines}`);
+  assert.equal(lines[lines.length - 1], 'a');
+  assert.equal(scheduler.setPriority(a.pid, 2), false, 'finished');
+  assert.equal(scheduler.setPriority(999, 2), false, 'unknown');
+});
+
+test('priorities must be whole numbers from 1 to 5', () => {
+  assert.equal(normalizePriority(undefined), 3);
+  assert.equal(normalizePriority(null), 3);
+  assert.equal(normalizePriority(1), 1);
+  assert.equal(normalizePriority('4'), 4);
+  for (const bad of [0, 6, 2.5, 'high', '', NaN, true]) {
+    assert.throws(() => normalizePriority(bad), RangeError, String(bad));
+  }
+  const scheduler = new Scheduler();
+  assert.throws(() => scheduler.spawn(loop('x'), { priority: 9 }), RangeError);
+  assert.throws(() => new Scheduler({ aging: 0 }), RangeError);
+});
+
+test('a sleeping high priority process lets lower ones run, and comes first when it wakes', () => {
+  let clock = 0;
+  const scheduler = new Scheduler({ quantum: 5, aging: Infinity, now: () => clock });
+  const lines = [];
+  const out = (t) => lines.push(t);
+  scheduler.spawn(chunkOf('Print "h1"\nSleep(1)\nPrint "h2"'), { name: 'h', priority: 1, out, sleep: () => {} });
+  scheduler.spawn(loop('l', 50), { name: 'l', priority: 5, out });
+  for (let i = 0; i < 5; i++) scheduler.tick();
+  assert.equal(lines[0], 'h1');
+  assert.ok(lines.includes('l'), 'low ran while high slept');
+  clock = 1000;
+  const before = lines.length;
+  scheduler.tick();
+  assert.equal(lines[before], 'h2');
+});

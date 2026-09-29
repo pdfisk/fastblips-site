@@ -10,6 +10,8 @@ import { StatusBar } from '../widgets/status-bar.js';
 import { Menu } from '../widgets/menu.js';
 import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
+import { describeOrigin } from '../program-runner.js';
+import { scheduler } from '../runtime.js';
 
 // While a program runs its output pane fades a little (the amount is a
 // theme variable), and comes back when the program ends.
@@ -76,6 +78,10 @@ export class ConsoleWindow extends HSplitWindow {
     // The script's name when it did not come from a file (e.g. a database
     // record opened in a console).
     this.recordName = options.scriptName ?? null;
+    // Compiled code for the source, when it came with some (a database
+    // record's compiled_code). Run uses it while the source still matches it;
+    // once the source is edited it is compiled instead (program-loader.js).
+    this.compiled = options.compiled ?? null;
     this.input = this.createInput(options.text ?? cls.defaultText);
     // The right side is an OutputPanel (Text, Board and Canvas tabs);
     // output is its Text page, which programs print to.
@@ -92,7 +98,7 @@ export class ConsoleWindow extends HSplitWindow {
     this.priority = options.priority ?? 3;
     this.priorityMenu = this.buttonBar.add(new Menu('Priority'));
     for (let level = 1; level <= 5; level++) {
-      this.priorityMenu.addItem(String(level), () => { this.priority = level; },
+      this.priorityMenu.addItem(String(level), () => this.setPriority(level),
         { checked: () => this.priority === level });
     }
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
@@ -104,14 +110,26 @@ export class ConsoleWindow extends HSplitWindow {
   }
 
   /**
-   * Compiles source in this console's language and spawns it on the shared
-   * scheduler, printing to options.output (a TextPanel) and putting widgets
-   * on options.gui (an AppScreen's host, if any); load errors are written to output
-   * instead. Does not start the scheduler. Returns
-   * { process, errorCount }. The base class has no language: no process.
+   * Spawns source in this console's language on the shared scheduler,
+   * printing to options.output (a TextPanel) and putting widgets on
+   * options.gui (an AppScreen's host, if any); load errors are written to
+   * output instead. options.compiled is compiled code to run instead of
+   * compiling the source, when it still matches it, and options.priority the
+   * process's priority (1 highest to 5 lowest). Does not start the scheduler.
+   * Returns { process, errorCount, origin }. The base class has no language:
+   * no process.
    */
   static spawn(source, options = {}) { // eslint-disable-line no-unused-vars
-    return { process: null, errorCount: 0 };
+    return { process: null, errorCount: 0, origin: null };
+  }
+
+  /**
+   * Sets the priority (1 highest to 5 lowest) for this console's programs,
+   * including the one running now, if any.
+   */
+  setPriority(level) {
+    this.priority = level;
+    if (this.process && !this.process.finished) scheduler.setPriority(this.process.pid, level);
   }
 
   /** Runs the source in the left pane. The base class does nothing. */
@@ -256,7 +274,7 @@ export class ConsoleWindow extends HSplitWindow {
   /** Reports that a program has started. */
   reportStarted(process) {
     this.running = true;
-    StatusBar.instance.show(`${this.title}: running (pid ${process.pid})`);
+    StatusBar.instance.show(`${this.title}: running (pid ${process.pid}${describeOrigin(process.origin)})`);
   }
 
   /** Reports how a program ended. */
@@ -268,3 +286,4 @@ export class ConsoleWindow extends HSplitWindow {
     else bar.show(`${this.title}: finished in ${process.vm.steps} steps`);
   }
 }
+
