@@ -57,6 +57,16 @@ directly; only its concrete subclasses are.
   - Can be shown or hidden; a hidden widget takes no space.
   - Provides layout() to size and position itself, and dispose() to remove
     itself and release any event listeners.
+  - id is a name to find the widget by ('' by default; not the element's
+    DOM id). childWidgets lists the widgets directly inside it (a Panel's
+    children; a Window adds its ButtonBar), and descendants() walks all of
+    them, depth first.
+  - findById(id) returns the first widget inside this one with that id, or
+    null. findByClass(cls) returns every widget inside it of a class: a
+    constructor (subclasses match too), or a program class name such as
+    'Button' (matched against programClass, which program widgets carry;
+    class names cannot be matched by constructor name because the bundle
+    is minified).
 
 
 Viewport (singleton)
@@ -777,13 +787,35 @@ changed through methods, and in MiniPy the same way with Python spellings:
   Dim label = New Label("Hello")        label = Label("Hello")
   label.setWidth(100)                   label.set_width(100)
 
-  - The classes: Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
+  - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
     MonacoPanel and ListPanel. Left out on purpose: the singletons
     (Viewport, Navbar, StatusBar, TranscriptWindow, SchedulerWindow), the
     IDE's own windows (consoles, DatabaseWindow, LaunchWindows) and panels
     made for them (RecordPanel, OutputPanel), and the BoardPanel and
     CanvasPanel placeholders.
+  - The Viewport. For a program, the topmost GUI object is its Viewport: a
+    singleton (New Viewport() / Viewport() always gives the same object)
+    that is the FreeLayer of its AppScreen, so a program never reaches the
+    IDE's own Viewport. Every widget on the screen is its child, and
+    getParent() of such a widget returns it. Its methods: getWidth /
+    getHeight (the screen's size), setBackground / setColor, add, getCount,
+    getChild, clear, the find methods, toJson, fromJson(text), save(name)
+    and load(name).
+  - toJson() on any widget gives it and everything in it as JSON text; on
+    the Viewport, the whole screen, open and closed Windows included, in
+    the format described in docs/viewports-server.md. fromJson replaces the
+    screen: the host builds every widget first (so bad JSON leaves the
+    screen as it was), then asks the VM to turn each saved handler name
+    into a callback (the `resolver` argument of the host interface).
+  - save(name) and load(name) keep the Viewport in the database's
+    viewports table (viewportStore, a SourceStore on /viewports): save
+    updates the record with that name or creates one, load fetches it and
+    does what fromJson does. Both return promises; the program waits, as
+    for Fetch. The server side is in docs/viewports-server.md.
+  - Every widget can be given an id (setId) and found from any container
+    with findById / findByClass, which use the toolkit's own findById and
+    findByClass.
   - A program's Panel is a FreePanel: its children sit where the program
     puts them (the toolkit's Panel is abstract).
   - The classes and their methods are one table, WIDGET_CLASSES in

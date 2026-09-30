@@ -80,6 +80,24 @@ End Sub
 `examples/widget-tour.crumb` and `examples/widget-tour.py` use most of the
 classes.
 
+### The Viewport, ids and saved screens
+
+The topmost GUI object is the **Viewport**, a singleton: `New Viewport()`
+(MiniPy `Viewport()`) always gives the program its own screen, and every
+widget on it is its child. Any widget can be named with `setId("total")`,
+and any container — the Viewport above all — can find what is inside it
+with `findById("total")` or `findByClass("Button")` (an Array / list).
+
+The Viewport can be written out as JSON (`vp.toJson()`), rebuilt from it
+(`vp.fromJson(text)`), and kept in the database: `vp.save("order-form")`,
+`vp.load("order-form")`. The JSON holds the layout — classes, ids, text,
+sizes, list and menu items, tabs, windows — and the *names* of the event
+handlers, which are looked up in the loading program. That separates a
+screen from its code: one program (or, later, a visual designer) can build
+and save a screen, and another can load it, find its widgets by id, and
+supply the Subs it names. The server needs a `viewports` table; see
+`docs/viewports-server.md`.
+
 **Layout.** A new widget appears at the top left of the screen at its
 class's default size. `add` (and `setContent`, `setFirst`, `addTab`…) moves
 it into a container. On the screen and in a Panel a widget sits where the

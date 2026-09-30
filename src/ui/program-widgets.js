@@ -10,6 +10,13 @@
 // area after fill(). In an HPanel, VPanel or ButtonBar the panel places it:
 // setWidth (in a row) or setHeight (in a column) fixes its size there, and
 // setFlex shares out the space left over. Windows float above the rest.
+//
+// The Viewport. The layer itself is the program's Viewport, the root of its
+// widgets: New Viewport() / Viewport() gives it (always the same one). It
+// can be written out as JSON (toJson) and rebuilt from it (fromJson), and
+// saved to and loaded from the database by name (the viewports table): the
+// classes, ids, text, sizes, layout settings, list items, menu items and
+// the names of the event handlers, but not the program's code.
 
 import { Panel } from './widgets/panel.js';
 import { HPanel } from './widgets/hpanel.js';
@@ -26,7 +33,15 @@ import { Label } from './widgets/label.js';
 import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
-import { WidgetError } from '../vm/runtime/widgets.js';
+import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
+import { SourceStore } from './db-client.js';
+
+/** The format tag of a saved viewport. */
+export const VIEWPORT_FORMAT = 'fastblip-viewport';
+export const VIEWPORT_VERSION = 1;
+
+/** The database table of saved viewports: records { name, content }. */
+export const viewportStore = new SourceStore({ resource: 'viewports', key: 'viewport' });
 
 const STYLE = `
 .cr-app-widgets .cr-window-minimize{display:none}
@@ -145,6 +160,8 @@ export class ProgramWidgetHost {
     this._ids = new Map();           // widget -> id
     this._nextId = 1;
     this._nextItem = 1;              // ListPanel item values
+    this._windows = new Set();       // the program's Windows, open or closed
+    this.layer.id = '';
   }
 
   /** The widget with this id, or undefined. */
@@ -162,7 +179,13 @@ export class ProgramWidgetHost {
     for (const w of this._widgets.values()) if (w instanceof Menu) w.close();
     this._widgets.clear();
     this._ids.clear();
+    this._windows.clear();
     this._nextId = 1;
+    this.layer.id = '';
+    this.layer.element.style.background = '';
+    this.layer.element.style.color = '';
+    this.layer._background = undefined;
+    this.layer._color = undefined;
   }
 
   _register(widget, className) {
@@ -175,12 +198,18 @@ export class ProgramWidgetHost {
     return id;
   }
 
+  /** The id of a widget, registering it if the program has not reached it
+   *  yet (the Viewport, a Window's ButtonBar); 0 for none. */
   _idOf(widget) {
     if (!widget) return 0;
-    return this._ids.get(widget) ?? 0;
+    if (this._ids.has(widget)) return this._ids.get(widget);
+    if (widget === this.layer) return this._register(this.layer, 'Viewport');
+    if (widget.programClass) return this._register(widget, widget.programClass);
+    return 0;
   }
 
   create(className, args) {
+    if (className === 'Viewport') return this._idOf(this.layer);
     const spec = CLASSES[className];
     if (!spec) throw new WidgetError(`there is no widget class '${className}'`);
     const widget = spec.make(...args);
@@ -194,6 +223,10 @@ export class ProgramWidgetHost {
       if (!TEXT_SIZED.has(className)) widget.preferredWidth = () => width;
     }
     const id = this._register(widget, className);
+    if (widget instanceof Window) {
+      widget.buttonBar.programClass = 'ButtonBar';
+      this._windows.add(widget);
+    }
     this.layer.add(widget);
     if (widget instanceof Window) widget.bringToFront();
     this.layer.layout();
@@ -256,11 +289,307 @@ export class ProgramWidgetHost {
     this._relayout(w);
   }
 
+  // ------------------------------------------------------------- events
+
+  /** Registers an event handler (onClick, onSelect, ...) and records its
+   *  name for toJson. */
+  _listen(w, method, callback) {
+    (w._events ??= []).push({ method, handler: callback.handlerName ?? null });
+    const own = (type, f) => w.element.addEventListener(type, (e) => { if (e.target === w.element) f(e); });
+    switch (method) {
+      case 'onClick': w.element.addEventListener('click', () => callback()); break;
+      case 'onSelect': own('select', (e) => callback(e.detail.index)); break;
+      case 'onChange':
+        if (w instanceof HSplitPanel || w instanceof VSplitPanel) own('change', (e) => callback(e.detail.position));
+        else own('change', () => callback(w.text));
+        break;
+      case 'onSubmit': own('submit', () => callback()); break;
+      case 'onClose': own('close', () => callback()); break;
+      default: throw new WidgetError(`a ${w.programClass} has no event '${method}'`);
+    }
+  }
+
+  /** Adds a Menu item (a separator when label is null), recording it for toJson. */
+  _addMenuItem(menu, label, callback) {
+    menu._items ??= [];
+    if (label === null) {
+      menu._items.push({ separator: true });
+      menu.addSeparator();
+      return;
+    }
+    menu._items.push({ label, handler: callback?.handlerName ?? null });
+    menu.addItem(label, () => callback?.(label));
+  }
+
+  // ----------------------------------------------------------- viewport
+
+  /** Removes every widget from the Viewport, Windows included. */
+  _clearViewport() {
+    for (const child of this.layer.children) {
+      if (child instanceof Menu) child.close();
+      this.layer.remove(child);
+    }
+    for (const win of this._windows) if (win.parent) win.parent.remove(win);
+    this._windows.clear();
+  }
+
+  /** The Viewport as a JSON-ready object. */
+  _saveViewport() {
+    const doc = { format: VIEWPORT_FORMAT, version: VIEWPORT_VERSION };
+    if (this.layer.id) doc.id = this.layer.id;
+    if (this.layer._background) doc.background = this.layer._background;
+    if (this.layer._color) doc.color = this.layer._color;
+    doc.widgets = this.layer.children.filter((c) => !(c instanceof Window)).map((c) => this._save(c));
+    // Every Window the program has, open or closed, back to front.
+    doc.windows = [...this._windows].map((win) => ({ ...this._save(win), open: win.parent === this.layer }));
+    return doc;
+  }
+
+  /** One widget, and everything in it, as a JSON-ready object. */
+  _save(w) {
+    const cls = w.programClass;
+    const node = { class: cls };
+    if (w.id) node.id = w.id;
+    const put = (key, value, skip) => { if (value !== undefined && value !== skip) node[key] = value; };
+
+    switch (cls) {
+      case 'Label': node.text = w.text; break;
+      case 'Button': node.text = w.label; put('enabled', w.enabled, true); break;
+      case 'Menu':
+        node.text = w.label;
+        node.items = (w._items ?? []).map((item) => ({ ...item }));
+        break;
+      case 'Window': {
+        const b = w.bounds;
+        node.title = w.title;
+        node.bounds = [b.x, b.y, b.width, b.height];
+        put('maximized', w.maximized, false);
+        if (w.content) node.content = this._save(w.content);
+        if (w.buttonBar.children.length) node.buttonBar = this._save(w.buttonBar);
+        break;
+      }
+      case 'TextPanel': case 'MonacoPanel':
+        node.text = w.text;
+        if (cls === 'MonacoPanel') node.language = w.language;
+        put('readOnly', w.readOnly, false);
+        break;
+      case 'ListPanel':
+        node.items = w.items.map((item) => item.label);
+        put('selected', w.selectedIndex, -1);
+        put('emptyText', w.emptyText, '');
+        break;
+      case 'HPanel': case 'VPanel':
+        put('padding', w.padding, 0);
+        put('spacing', w.spacing, 0);
+        break;
+      case 'HSplitPanel': case 'VSplitPanel':
+        node.position = w.position;
+        node.first = w.first ? this._save(w.first) : null;
+        node.second = w.second ? this._save(w.second) : null;
+        break;
+      case 'TabPanel':
+        node.tabs = w.labels.map((label, i) => ({ label, widget: this._save(w.children[i]) }));
+        put('selected', w.selectedIndex, 0);
+        break;
+      default: break;
+    }
+    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(cls)) {
+      node.children = w.children.map((c) => this._save(c));
+    }
+
+    if (cls !== 'Window') {
+      if (w.box) node.box = [...w.box];
+      put('width', w.fixedWidth ?? undefined);
+      put('height', w.fixedHeight ?? undefined);
+    }
+    put('flex', w.flex ?? undefined, cls === 'Spacer' ? 1 : undefined);
+    put('fill', w.fillParent ? true : undefined);
+    if (!(w.parent instanceof TabPanel)) put('visible', w.visible, true);   // tabs show their own page
+    put('background', w._background || undefined);
+    put('color', w._color || undefined);
+    const events = (w._events ?? []).filter((e) => e.handler);
+    if (events.length) node.events = events.map((e) => ({ ...e }));
+    return node;
+  }
+
+  /** JSON text -> a saved viewport, checked. */
+  _parse(text) {
+    let doc;
+    try {
+      doc = JSON.parse(text);
+    } catch (err) {
+      throw new WidgetError(`not JSON: ${err.message}`);
+    }
+    return doc;
+  }
+
+  /**
+   * Replaces the Viewport's widgets with the ones in doc. resolve(widgetId,
+   * handlerName, detailKind) turns each saved handler name into a callback.
+   */
+  _loadViewport(doc, resolve) {
+    if (!doc || typeof doc !== 'object' || doc.format !== VIEWPORT_FORMAT) {
+      throw new WidgetError(`not a saved viewport (its "format" must be "${VIEWPORT_FORMAT}")`);
+    }
+    if (doc.version > VIEWPORT_VERSION) {
+      throw new WidgetError(`this viewport was saved by a newer FastBlip (version ${doc.version})`);
+    }
+    // Build everything first, so a bad node leaves the screen as it was.
+    const pending = [];
+    const widgets = (doc.widgets ?? []).map((node) => this._build(node, pending));
+    const windows = (doc.windows ?? []).map((node) => [this._build(node, pending), node.open !== false]);
+    this._clearViewport();
+    this.layer.id = typeof doc.id === 'string' ? doc.id : '';
+    this.layer._background = doc.background;
+    this.layer._color = doc.color;
+    this.layer.element.style.background = doc.background ?? '';
+    this.layer.element.style.color = doc.color ?? '';
+    for (const w of widgets) this.layer.add(w);
+    for (const [win, open] of windows) {
+      this._windows.add(win);
+      if (open) { this.layer.add(win); win.bringToFront(); }
+    }
+    this.layer.layout();
+    for (const win of this._windows) {
+      win.layout();
+      if (win._pendingMaximize) {
+        delete win._pendingMaximize;
+        win.maximize();
+      }
+    }
+    // Then wire up the handlers.
+    for (const { w, event, item } of pending) {
+      const detail = this._detailKind(w.programClass, event.method, item);
+      const callback = resolve(this._idOf(w), event.handler, detail);
+      if (item) item.callback = callback;
+      else this._listen(w, event.method, callback);
+    }
+  }
+
+  /** The kind of value an event passes (handler:<kind> in the class table), or null. */
+  _detailKind(className, methodName, item) {
+    const cls = CLASS_BY_NAME.get(className);
+    const m = cls?.methods.find((x) => x.name === (item ? 'addItem' : methodName));
+    const handler = m?.params.find((k) => k.startsWith('handler'));
+    if (!handler) throw new WidgetError(`a ${className} has no event '${methodName}'`);
+    return handler.split(':')[1] ?? null;
+  }
+
+  /** Makes one saved widget and everything in it; handlers go into pending. */
+  _build(node, pending) {
+    if (!node || typeof node !== 'object') throw new WidgetError('not a saved widget');
+    const cls = node.class;
+    const spec = CLASSES[cls];
+    if (!spec) throw new WidgetError(`there is no widget class '${cls}'`);
+    const str = (v, dflt = '') => (v === undefined || v === null ? dflt : String(v));
+    const num = (v) => (Number.isFinite(v) ? v : undefined);
+    const args = {
+      Label: [str(node.text)], Button: [str(node.text)], Menu: [str(node.text)],
+      Window: [str(node.title)], TextPanel: [str(node.text)],
+      MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
+    }[cls] ?? [];
+    const w = spec.make(...args);
+    if (spec.box) {
+      w.box = Array.isArray(node.box) && node.box.length === 4 && node.box.every(Number.isFinite)
+        ? [...node.box] : [...spec.box];
+      const [, , width, height] = spec.box;
+      w.preferredHeight = () => height;
+      if (!TEXT_SIZED.has(cls)) w.preferredWidth = () => width;
+    }
+    this._register(w, cls);
+    if (w instanceof Window) w.buttonBar.programClass = 'ButtonBar';
+    if (typeof node.id === 'string') w.id = node.id;
+    if (num(node.width) !== undefined) w.fixedWidth = node.width;
+    if (num(node.height) !== undefined) w.fixedHeight = node.height;
+    if (num(node.flex) !== undefined) w.flex = node.flex;
+    if (node.fill === true) w.fillParent = true;
+    if (node.visible === false) w.visible = false;
+    if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
+    if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
+    const child = (n) => this._build(n, pending);
+
+    switch (cls) {
+      case 'Button': if (node.enabled === false) w.enabled = false; break;
+      case 'Menu':
+        w._items = [];
+        for (const item of node.items ?? []) {
+          if (item?.separator) { this._addMenuItem(w, null); continue; }
+          const label = str(item?.label);
+          const entry = { label, handler: item?.handler ?? null };
+          w._items.push(entry);
+          w.addItem(label, () => entry.callback?.(label));
+          if (entry.handler) pending.push({ w, event: { method: 'addItem', handler: entry.handler }, item: entry });
+        }
+        break;
+      case 'Window':
+        if (Array.isArray(node.bounds) && node.bounds.every(Number.isFinite)) w.setBounds(...node.bounds);
+        if (node.content) w.content = child(node.content);
+        if (node.buttonBar) {
+          if (node.buttonBar.id) w.buttonBar.id = String(node.buttonBar.id);
+          for (const n of node.buttonBar.children ?? []) w.buttonBar.add(child(n));
+        }
+        if (node.maximized) w._pendingMaximize = true;
+        break;
+      case 'TextPanel': case 'MonacoPanel': if (node.readOnly) w.readOnly = true; break;
+      case 'ListPanel':
+        w.items = (node.items ?? []).map((label) => ({ label: str(label), value: this._nextItem++ }));
+        if (typeof node.emptyText === 'string') { w.emptyText = node.emptyText; w.items = w.items; }
+        if (Number.isInteger(node.selected) && node.selected >= 0 && node.selected < w.items.length) w.select(node.selected);
+        break;
+      case 'HPanel': case 'VPanel':
+        if (num(node.padding) !== undefined) w.padding = node.padding;
+        if (num(node.spacing) !== undefined) w.spacing = node.spacing;
+        break;
+      case 'HSplitPanel': case 'VSplitPanel':
+        if (node.first) w.first = child(node.first);
+        if (node.second) w.second = child(node.second);
+        if (num(node.position) !== undefined) w._position = Math.min(1, Math.max(0, node.position));
+        break;
+      case 'TabPanel':
+        for (const tab of node.tabs ?? []) w.addTab(str(tab?.label), child(tab?.widget));
+        if (Number.isInteger(node.selected) && node.selected > 0 && node.selected < w.labels.length) w.select(node.selected);
+        break;
+      default: break;
+    }
+    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(cls)) {
+      for (const n of node.children ?? []) w.add(child(n));
+    }
+    for (const event of node.events ?? []) {
+      if (event?.handler) pending.push({ w, event: { method: String(event.method), handler: String(event.handler) } });
+    }
+    return w;
+  }
+
+  // ------------------------------------------------------------ database
+
+  /** Saves the Viewport under name: a new record, or the one already called that. */
+  async _store(name) {
+    if (!name) throw new WidgetError('a saved viewport needs a name');
+    const content = this._saveViewport();
+    const [existing] = await viewportStore.findByName(name);
+    if (existing) await viewportStore.update(existing.id, { content });
+    else await viewportStore.create({ name, content });
+  }
+
+  /** The saved viewport called name. */
+  async _fetch(name) {
+    const [record] = await viewportStore.findByName(name);
+    if (!record) throw new WidgetError(`there is no saved viewport named '${name}'`);
+    return typeof record.content === 'string' ? this._parse(record.content) : record.content;
+  }
+
   call(id, method, args) {
     const w = this._widgets.get(id);
     const cls = w.programClass;
     const [a, b] = args;
+    if (/^on[A-Z]/.test(method)) { this._listen(w, method, a); return undefined; }
     switch (method) {
+      // ---- every widget, and the Viewport
+      case 'setId': w.id = a; return undefined;
+      case 'getId': return w.id;
+      case 'findById': return this._idOf(w.findById(a));
+      case 'findByClass': return w.findByClass(a).map((x) => this._idOf(x));
+      case 'toJson': return JSON.stringify(w === this.layer ? this._saveViewport() : this._save(w));
       // ---- every widget
       case 'setLeft': return this._setBox(w, a);
       case 'setTop': return this._setBox(w, undefined, a);
@@ -281,8 +610,8 @@ export class ProgramWidgetHost {
         if (w instanceof Window) Window.refreshActive(w.parent);
         return this._relayout(w);
       case 'isVisible': return w.visible;
-      case 'setBackground': this._surface(w).style.background = a; return undefined;
-      case 'setColor': this._surface(w).style.color = a; return undefined;
+      case 'setBackground': w._background = a; this._surface(w).style.background = a; return undefined;
+      case 'setColor': w._color = a; this._surface(w).style.color = a; return undefined;
       case 'getParent': return this._idOf(w.parent);
       case 'remove': {
         const parent = w.parent;
@@ -306,19 +635,31 @@ export class ProgramWidgetHost {
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
 
-      // ---- clicks
-      case 'Label.onClick': case 'Button.onClick':
-        w.element.addEventListener('click', () => a());
-        return undefined;
       case 'Button.setEnabled': w.enabled = a; return undefined;
       case 'Button.isEnabled': return w.enabled;
 
       // ---- Menu
-      case 'Menu.addItem': w.addItem(a, () => b(a)); return undefined;
-      case 'Menu.addSeparator': w.addSeparator(); return undefined;
-      case 'Menu.clear': w.close(); w.items = []; return undefined;
+      case 'Menu.addItem': this._addMenuItem(w, a, b); return undefined;
+      case 'Menu.addSeparator': this._addMenuItem(w, null); return undefined;
+      case 'Menu.clear': w.close(); w.items = []; w._items = []; return undefined;
 
       // ---- containers
+      // ---- the Viewport
+      case 'Viewport.add': {
+        const child = this._child(a);
+        if (!(child instanceof Window)) this._placeable(w, a);
+        w.add(child);
+        if (child instanceof Window) { this._windows.add(child); child.bringToFront(); }
+        w.layout();
+        return undefined;
+      }
+      case 'Viewport.getCount': return w.children.length;
+      case 'Viewport.getChild': return this._idOf(w.children[this._index(a, w.children.length)]);
+      case 'Viewport.clear': this._clearViewport(); return undefined;
+      case 'Viewport.fromJson': this._loadViewport(this._parse(a), b); return undefined;
+      case 'Viewport.save': return this._store(a);
+      case 'Viewport.load': return this._fetch(a).then((doc) => { this._loadViewport(doc, b); });
+
       case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': {
         const child = this._placeable(w, a);
         w.add(child);
@@ -351,11 +692,6 @@ export class ProgramWidgetHost {
       case 'HSplitPanel.getSecond': case 'VSplitPanel.getSecond': return this._idOf(w.second);
       case 'HSplitPanel.setPosition': case 'VSplitPanel.setPosition': w.position = a; return undefined;
       case 'HSplitPanel.getPosition': case 'VSplitPanel.getPosition': return w.position;
-      case 'HSplitPanel.onChange': case 'VSplitPanel.onChange':
-        w.element.addEventListener('change', (e) => {
-          if (e.target === w.element) a(e.detail.position);
-        });
-        return undefined;
 
       // ---- TabPanel
       case 'TabPanel.addTab': w.addTab(a, this._placeable(w, b)); w.layout(); return undefined;
@@ -363,11 +699,6 @@ export class ProgramWidgetHost {
       case 'TabPanel.getSelectedIndex': return w.selectedIndex;
       case 'TabPanel.getSelectedText': return w.selectedLabel ?? '';
       case 'TabPanel.getCount': return w.labels.length;
-      case 'TabPanel.onSelect':
-        w.element.addEventListener('select', (e) => {
-          if (e.target === w.element) a(e.detail.index);
-        });
-        return undefined;
 
       // ---- Window
       case 'Window.setTitle': w.title = a; return undefined;
@@ -376,32 +707,17 @@ export class ProgramWidgetHost {
       case 'Window.getContent': return this._idOf(w.content);
       case 'Window.getButtonBar':
         return this._idOf(w.buttonBar) || this._register(w.buttonBar, 'ButtonBar');
-      case 'Window.open': w.open(this.layer); return undefined;
+      case 'Window.open': w.open(this.layer); this._windows.add(w); return undefined;
       case 'Window.close': w.close(); return undefined;
       case 'Window.maximize': w.maximize(); return undefined;
       case 'Window.restore': w.restore(); return undefined;
       case 'Window.isMaximized': return w.maximized;
-      case 'Window.onClose':
-        w.element.addEventListener('close', (e) => {
-          if (e.target === w.element) a();
-        });
-        return undefined;
 
       // ---- TextPanel and MonacoPanel
       case 'TextPanel.append': case 'MonacoPanel.append': w.append(a); return undefined;
       case 'TextPanel.setReadOnly': case 'MonacoPanel.setReadOnly': w.readOnly = a; return undefined;
       case 'TextPanel.isReadOnly': case 'MonacoPanel.isReadOnly': return w.readOnly;
       case 'TextPanel.focus': case 'MonacoPanel.focus': w.focus(); return undefined;
-      case 'TextPanel.onChange': case 'MonacoPanel.onChange':
-        w.element.addEventListener('change', (e) => {
-          if (e.target === w.element) a(w.text);
-        });
-        return undefined;
-      case 'TextPanel.onSubmit': case 'MonacoPanel.onSubmit':
-        w.element.addEventListener('submit', (e) => {
-          if (e.target === w.element) a();
-        });
-        return undefined;
 
       // ---- ListPanel
       case 'ListPanel.addItem': w.addItem({ label: a, value: this._nextItem++ }); return undefined;
@@ -420,11 +736,6 @@ export class ProgramWidgetHost {
       case 'ListPanel.getSelectedIndex': return w.selectedIndex;
       case 'ListPanel.getSelectedText': return w.selectedItem?.label ?? '';
       case 'ListPanel.setEmptyText': w.emptyText = a; w.items = w.items; return undefined;
-      case 'ListPanel.onSelect':
-        w.element.addEventListener('select', (e) => {
-          if (e.target === w.element) a(e.detail.index);
-        });
-        return undefined;
 
       default:
         throw new WidgetError(`a ${cls} has no method '${method}'`);

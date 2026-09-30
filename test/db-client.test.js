@@ -59,3 +59,20 @@ test('priority and compiled_code are sent in the record body', async () => {
   await store(fetch).update(3, { name: 'p.bas', priority: 5, compiled_code: '{}' });
   assert.deepEqual(fetch.calls[0].body, { basic_source: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
 });
+
+test('the viewports store: find by name, content sent as a JSON object', async () => {
+  const content = { format: 'fastblip-viewport', version: 1, widgets: [{ class: 'Label', text: 'hi' }], windows: [] };
+  const fetch = fakeFetch(
+    { status: 200, body: [{ id: 4, name: 'main screen', content }] },
+    { status: 200, body: { id: 4, name: 'main screen', content } },
+  );
+  const s = new SourceStore({ resource: 'viewports', key: 'viewport', baseUrl: 'http://db.test', fetch });
+  const [found] = await s.findByName('main screen');
+  assert.deepEqual(found.content, content);
+  await s.update(4, { content });
+  assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), [
+    'GET http://db.test/viewports?name=main%20screen',
+    'PATCH http://db.test/viewports/4',
+  ]);
+  assert.deepEqual(fetch.calls[1].body, { viewport: { content } });
+});

@@ -180,6 +180,7 @@ label.setWidth(100)
 
 | Class | `New` | What it is |
 |---|---|---|
+| `Viewport` | `New Viewport()` | The program's screen, the root of all its widgets. A **singleton**: every `New Viewport()` returns the same object |
 | `Label` | `New Label(text)` | A line of text |
 | `Button` | `New Button(text)` | A push button |
 | `Menu` | `New Menu(text)` | A button that opens a list of items |
@@ -208,13 +209,18 @@ size must be 0 or more.
 | `fill()` | Fill the screen or `Panel` it is in (a `Window`: maximize) |
 | `setVisible(b)` / `isVisible()` | Show or hide it |
 | `setBackground(color)` / `setColor(color)` | Background and text colour, any CSS colour (`"red"`, `"#336"`) |
-| `getParent()` | The container it is in, or `Nothing` |
+| `getParent()` | The container it is in (the `Viewport` for a widget on the screen), or `Nothing` once removed |
 | `remove()` | Take it out of its container (it can be added again) |
+| `setId(name)` / `getId()` | A name to find the widget by; `""` for none |
+| `findById(name)` | The first widget inside this one with that id, or `Nothing` |
+| `findByClass(className)` | Every widget inside this one of that class (`"Button"`, any case), as an Array — empty, with `UBound` −1, when there are none |
+| `toJson()` | This widget and everything in it as JSON text (see The Viewport) |
 
 **Methods by class.** Indexes (list rows, tabs, children) count from 0; `-1` means none.
 
 | Class | Methods |
 |---|---|
+| `Viewport` | `getWidth()` `getHeight()` (the screen's size) `setBackground(c)` `setColor(c)` `add(w)` `getCount()` `getChild(i)` `clear()` `setId` `getId` `findById` `findByClass` `toJson()` `fromJson(text)` `save(name)` `load(name)` |
 | `Label` | `setText(t)` `getText()` `onClick(sub)` |
 | `Button` | `setText(t)` `getText()` `setEnabled(b)` `isEnabled()` `onClick(sub)` |
 | `Menu` | `setText(t)` `getText()` `addItem(label, sub)` `addSeparator()` `clear()` |
@@ -229,7 +235,7 @@ Methods that set something return `Nothing`. A method that returns a widget (`ge
 `getParent`, `getButtonBar`, `addButton`, ...) returns the same object each time for the
 same widget, so `=` can tell widgets apart.
 
-**Layout.** A new widget appears on the screen at the top left, at its class's default size
+**Layout.** A new widget appears on the screen (the `Viewport`) at the top left, at its class's default size
 (a `Label` is 100 × 24, a `Button` 100 × 32, a container 320 wide). `add` (or
 `setContent`, `setFirst`, `addTab`, ...) moves it into a container. On the screen and in a
 `Panel`, a widget sits where `setLeft`/`setTop`/`setBounds` put it, or fills the area
@@ -268,6 +274,33 @@ page.add(list)
 A host with no screen (the command line, a console window) makes every `New` of a widget
 a runtime error.
 
+**The Viewport.** `New Viewport()` is the program's screen: the widgets on it are its
+children, so `vp.findById("ok")` searches the whole screen. It can be written out and
+rebuilt, and kept in the database:
+
+- `vp.toJson()` returns the whole screen as JSON text: every widget with its class, id,
+  text, place and size, layout settings, list and menu items, tabs, windows (open or
+  closed), and the **names** of its event handlers. `JsonGet` can read it.
+- `vp.fromJson(text)` replaces everything on the screen with the widgets described, and
+  wires each saved handler name to the program's `Sub` of that name — a name the program
+  does not have is a runtime error. The new widgets are new objects: find them with
+  `findById`.
+- `vp.save(name)` stores the screen in the database's `viewports` table under `name`
+  (replacing one already called that), and `vp.load(name)` rebuilds the screen from it,
+  as `fromJson` does. The program waits for the database, as for `Fetch`, while other
+  programs keep running; a failure, or no screen saved under that name, is a runtime
+  error.
+
+```vb
+Dim vp = New Viewport()
+vp.load("order-form")               ' a screen saved earlier
+Dim total = vp.findById("total")    ' its widgets, found by id
+' Handlers saved with the screen (e.g. onClick "Recalculate") call this program's Subs.
+Sub Recalculate(button)
+  total.setText("...")
+End Sub
+```
+
 **Events.** `onClick`, `onSelect`, `onChange`, `onSubmit`, `onClose` and `Menu.addItem`
 name a `Sub` (a String, case-insensitive) to call when the event happens. The Sub takes
 no arguments; or one, the widget; or two, the widget and the event's value — the row or
@@ -292,9 +325,11 @@ End Sub
 ```
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
-(no `New`), methods in snake_case (`set_width`, `get_selected_index`,
-`on_click`, ...), and handlers are functions, called with as many of (widget, value) as
-they take. Whole-number results are ints.
+and `vp = Viewport()` (no `New`), methods in snake_case (`set_width`, `get_selected_index`,
+`find_by_id`, `to_json`, `on_click`, ...). Handlers are functions, called with as many of
+(widget, value) as they take; a saved handler is a module-level function, found by its
+name when the screen is loaded. Lists of widgets are lists, and whole-number results are
+ints.
 
 ### 10.2 Fetch and JSON
 

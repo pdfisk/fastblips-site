@@ -139,6 +139,9 @@ export class Window extends Panel {
   get title() { return this.titleText.textContent; }
   set title(text) { this.titleText.textContent = text; }
 
+  /** The content, then the ButtonBar. */
+  get childWidgets() { return [...this.children, this.buttonBar]; }
+
   /** The single child widget shown in the content area. */
   get content() { return this._children[0] ?? null; }
   set content(widget) {

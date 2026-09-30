@@ -14,6 +14,8 @@ export class Panel extends Widget {
   /** Read-only view of the child widgets. */
   get children() { return [...this._children]; }
 
+  get childWidgets() { return this.children; }
+
   add(child) {
     if (!(child instanceof Widget)) throw new TypeError('Panel children must be Widgets');
     if (child.parent) child.parent.remove(child);

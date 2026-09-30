@@ -15,7 +15,7 @@ import {
 import { RuntimeFault } from '../faults.js';
 import { UNBOUND, PyFunction, PyBoundMethod, Widget } from '../values.js';
 import {
-  hostFor, createWidget, callWidget, checkNumber, WIDGET_CLASSES,
+  hostFor, createWidget, callWidget, checkNumber, checkClassName, WidgetError, WAITING, WIDGET_CLASSES,
 } from './widgets.js';
 import { checkUrl, startFetch } from './fetch.js';
 
@@ -65,6 +65,9 @@ function widgetArg(vm, what, kind, position, v) {
     case 'widget':
       if (!(v instanceof Widget)) typeError('a widget');
       return v;
+    case 'class':
+      if (typeof v !== 'string') typeError('a class name (a str)');
+      return checkClassName(what, position, v, (m) => vm.raise('ValueError', m));
     case 'index':
       if (!isInt(v) || typeof v === 'boolean') typeError('an int');
       return toIndex(v);
@@ -88,7 +91,26 @@ function widgetArgs(vm, what, params, args) {
 /** A result or event value as a MiniPy value: whole numbers are ints. */
 const widgetValue = (kind, v) => (kind === 'int' ? BigInt(Math.trunc(v)) : v);
 
-const widgetLang = (vm, what) => ({ what, fail: (m) => vm.raise('ValueError', m), value: widgetValue });
+/** A module-level function's name, which a saved screen can name; else null. */
+const handlerName = (h) => (h.fn instanceof PyFunction ? h.fn.name : null);
+
+/** The module-level function called name, as a handler (for a loaded screen). */
+function resolveHandler(vm, what, name) {
+  const slot = vm.chunk.globalNames.indexOf(name);
+  const fn = slot >= 0 ? vm.globals[slot] : undefined;
+  if (!(fn instanceof PyFunction)) throw new WidgetError(`${what}: there is no function named '${name}'`);
+  return { fn };
+}
+
+const widgetLang = (vm, what) => ({
+  what,
+  fail: (m) => vm.raise('ValueError', m),
+  value: widgetValue,
+  list: (widgets) => widgets,
+  handlerName,
+  resolve: (name) => resolveHandler(vm, what, name),
+  onError: (v, m) => v.raise('OSError', m),
+});
 
 /** Label(text), HPanel(), ...: the class's constructor, a built-in function. */
 function widgetClass(cls) {
@@ -106,7 +128,8 @@ function widgetMethod(widget, name) {
   const what = `${m.py}()`;
   return new PyBuiltinFunction(m.py, (vm, args) => {
     hostFor(vm, what, (msg) => vm.raise('RuntimeError', msg));
-    return callWidget(vm, widget, m, widgetArgs(vm, what, m.params, args), widgetLang(vm, what));
+    const result = callWidget(vm, widget, m, widgetArgs(vm, what, m.params, args), widgetLang(vm, what));
+    return result === WAITING ? NOTHING : result;   // a save / load pushes its result when done
   });
 }
 

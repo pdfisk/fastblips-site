@@ -10,9 +10,11 @@
 // file checks arguments the Crumb way and reports Crumb runtime errors.
 
 import {
-  NOTHING, typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray, isObject,
+  NOTHING, CrumbArray, typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray, isObject,
 } from './crumb-values.js';
-import { WIDGET_CLASSES, createWidget, callWidget, checkNumber } from './widgets.js';
+import {
+  WIDGET_CLASSES, WidgetError, createWidget, callWidget, checkNumber, checkClassName,
+} from './widgets.js';
 import { BuiltinError } from './crumb-builtins.js';
 
 const fail = (message) => { throw new BuiltinError(message); };
@@ -36,16 +38,21 @@ for (const cls of WIDGET_CLASSES) {
   }
 }
 
-/** A handler: the name of a Sub taking up to two arguments (the widget and the event's value). */
-function wantHandler(what, position, vm, name) {
-  if (!isString(name)) fail(`${what} expects the name of a Sub (a String) as argument ${position}, got ${typeName(name)}`);
+/** The Sub named name, as a handler: it takes up to two arguments (the
+ *  widget and the event's value). Calls fail(message) if there is none. */
+function findHandler(what, vm, name, failWith) {
   const proc = vm.chunk.procedures.find((p) => p.name.toLowerCase() === name.toLowerCase());
-  if (!proc) fail(`${what}: there is no Sub named '${name}'`);
-  if (proc.kind !== 'Sub') fail(`${what}: '${proc.name}' is a ${proc.kind}; an event handler must be a Sub`);
+  if (!proc) failWith(`${what}: there is no Sub named '${name}'`);
+  if (proc.kind !== 'Sub') failWith(`${what}: '${proc.name}' is a ${proc.kind}; an event handler must be a Sub`);
   if (proc.arity > 2) {
-    fail(`${what}: Sub '${proc.name}' takes ${proc.arity} arguments; an event handler takes none, one (the widget) or two (the widget and the event's value)`);
+    failWith(`${what}: Sub '${proc.name}' takes ${proc.arity} arguments; an event handler takes none, one (the widget) or two (the widget and the event's value)`);
   }
   return { proc };
+}
+
+function wantHandler(what, position, vm, name) {
+  if (!isString(name)) fail(`${what} expects the name of a Sub (a String) as argument ${position}, got ${typeName(name)}`);
+  return findHandler(what, vm, name, fail);
 }
 
 /** Checks and converts one argument of the given kind (see widgets.js). */
@@ -62,6 +69,9 @@ function convert(what, kind, position, v, vm) {
     case 'widget':
       if (!isObject(v)) fail(`${what} expects a widget as argument ${position}, got ${typeName(v)}`);
       return v;
+    case 'class':
+      if (!isString(v)) fail(`${what} expects a class name (a String) as argument ${position}, got ${typeName(v)}`);
+      return checkClassName(what, position, v, fail);
     case 'index':
       if (!isNumber(v)) fail(`${what} expects a Number as argument ${position}, got ${typeName(v)}`);
       if (!Number.isInteger(v)) fail(`${what} expects a whole Number as argument ${position}, got ${formatNumber(v)}`);
@@ -75,14 +85,28 @@ function convert(what, kind, position, v, vm) {
 
 const convertAll = (what, params, args, vm) => params.map((kind, i) => convert(what, kind, i + 1, args[i], vm));
 
-/** Results and event values: every kind is already a Crumb value. */
-const value = (_kind, v) => v;
+/** How widgets.js talks Crumb: results, lists, handler names, errors. */
+function crumbLang(vm, what) {
+  return {
+    what,
+    fail,
+    value: (_kind, v) => v,          // every kind is already a Crumb value
+    list: (widgets) => {
+      const array = new CrumbArray(widgets.length - 1);
+      widgets.forEach((w, i) => { array.elements[i] = w; });
+      return array;
+    },
+    handlerName: (handler) => handler.proc.name,
+    resolve: (name) => findHandler(what, vm, name, (m) => { throw new WidgetError(m); }),
+    onError: (v, message) => v.fail(message),
+  };
+}
 
 /** NEW_OBJECT: a new object of class CLASS_LIST[index]. */
 export function newObject(vm, index, args) {
   const cls = WIDGET_CLASSES[index];
   const what = `New ${cls.name}`;
-  return createWidget(vm, cls, convertAll(what, cls.params, args, vm), { what, fail });
+  return createWidget(vm, cls, convertAll(what, cls.params, args, vm), crumbLang(vm, what));
 }
 
 /** CALL_METHOD: obj.name(args), name in any case; the result is a Crumb value. */
@@ -97,6 +121,5 @@ export function callMethod(vm, obj, name, args) {
   if (args.length !== m.params.length) {
     fail(`'${m.name}' of a ${obj.cls.name} takes ${m.params.length} argument${m.params.length === 1 ? '' : 's'}, found ${args.length}`);
   }
-  const result = callWidget(vm, obj, m, convertAll(m.name, m.params, args, vm), { what: m.name, fail, value });
-  return result === null ? NOTHING : result;
+  return callWidget(vm, obj, m, convertAll(m.name, m.params, args, vm), crumbLang(vm, m.name)) ?? NOTHING;
 }

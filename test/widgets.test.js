@@ -51,7 +51,7 @@ const crumbError = (source, gui = new FakeHost()) => {
 
 test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
-    'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
+    'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
     'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel',
   ]);
   for (const c of WIDGET_CLASSES) {
@@ -67,8 +67,8 @@ test('Crumb: every class can be made with New', () => {
   const { host, out } = runCrumb(lines.join('\n'));
   assert.deepEqual(out, WIDGET_CLASSES.map((c) => `<${c.name}>`));
   assert.deepEqual([...host.widgets.values()].map((w) => w.className), WIDGET_CLASSES.map((c) => c.name));
-  assert.deepEqual(host.get(15).args, []);
-  assert.deepEqual(host.get(14).args, ['a0', 'a1']);   // MonacoPanel(text, language)
+  assert.deepEqual(host.get(16).args, []);
+  assert.deepEqual(host.get(15).args, ['a0', 'a1']);   // MonacoPanel(text, language)
 });
 
 test('MiniPy: every class can be made by calling it', () => {
@@ -105,7 +105,7 @@ test('Crumb: containers hold widgets, and hand back the same objects', () => {
     'row.add(ok)',
     'ok.setFlex(2)',
     'row.setPadding(4)',
-    'Print row.getCount(), row.getChild(1) = ok, ok.getParent() = row, row.getParent() = Nothing',
+    'Print row.getCount(), row.getChild(1) = ok, ok.getParent() = row, row.getParent() = New Viewport()',
     'ok.remove()',
     'Print row.getCount(), ok.getParent() = Nothing',
     'Dim win = New Window("Main")',
@@ -213,7 +213,7 @@ test('Crumb: onClick runs the Sub for each click, after the module code', () => 
 
 test('Crumb: object load errors', () => {
   const errorsOf = (source) => compile(source, { filename: 't.crumb' }).errors.map((e) => e.message);
-  assert.match(errorsOf('Dim x = New Viewport()')[0], /no class 'Viewport': the classes are Button, ButtonBar, HPanel/);
+  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Button, ButtonBar, HPanel/);
   assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
   assert.match(errorsOf('Dim x = New HPanel(1)')[0], /'New HPanel' takes 0 arguments, found 1/);
   assert.match(errorsOf('Dim x = New HPanel')[0], /expected '\(' after 'New HPanel'/);
@@ -399,4 +399,141 @@ test('examples/widget-tour.crumb and widget-tour.py', () => {
   pyRun.host.click(addPy);
   settle(pyRun.vm);
   assert.deepEqual([...pyRun.host.widgets.values()].find((w) => w.className === 'ListPanel').items, ['Item 1']);
+});
+
+/** Runs a VM until it halts or waits for events, waiting out save / load. */
+async function settleAsync(vm) {
+  for (;;) {
+    if (vm.runSlice(1000)) return;
+    if (vm.blocked) { await vm.blockedOn; continue; }
+    if (vm.waiting) return;
+  }
+}
+
+test('Crumb: the Viewport is a singleton at the top of the widget tree', () => {
+  const { out } = runCrumb([
+    'Dim vp = New Viewport()',
+    'Dim b = New Button("Go")',
+    'Dim row = New HPanel()',
+    'row.add(New Label("x"))',
+    'Print vp = New viewport(), b.getParent() = vp, vp.getCount(), vp.getChild(0) = b',
+    'Print vp, row.getChild(0).getParent() = row',
+  ].join('\n'));
+  assert.deepEqual(out, ['True True 2 True', '<Viewport> True']);
+});
+
+test('Crumb: ids, findById and findByClass', () => {
+  const { out } = runCrumb([
+    'Dim vp = New Viewport()',
+    'Dim page = New VPanel()',
+    'Dim row = New HPanel()',
+    'page.add(row)',
+    'Dim ok = New Button("OK")',
+    'ok.setId("ok")',
+    'row.add(ok)',
+    'Dim cancel = New Button("Cancel")',
+    'row.add(cancel)',
+    'Dim buttons = vp.findByClass("button")',
+    'Print UBound(buttons), buttons(0) = ok, buttons(1) = cancel, ok.getId()',
+    'Print vp.findById("ok") = ok, page.findById("ok") = ok, row.findById("nope") = Nothing',
+    'Print UBound(row.findByClass("Label")), UBound(page.findByClass("HPanel"))',
+  ].join('\n'));
+  assert.deepEqual(out, ['1 True True ok', 'True True True', '-1 0']);
+  assert.match(crumbError('Dim vp = New Viewport()\nPrint vp.findByClass("Gadget")'), /no class 'Gadget'/);
+  assert.match(crumbError('Dim vp = New Viewport()\nvp.setLeft(3)'), /a Viewport has no method 'setLeft'/);
+});
+
+test('MiniPy: Viewport(), ids and finding', () => {
+  const { out } = runPy([
+    'vp = Viewport()',
+    'b = Button("Go")',
+    'b.set_id("go")',
+    'found = vp.find_by_class("Button")',
+    'print(vp is Viewport(), b.get_parent() is vp, vp.find_by_id("go") is b, len(found), found[0] is b)',
+  ].join('\n'));
+  assert.deepEqual(out, ['True True True 1 True']);
+});
+
+test('Crumb: toJson gives JSON text; fromJson rebuilds the screen and wires handlers by name', () => {
+  const { vm, host, out } = runCrumb([
+    'Dim vp = New Viewport()',
+    'Dim b = New Button("Go")',
+    'b.setId("go")',
+    'b.onClick("Hit")',
+    'Dim text = vp.toJson()',
+    'Print JsonGet(text, "children.0.props.id")',
+    'vp.clear()',
+    'vp.fromJson(text)',
+    'Dim again = vp.findById("go")',
+    'Print again = b, again.getText()',
+    'Sub Hit(w)',
+    '  Print "hit", w.getId()',
+    'End Sub',
+  ].join('\n'));
+  assert.deepEqual(out, ['go', 'False Go']);
+  const newId = [...host.widgets.values()].find((w) => w.props.id === 'go').id;
+  host.click(newId);
+  settle(vm);
+  assert.deepEqual(out, ['go', 'False Go', 'hit go']);
+});
+
+test('Crumb: save and load go through the database, and the program waits for them', async () => {
+  const host = new FakeHost();
+  const out = [];
+  const vm = new VM(crumb([
+    'Dim vp = New Viewport()',
+    'Dim list = New ListPanel()',
+    'list.setId("fruit")',
+    'list.addItem("fig")',
+    'list.onSelect("Picked")',
+    'vp.save("main")',
+    'Print "saved"',
+    'vp.clear()',
+    'Print vp.getCount()',
+    'vp.load("main")',
+    'Print vp.getCount(), vp.findById("fruit").getItem(0)',
+    'Sub Picked(w, i)',
+    '  Print "picked", i',
+    'End Sub',
+  ].join('\n')), { gui: host, out: (t) => out.push(t) });
+  await settleAsync(vm);
+  assert.deepEqual(out, ['saved', '0', '1 fig']);
+  assert.ok(host.saved.has('main'));
+  const list = [...host.widgets.values()].find((w) => w.props.id === 'fruit');
+  host.call(list.id, 'select', [0]);
+  await settleAsync(vm);
+  assert.deepEqual(out.slice(3), ['picked 0']);
+
+  const fail = async (source) => {
+    const v = new VM(crumb(source), { gui: new FakeHost(), out: () => {} });
+    await assert.rejects(settleAsync(v), (e) => { fail.message = e.message; return true; });
+    return fail.message;
+  };
+  assert.match(await fail('Dim vp = New Viewport()\nvp.load("nothing")'), /load: there is no saved viewport named 'nothing'/);
+  assert.match(await fail([
+    'Dim vp = New Viewport()',
+    'vp.fromJson("{""class"":""Viewport"",""props"":{},""items"":[],""children"":[{""class"":""Button"",""props"":{""text"":""x""},""items"":[],""children"":[],""events"":[{""event"":""click"",""handler"":""Gone""}]}]}")',
+  ].join('\n')), /fromJson: there is no Sub named 'Gone'/);
+});
+
+test('MiniPy: save and load, with handlers found by function name', async () => {
+  const host = new FakeHost();
+  const out = [];
+  const vm = new VM(py([
+    'vp = Viewport()',
+    'b = Button("Go")',
+    'b.set_id("go")',
+    'def hit(w):',
+    '    print("hit", w.get_id())',
+    'b.on_click(hit)',
+    'vp.save("py")',
+    'vp.clear()',
+    'vp.load("py")',
+    'print(vp.get_count(), vp.find_by_id("go") is b)',
+  ].join('\n')), { gui: host, out: (t) => out.push(t) });
+  await settleAsync(vm);
+  assert.deepEqual(out, ['1 False']);
+  host.click([...host.widgets.values()].find((w) => w.props.id === 'go' && w.id !== 2).id);
+  await settleAsync(vm);
+  assert.deepEqual(out, ['1 False', 'hit go']);
 });

@@ -1,7 +1,7 @@
 // SourceStore: a small client for the Rails API in rails/server, which
 // exposes JSON CRUD for the basic_source and python_source tables:
 //
-//   GET    /<resource>          list (records ordered by id)
+//   GET    /<resource>          list (records ordered by id; ?name= filters)
 //   GET    /<resource>/:id      one record
 //   POST   /<resource>          create   body: { <key>: { name, content } }
 //   PATCH  /<resource>/:id      update   body: { <key>: { name, content } }
@@ -95,6 +95,9 @@ export class SourceStore {
 
   /** Every record, ordered by id. */
   list() { return this._request('GET', ''); }
+
+  /** The records called name (the server's ?name= filter). */
+  findByName(name) { return this._request('GET', `?name=${encodeURIComponent(name)}`); }
 
   /** The record with this id. */
   get(id) { return this._request('GET', `/${encodeURIComponent(id)}`); }

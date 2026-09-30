@@ -10,6 +10,38 @@ export class Widget {
     this.parent = null;
     this.bounds = { x: 0, y: 0, width: 0, height: 0 };
     this._visible = true;
+    /** A name to find the widget by (findById); '' for none. */
+    this.id = '';
+  }
+
+  /** The widgets directly inside this one; a Panel's children, and more
+   *  for widgets with parts of their own (a Window's ButtonBar). */
+  get childWidgets() { return []; }
+
+  /** Every widget inside this one, depth first, in order. */
+  *descendants() {
+    for (const child of this.childWidgets) {
+      yield child;
+      yield* child.descendants();
+    }
+  }
+
+  /** The first widget inside this one whose id is id, or null. */
+  findById(id) {
+    for (const w of this.descendants()) if (w.id === id) return w;
+    return null;
+  }
+
+  /**
+   * Every widget inside this one of a class: a constructor (matching
+   * subclasses too), or a program class name ('Button', as a program's
+   * widgets record in programClass).
+   */
+  findByClass(cls) {
+    const match = typeof cls === 'function'
+      ? (w) => w instanceof cls
+      : (w) => w.programClass === cls;
+    return [...this.descendants()].filter(match);
   }
 
   get visible() { return this._visible; }

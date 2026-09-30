@@ -484,7 +484,9 @@ export class VM {
           this.ip += 2;
           const args = this.popN(argc);
           const obj = this.pop();
-          this.push(this.crumbCall(() => callMethod(this, obj, name, args)));
+          const result = this.crumbCall(() => callMethod(this, obj, name, args));
+          if (this.blocked) return false;   // Viewport save / load: pushed when done
+          this.push(result);
           break;
         }
         case Op.NO_RETURN:
