@@ -42,6 +42,7 @@ brings `db/schema.rb` up to date.
 {
   "format": "fastblip-viewport",
   "version": 1,
+  "kind": "screen",
   "id": "screen",
   "background": "#eef",
   "widgets": [ { "class": "VPanel", "id": "page", "fill": true, "children": [ ... ] } ],
@@ -49,6 +50,18 @@ brings `db/schema.rb` up to date.
                  "open": false, "content": { ... }, "buttonBar": { ... } } ]
 }
 ```
+
+A **composite** (a widget and everything in it, made in the GUI designer
+or with `saveComposite`) is kept in the same table, with `"kind":
+"composite"` and one widget node as its `root`:
+
+```json
+{ "format": "fastblip-viewport", "version": 1, "kind": "composite",
+  "root": { "class": "VPanel", "id": "login", "children": [ ... ] } }
+```
+
+A document with no `kind` is a screen. A screen and a composite cannot
+share a name.
 
 Every widget node has `class`, and when set: `id`, `box` (left, top,
 width, height on the screen or in a Panel), `width` / `height` (the sizes

@@ -12,6 +12,7 @@ import { TranscriptWindow } from './windows/transcript-window.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
+import { DesignerWindow } from './windows/designer-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
@@ -46,6 +47,7 @@ export function startDesktop() {
   navbar.add(new Button('Basic', () => new BasicConsoleWindow().open(viewport)));
   navbar.add(new Button('Python', () => new PythonConsoleWindow().open(viewport)));
   navbar.add(new Button('Process', () => SchedulerWindow.instance.open(viewport)));
+  navbar.add(new Button('Designer', () => new DesignerWindow().open(viewport)));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(new Spacer());

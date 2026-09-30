@@ -345,8 +345,8 @@ with the name, a short description, a link to the full version
 variables, not the desktop widgets.
 
 When the full UI starts, the Navbar is docked at the top of the Viewport
-with, from left to right, a File menu, a Database menu, Basic, Python and
-Process buttons, a Settings menu, and a Windows menu, which is always the
+with, from left to right, a File menu, a Database menu, Basic, Python,
+Process and Designer buttons, a Settings menu, and a Windows menu, which is always the
 last menu. At the right end is the time the page was built, e.g.
 "Built 2026-09-23 13:47:05 UTC". The
 StatusBar is docked at the bottom, and the TranscriptWindow is open.
@@ -377,6 +377,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Python button opens a new PythonConsoleWindow.
   - The Process button opens the SchedulerWindow (or brings it to the
     front).
+  - The Designer button opens a new DesignerWindow (the GUI designer).
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
@@ -808,6 +809,10 @@ changed through methods, and in MiniPy the same way with Python spellings:
     screen: the host builds every widget first (so bad JSON leaves the
     screen as it was), then asks the VM to turn each saved handler name
     into a callback (the `resolver` argument of the host interface).
+  - Composites: saveComposite(name) on any widget stores that widget and
+    everything in it (kind "composite"); vp.loadComposite(name) builds a
+    copy on the screen, wires its saved handler names, and returns its
+    root. The GUI designer (below) edits them.
   - save(name) and load(name) keep the Viewport in the database's
     viewports table (viewportStore, a SourceStore on /viewports): save
     updates the record with that name or creates one, load fetches it and
@@ -849,3 +854,50 @@ changed through methods, and in MiniPy the same way with Python spellings:
     events (its process shows as 'waiting' in the Process window), until
     it is stopped. examples/widget-tour.crumb and widget-tour.py show most
     of the classes; examples/button-demo.crumb is a small one.
+
+
+GUI designer
+------------
+DesignerWindow (src/ui/windows/designer-window.js) loads, edits and saves
+composite widgets: a widget and everything in it, kept by name in the
+database's viewports table (kind "composite"), which a program adds to its
+screen with vp.loadComposite(name). Any number can be open; the Navbar's
+Designer button opens one.
+
+  - Left: the Outline (the composite as a tree; a tab's label, a split
+    panel's side and a window's button bar are shown before the child)
+    above the Palette (every widget class but the Viewport). Middle: the
+    Preview, the composite built from the real toolkit classes by a
+    ProgramWidgetHost of its own, so it looks exactly as it will in a
+    program. Right: the Properties of the selected widget.
+  - Clicking a widget in the Preview or the Outline selects it; the
+    selection is outlined in the Preview, and a widget on a hidden tab has
+    its tab shown. In design mode presses never reach the widgets.
+  - Where a widget is placed freely (the root, or a child of a Panel) it
+    can be dragged in the Preview to move it, and resized by the grip at
+    its corner; a Window root moves by any part of it. In rows, columns,
+    tabs and splits the container places it: Width / Height fix its size
+    there, Flex shares out the rest.
+  - Add (or double-clicking a Palette class) adds a widget of that class
+    to the selection when it can hold one - at the end of a list, as a new
+    tab, in a split panel's empty side, as a Window's content and then to
+    its button bar - or else next to the selection. Delete removes the
+    selection (not the root), Up and Down reorder it among its siblings
+    (in a split panel, they swap the sides).
+  - Properties are grouped: Widget (id and what the class shows: text,
+    title, items, tab labels, ...), Place, Look (visible, colours) and
+    Events: the name of the handler for each event the class has - a Sub
+    in Crumb, a module-level function in MiniPy - which is looked up in
+    the program that loads the composite. Menu items are written one to a
+    line as "Label = Handler", with "-" for a separator.
+  - The ButtonBar: New (a menu of classes: the new composite's root),
+    Open (the saved composites; Refresh list reads them again), the
+    composite's name, Save, Add, Delete, Up, Down, and Test, which
+    switches the Preview between designing and using it. The title shows
+    the name and a * while there are unsaved changes; New, Open and
+    closing ask before discarding them.
+  - The model - the node tree and its fields - is DOM-free
+    (src/ui/designer-model.js, tested in test/designer-model.test.js). A
+    node is exactly what the widget host saves (toJson, saveComposite),
+    so a composite saved by a program opens in the designer and the
+    other way round.

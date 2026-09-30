@@ -27,7 +27,8 @@
 //                                   (a Window's ButtonBar, addButton, ...)
 //   call(id, method, args) -> value runs a method (its Crumb name)
 //
-// A call may return a promise (Viewport save / load, which use the
+// A call may return a promise (Viewport save / load / loadComposite and
+// saveComposite, which use the
 // database): the program waits for it, as for Fetch, and other programs keep
 // running meanwhile. A method with `resolver` set gets one more argument
 // after the program's: resolve(widgetId, handlerName, detailKind), which
@@ -90,6 +91,7 @@ const FIND = [
 /** Every widget has these. */
 const COMMON = [
   ...FIND,
+  method('saveComposite', ['text']),
   method('setLeft', ['position']),
   method('setTop', ['position']),
   method('setWidth', ['size']),
@@ -161,6 +163,7 @@ export const WIDGET_CLASSES = Object.freeze([
     method('fromJson', ['text'], null, { resolver: true }),
     method('save', ['text']),
     method('load', ['text'], null, { resolver: true }),
+    method('loadComposite', ['text'], 'widget', { resolver: true }),
   ], { common: FIND }),
   cls('Label', ['text'], [...TEXT, ...CLICK]),
   cls('Button', ['text'], [

@@ -138,6 +138,18 @@ export class FakeHost {
         const text = JSON.stringify(this.save(w));
         return Promise.resolve().then(() => { this.saved.set(args[0], text); });
       }
+      case 'saveComposite': {
+        const text = JSON.stringify({ composite: this.save(w) });
+        return Promise.resolve().then(() => { this.saved.set(args[0], text); });
+      }
+      case 'loadComposite':
+        return Promise.resolve().then(() => {
+          const doc = this.saved.has(args[0]) && JSON.parse(this.saved.get(args[0]));
+          if (!doc?.composite) throw new WidgetError(`there is no saved composite named '${args[0]}'`);
+          const before = this.next;
+          this.load(doc.composite, null, args[1]);
+          return before;   // the root is the first widget made
+        });
       case 'load':
         return Promise.resolve().then(() => {
           if (!this.saved.has(args[0])) throw new WidgetError(`there is no saved viewport named '${args[0]}'`);

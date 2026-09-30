@@ -215,12 +215,13 @@ size must be 0 or more.
 | `findById(name)` | The first widget inside this one with that id, or `Nothing` |
 | `findByClass(className)` | Every widget inside this one of that class (`"Button"`, any case), as an Array — empty, with `UBound` −1, when there are none |
 | `toJson()` | This widget and everything in it as JSON text (see The Viewport) |
+| `saveComposite(name)` | Stores this widget and everything in it in the database as a composite called `name` (see Composites) |
 
 **Methods by class.** Indexes (list rows, tabs, children) count from 0; `-1` means none.
 
 | Class | Methods |
 |---|---|
-| `Viewport` | `getWidth()` `getHeight()` (the screen's size) `setBackground(c)` `setColor(c)` `add(w)` `getCount()` `getChild(i)` `clear()` `setId` `getId` `findById` `findByClass` `toJson()` `fromJson(text)` `save(name)` `load(name)` |
+| `Viewport` | `getWidth()` `getHeight()` (the screen's size) `setBackground(c)` `setColor(c)` `add(w)` `getCount()` `getChild(i)` `clear()` `setId` `getId` `findById` `findByClass` `toJson()` `fromJson(text)` `save(name)` `load(name)` `loadComposite(name)` |
 | `Label` | `setText(t)` `getText()` `onClick(sub)` |
 | `Button` | `setText(t)` `getText()` `setEnabled(b)` `isEnabled()` `onClick(sub)` |
 | `Menu` | `setText(t)` `getText()` `addItem(label, sub)` `addSeparator()` `clear()` |
@@ -290,6 +291,25 @@ rebuilt, and kept in the database:
   as `fromJson` does. The program waits for the database, as for `Fetch`, while other
   programs keep running; a failure, or no screen saved under that name, is a runtime
   error.
+
+**Composites.** A composite is a reusable piece of screen — a widget and everything in it,
+say a column holding a form's labels, text panels and buttons — kept in the database by
+name. The IDE's GUI designer (the Designer button) builds and edits them; a program can
+also store one with `w.saveComposite(name)`. `vp.loadComposite(name)` builds a copy of it
+on the screen, wires its saved handler names as `fromJson` does, and returns its root, which
+can then be moved into a container with `add`. Each call makes a new copy, so the same
+composite can be used several times; find its parts from its root with `findById`. A screen
+and a composite cannot share a name.
+
+```vb
+Dim vp = New Viewport()
+Dim form = vp.loadComposite("login-form")
+form.fill()
+Dim user = form.findById("user")
+Sub LoggedIn(button)                ' named as the OK button's onClick in the designer
+  Print "Hello, " & user.getText()
+End Sub
+```
 
 ```vb
 Dim vp = New Viewport()

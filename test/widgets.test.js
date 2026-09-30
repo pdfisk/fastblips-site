@@ -537,3 +537,32 @@ test('MiniPy: save and load, with handlers found by function name', async () => 
   await settleAsync(vm);
   assert.deepEqual(out, ['1 False', 'hit go']);
 });
+
+test('Crumb: a composite is saved from any widget and loaded as many times as wanted', async () => {
+  const host = new FakeHost();
+  const out = [];
+  const vm = new VM(crumb([
+    'Dim vp = New Viewport()',
+    'Dim form = New VPanel()',
+    'Dim ok = New Button("OK")',
+    'ok.setId("ok")',
+    'ok.onClick("Pressed")',
+    'form.add(ok)',
+    'form.saveComposite("okForm")',
+    'form.remove()',
+    'Dim a = vp.loadComposite("okForm")',
+    'Dim b = vp.loadComposite("okForm")',
+    'Print a, a = b, a.getParent() = vp, a.findById("ok").getText(), vp.getCount()',
+    'Sub Pressed(w)',
+    '  Print "pressed", w.getParent() = b',
+    'End Sub',
+  ].join('\n')), { gui: host, out: (t) => out.push(t) });
+  await settleAsync(vm);
+  assert.deepEqual(out, ['<VPanel> False True OK 2']);
+  const second = [...host.widgets.values()].filter((w) => w.props.id === 'ok').pop();
+  host.click(second.id);
+  await settleAsync(vm);
+  assert.deepEqual(out.slice(1), ['pressed True']);
+  const v2 = new VM(crumb('Dim vp = New Viewport()\nDim x = vp.loadComposite("none")'), { gui: new FakeHost(), out: () => {} });
+  await assert.rejects(settleAsync(v2), /loadComposite: there is no saved composite named 'none'/);
+});

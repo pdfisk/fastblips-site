@@ -98,6 +98,19 @@ and save a screen, and another can load it, find its widgets by id, and
 supply the Subs it names. The server needs a `viewports` table; see
 `docs/viewports-server.md`.
 
+### Composites and the GUI designer
+
+A **composite** is a reusable piece of screen — a widget and everything in
+it — saved by name in the same table (with `"kind": "composite"`). The
+IDE's **Designer** (Navbar → Designer) builds and edits them: a palette of
+classes, an outline of the tree, a live preview made from the real widgets
+(click to select; drag to move and resize where placement is free), and a
+property inspector that includes each event's handler name. A program adds
+a copy with `vp.loadComposite("login-form")`, which returns its root, finds
+parts with `findById`, and supplies the Subs the designer named. Programs
+can also save any widget as a composite with `w.saveComposite(name)`, so
+the designer and code share one format.
+
 **Layout.** A new widget appears at the top left of the screen at its
 class's default size. `add` (and `setContent`, `setFirst`, `addTab`…) moves
 it into a container. On the screen and in a Panel a widget sits where the

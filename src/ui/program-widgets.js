@@ -35,13 +35,72 @@ import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore } from './db-client.js';
+import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
 export const VIEWPORT_FORMAT = 'fastblip-viewport';
 export const VIEWPORT_VERSION = 1;
 
-/** The database table of saved viewports: records { name, content }. */
+/** The database table of saved viewports: records { name, content }. The
+ *  content's kind says what it is: 'screen' (a whole Viewport; also when
+ *  there is no kind) or 'composite' (one widget and everything in it). */
 export const viewportStore = new SourceStore({ resource: 'viewports', key: 'viewport' });
+
+/** What a saved document is: 'screen' or 'composite'. */
+export const docKind = (doc) => (doc?.kind === 'composite' ? 'composite' : 'screen');
+
+/** A composite: one widget (root, as _save / toJson give it) and everything in it. */
+export function compositeDoc(root) {
+  return { format: VIEWPORT_FORMAT, version: VIEWPORT_VERSION, kind: 'composite', root };
+}
+
+/** Checks a saved document's format and kind, and returns it. */
+export function checkDoc(doc, kind) {
+  if (!doc || typeof doc !== 'object' || doc.format !== VIEWPORT_FORMAT) {
+    throw new WidgetError(`not a saved viewport (its "format" must be "${VIEWPORT_FORMAT}")`);
+  }
+  if (doc.version > VIEWPORT_VERSION) {
+    throw new WidgetError(`this was saved by a newer FastBlip (version ${doc.version})`);
+  }
+  if (kind && docKind(doc) !== kind) {
+    throw new WidgetError(`that is a saved ${docKind(doc)}, not a ${kind}`);
+  }
+  if (docKind(doc) === 'composite' && (!doc.root || typeof doc.root !== 'object')) {
+    throw new WidgetError('a saved composite needs a "root" widget');
+  }
+  return doc;
+}
+
+/** The saved document called name, checked to be of kind. */
+export async function fetchDoc(name, kind) {
+  const [record] = await viewportStore.findByName(name);
+  if (!record) throw new WidgetError(`there is no saved ${kind ?? 'viewport'} named '${name}'`);
+  const doc = typeof record.content === 'string' ? JSON.parse(record.content) : record.content;
+  return checkDoc(doc, kind);
+}
+
+/** Saves doc under name: updates the record with that name, or makes one. A
+ *  screen and a composite cannot share a name. */
+export async function storeDoc(name, doc) {
+  if (!name) throw new WidgetError('a saved viewport needs a name');
+  const [existing] = await viewportStore.findByName(name);
+  if (existing) {
+    const content = typeof existing.content === 'string' ? JSON.parse(existing.content) : existing.content;
+    if (docKind(content) !== docKind(doc)) {
+      throw new WidgetError(`'${name}' is already the name of a saved ${docKind(content)}`);
+    }
+    await viewportStore.update(existing.id, { content: doc });
+  } else {
+    await viewportStore.create({ name, content: doc });
+  }
+}
+
+/** The names of the saved documents of a kind, sorted. */
+export async function listDocs(kind) {
+  const records = await viewportStore.list();
+  return records.filter((r) => docKind(typeof r.content === 'string' ? JSON.parse(r.content) : r.content) === kind)
+    .map((r) => r.name).sort((a, b) => a.localeCompare(b));
+}
 
 const STYLE = `
 .cr-app-widgets .cr-window-minimize{display:none}
@@ -121,32 +180,36 @@ export class AppLabel extends Label {
 
 /** className -> (constructor args) -> widget, and its default box. */
 const CLASSES = {
-  Label: { make: (text) => new AppLabel(text), box: [0, 0, 100, 24] },
-  Button: { make: (text) => new Button(text), box: [0, 0, 100, 32] },
+  Label: { make: (text) => new AppLabel(text), box: DEFAULT_BOXES.Label },
+  Button: { make: (text) => new Button(text), box: DEFAULT_BOXES.Button },
   Menu: {
     make: (text) => {
       const menu = new Menu(text);
       menu.element.classList.add('cr-app-menu');
       return menu;
     },
-    box: [0, 0, 90, 28],
+    box: DEFAULT_BOXES.Menu,
   },
-  Spacer: { make: () => new Spacer(), box: [0, 0, 0, 0] },
-  Panel: { make: () => new FreePanel(), box: [0, 0, 320, 200] },
-  HPanel: { make: () => new HPanel(), box: [0, 0, 320, 32] },
-  VPanel: { make: () => new VPanel(), box: [0, 0, 320, 200] },
-  ButtonBar: { make: () => new ButtonBar(), box: [0, 0, 320, 30] },
-  HSplitPanel: { make: () => new HSplitPanel(), box: [0, 0, 320, 200] },
-  VSplitPanel: { make: () => new VSplitPanel(), box: [0, 0, 320, 200] },
-  TabPanel: { make: () => new TabPanel(), box: [0, 0, 320, 200] },
-  Window: { make: (title) => new Window({ title, x: 20, y: 20, width: 320, height: 240 }), box: null },
-  TextPanel: { make: (text) => new TextPanel({ text }), box: [0, 0, 240, 120] },
-  MonacoPanel: { make: (text, language) => new MonacoPanel({ text, language }), box: [0, 0, 320, 200] },
-  ListPanel: { make: () => new ListPanel(), box: [0, 0, 160, 160] },
+  Spacer: { make: () => new Spacer(), box: DEFAULT_BOXES.Spacer },
+  Panel: { make: () => new FreePanel(), box: DEFAULT_BOXES.Panel },
+  HPanel: { make: () => new HPanel(), box: DEFAULT_BOXES.HPanel },
+  VPanel: { make: () => new VPanel(), box: DEFAULT_BOXES.VPanel },
+  ButtonBar: { make: () => new ButtonBar(), box: DEFAULT_BOXES.ButtonBar },
+  HSplitPanel: { make: () => new HSplitPanel(), box: DEFAULT_BOXES.HSplitPanel },
+  VSplitPanel: { make: () => new VSplitPanel(), box: DEFAULT_BOXES.VSplitPanel },
+  TabPanel: { make: () => new TabPanel(), box: DEFAULT_BOXES.TabPanel },
+  Window: {
+    make: (title) => {
+      const [x, y, width, height] = DEFAULT_WINDOW_BOUNDS;
+      return new Window({ title, x, y, width, height });
+    },
+    box: null,
+  },
+  TextPanel: { make: (text) => new TextPanel({ text }), box: DEFAULT_BOXES.TextPanel },
+  MonacoPanel: { make: (text, language) => new MonacoPanel({ text, language }), box: DEFAULT_BOXES.MonacoPanel },
+  ListPanel: { make: () => new ListPanel(), box: DEFAULT_BOXES.ListPanel },
 };
 
-/** Classes whose natural width is their text's. */
-const TEXT_SIZED = new Set(['Label', 'Button', 'Menu']);
 
 /**
  * The VM's widget host for an AppScreen. Widgets get ids from 1; every
@@ -335,7 +398,7 @@ export class ProgramWidgetHost {
 
   /** The Viewport as a JSON-ready object. */
   _saveViewport() {
-    const doc = { format: VIEWPORT_FORMAT, version: VIEWPORT_VERSION };
+    const doc = { format: VIEWPORT_FORMAT, version: VIEWPORT_VERSION, kind: 'screen' };
     if (this.layer.id) doc.id = this.layer.id;
     if (this.layer._background) doc.background = this.layer._background;
     if (this.layer._color) doc.color = this.layer._color;
@@ -428,12 +491,7 @@ export class ProgramWidgetHost {
    * handlerName, detailKind) turns each saved handler name into a callback.
    */
   _loadViewport(doc, resolve) {
-    if (!doc || typeof doc !== 'object' || doc.format !== VIEWPORT_FORMAT) {
-      throw new WidgetError(`not a saved viewport (its "format" must be "${VIEWPORT_FORMAT}")`);
-    }
-    if (doc.version > VIEWPORT_VERSION) {
-      throw new WidgetError(`this viewport was saved by a newer FastBlip (version ${doc.version})`);
-    }
+    checkDoc(doc, 'screen');
     // Build everything first, so a bad node leaves the screen as it was.
     const pending = [];
     const widgets = (doc.widgets ?? []).map((node) => this._build(node, pending));
@@ -457,13 +515,43 @@ export class ProgramWidgetHost {
         win.maximize();
       }
     }
-    // Then wire up the handlers.
+    this._wire(pending, resolve);
+  }
+
+  /** Wires saved handler names to callbacks, once the widgets exist. */
+  _wire(pending, resolve) {
     for (const { w, event, item } of pending) {
       const detail = this._detailKind(w.programClass, event.method, item);
       const callback = resolve(this._idOf(w), event.handler, detail);
       if (item) item.callback = callback;
       else this._listen(w, event.method, callback);
     }
+  }
+
+  /**
+   * Builds a saved widget (a node, as _save and toJson give it) and
+   * everything in it, without handlers and without placing it anywhere.
+   * onBuilt(widget, node) is called for each widget made (the designer uses
+   * it to tell which widget shows which node). Returns the widget.
+   */
+  build(node, onBuilt) {
+    return this._build(node, [], onBuilt);
+  }
+
+  /** A widget and everything in it as a node (see build). */
+  save(widget) { return this._save(widget); }
+
+  /** Loads the composite called name onto the screen; resolves to its root's id. */
+  async _loadComposite(name, resolve) {
+    const doc = await fetchDoc(name, 'composite');
+    const pending = [];
+    const root = this._build(doc.root, pending);
+    this.layer.add(root);
+    if (root instanceof Window) { this._windows.add(root); root.bringToFront(); }
+    this.layer.layout();
+    if (root instanceof Window && root._pendingMaximize) { delete root._pendingMaximize; root.maximize(); }
+    this._wire(pending, resolve);
+    return this._idOf(root);
   }
 
   /** The kind of value an event passes (handler:<kind> in the class table), or null. */
@@ -476,7 +564,7 @@ export class ProgramWidgetHost {
   }
 
   /** Makes one saved widget and everything in it; handlers go into pending. */
-  _build(node, pending) {
+  _build(node, pending, onBuilt) {
     if (!node || typeof node !== 'object') throw new WidgetError('not a saved widget');
     const cls = node.class;
     const spec = CLASSES[cls];
@@ -506,7 +594,7 @@ export class ProgramWidgetHost {
     if (node.visible === false) w.visible = false;
     if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
     if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
-    const child = (n) => this._build(n, pending);
+    const child = (n) => this._build(n, pending, onBuilt);
 
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
@@ -557,26 +645,11 @@ export class ProgramWidgetHost {
     for (const event of node.events ?? []) {
       if (event?.handler) pending.push({ w, event: { method: String(event.method), handler: String(event.handler) } });
     }
+    onBuilt?.(w, node);
     return w;
   }
 
   // ------------------------------------------------------------ database
-
-  /** Saves the Viewport under name: a new record, or the one already called that. */
-  async _store(name) {
-    if (!name) throw new WidgetError('a saved viewport needs a name');
-    const content = this._saveViewport();
-    const [existing] = await viewportStore.findByName(name);
-    if (existing) await viewportStore.update(existing.id, { content });
-    else await viewportStore.create({ name, content });
-  }
-
-  /** The saved viewport called name. */
-  async _fetch(name) {
-    const [record] = await viewportStore.findByName(name);
-    if (!record) throw new WidgetError(`there is no saved viewport named '${name}'`);
-    return typeof record.content === 'string' ? this._parse(record.content) : record.content;
-  }
 
   call(id, method, args) {
     const w = this._widgets.get(id);
@@ -590,6 +663,7 @@ export class ProgramWidgetHost {
       case 'findById': return this._idOf(w.findById(a));
       case 'findByClass': return w.findByClass(a).map((x) => this._idOf(x));
       case 'toJson': return JSON.stringify(w === this.layer ? this._saveViewport() : this._save(w));
+      case 'saveComposite': return storeDoc(a, compositeDoc(this._save(w)));
       // ---- every widget
       case 'setLeft': return this._setBox(w, a);
       case 'setTop': return this._setBox(w, undefined, a);
@@ -657,8 +731,9 @@ export class ProgramWidgetHost {
       case 'Viewport.getChild': return this._idOf(w.children[this._index(a, w.children.length)]);
       case 'Viewport.clear': this._clearViewport(); return undefined;
       case 'Viewport.fromJson': this._loadViewport(this._parse(a), b); return undefined;
-      case 'Viewport.save': return this._store(a);
-      case 'Viewport.load': return this._fetch(a).then((doc) => { this._loadViewport(doc, b); });
+      case 'Viewport.save': return storeDoc(a, this._saveViewport());
+      case 'Viewport.load': return fetchDoc(a, 'screen').then((doc) => { this._loadViewport(doc, b); });
+      case 'Viewport.loadComposite': return this._loadComposite(a, b);
 
       case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': {
         const child = this._placeable(w, a);

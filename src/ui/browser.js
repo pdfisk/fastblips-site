@@ -22,6 +22,7 @@ import { HSplitPanel } from './widgets/hsplit-panel.js';
 import { VSplitPanel } from './widgets/vsplit-panel.js';
 import { VPanel } from './widgets/vpanel.js';
 import { ProgramWidgetHost } from './program-widgets.js';
+import { DesignerWindow } from './windows/designer-window.js';
 import { Window } from './windows/window.js';
 import { HSplitWindow } from './windows/hsplit-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
@@ -60,7 +61,7 @@ const ui = {
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram,
-  ProgramRunner, AppScreen, ProgramWidgetHost, isMobileDevice,
+  ProgramRunner, AppScreen, ProgramWidgetHost, DesignerWindow, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 
