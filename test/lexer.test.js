@@ -125,7 +125,7 @@ test('an unterminated string reports and does not swallow the rest of the file',
 
 test('type suffixes and stray dots get their own message', () => {
   assert.match(errorsOf('Dim s$')[0], /type suffixes were removed/);
-  assert.match(errorsOf('Print .5')[0], /no member access/);
+  assert.match(errorsOf('Print .5')[0], /a number needs a digit before the point/);
   assert.match(errorsOf('Print 1.')[0], /digits on both sides/);
   assert.match(errorsOf('Print 1e')[0], /exponent needs digits/);
 });

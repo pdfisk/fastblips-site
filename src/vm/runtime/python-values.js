@@ -9,10 +9,11 @@
 //   list   -> JS Array
 //   tuple, dict, range, function, class, instance, bound method, builtin
 //          -> the classes in src/vm/values.js
+//   Label, Button (widgets) -> Widget, shared with Crumb
 
 import {
   NOTHING, PyTuple, PyDict, PyRange, PyFunction, PyClass, PyInstance,
-  PyBoundMethod, PyBuiltinFunction,
+  PyBoundMethod, PyBuiltinFunction, Widget,
 } from '../values.js';
 
 export {
@@ -61,6 +62,7 @@ export function typeName(v) {
   if (v instanceof PyClass) return 'type';
   if (v instanceof PyInstance) return v.cls.name;
   if (v instanceof PyRange) return 'range';
+  if (v instanceof Widget) return v.cls.name;
   return 'object';
 }
 
@@ -120,6 +122,7 @@ export function pyStr(v) {
     if (v.attrs.has('__msg__')) return pyStr(v.attrs.get('__msg__'));
     return `<${v.cls.name} object>`;
   }
+  if (v instanceof Widget) return `<${v.cls.name} object>`;
   return String(v);
 }
 

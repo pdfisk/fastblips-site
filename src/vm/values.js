@@ -11,6 +11,7 @@
 //   Int         JS bigint           (never made)     int (arbitrary size)
 //   Array       CrumbArray          Array (fixed)    (never made)
 //   list        JS Array            (never made)     list
+//   widget      Widget              Label, Button    Label, Button
 //   ...and the MiniPy-only kinds below (tuple, dict, range, function, class,
 //   instance, bound method, built-in function).
 //
@@ -36,6 +37,27 @@ export class CrumbArray {
     this.bound = bound;                                  // highest valid index
     this.elements = new Array(bound + 1).fill(NOTHING);
   }
+}
+
+// ------------------------------------------------------------------ shared --
+
+/**
+ * A GUI widget a program created (New Label(...) in Crumb, Label(...) in
+ * MiniPy). The widget itself belongs to the host (vm.gui); this object holds
+ * its host id and its class ({ name, kind } from runtime/widgets.js), and
+ * remembers the box the program gave it, which only the program changes.
+ */
+export class Widget {
+  constructor(cls, id, [left, top, width, height]) {
+    this.cls = cls;
+    this.id = id;
+    this.left = left;
+    this.top = top;
+    this.width = width;
+    this.height = height;
+  }
+
+  get box() { return [this.left, this.top, this.width, this.height]; }
 }
 
 // ------------------------------------------------------------------ MiniPy --

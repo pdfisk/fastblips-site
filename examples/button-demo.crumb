@@ -2,38 +2,49 @@
 ' menu) or as a page: index.html?run=button-demo after saving it to the
 ' Basic database under that name.
 '
-' Widgets are placed with left and top, and sized with width and height,
-' all in pixels from the top left of the screen.
+' Widgets are objects: New makes one, and its methods change it. Positions
+' and sizes are in pixels from the top left of the screen.
 
 Dim clicks = 0
 
-Dim title = AddLabel("Click the button!", 20, 20, 240, 24)
-Dim counter = AddLabel("Clicks: 0", 20, 50, 240, 24)
-Dim clickMe = AddButton("Click me", 20, 84, 120, 32)
-Dim startOver = AddButton("Start over", 150, 84, 110, 32)
+Dim title = New Label("Click the button!")
+title.setBounds(20, 20, 240, 24)
+
+Dim counter = New Label("Clicks: 0")
+counter.setBounds(20, 50, 240, 24)
+
+Dim clickMe = New Button("Click me")
+clickMe.setBounds(20, 84, 120, 32)
+
+Dim startOver = New Button("Start over")
+startOver.setLeft(150)
+startOver.setTop(84)
+startOver.setWidth(110)
 
 ' Each click calls the Sub named here. The program's top-level code ends
 ' below, but the program keeps running, waiting for clicks, until Reset.
-OnClick(clickMe, "ClickMeClicked")
-OnClick(startOver, "StartOverClicked")
+clickMe.onClick("ClickMeClicked")
+startOver.onClick("StartOverClicked")
 
 Sub ClickMeClicked()
   clicks = clicks + 1
-  SetText(counter, "Clicks: " & clicks)
+  counter.setText("Clicks: " & clicks)
   If clicks = 10 Then
     ' Move the button down and make it bigger.
-    SetText(title, "Ten clicks. Impressive!")
-    SetText(clickMe, "Keep going")
-    SetBounds(clickMe, 20, 126, 240, 40)
+    title.setText("Ten clicks. Impressive!")
+    clickMe.setText("Keep going")
+    clickMe.setTop(126)
+    clickMe.setWidth(240)
+    clickMe.setHeight(40)
   End If
 End Sub
 
 ' A handler may take one argument: the widget that was clicked.
 Sub StartOverClicked(button)
-  Transcript GetText(button) & " after " & clicks & " clicks"
+  Transcript button.getText() & " after " & clicks & " clicks"
   clicks = 0
-  SetText(title, "Click the button!")
-  SetText(counter, "Clicks: 0")
-  SetText(clickMe, "Click me")
-  SetBounds(clickMe, 20, 84, 120, 32)
+  title.setText("Click the button!")
+  counter.setText("Clicks: 0")
+  clickMe.setText("Click me")
+  clickMe.setBounds(20, 84, 120, 32)
 End Sub

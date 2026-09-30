@@ -1,4 +1,4 @@
-// Widget builtins (AddButton / add_button, ...) and the event loop that runs
+// Widget objects (New Button / Button(), ...) and the event loop that runs
 // click handlers, with a fake widget host in place of the browser's AppScreen.
 
 import { test } from 'node:test';
@@ -41,37 +41,53 @@ function settle(vm) {
   while (!vm.runSlice(1000)) if (vm.waiting) return;
 }
 
-test('Crumb: widgets are created, placed, sized and read back', () => {
+test('Crumb: New makes widgets; their methods place, size and read them', () => {
   const host = new FakeHost();
   const out = [];
   const vm = new VM(crumb([
-    'Dim b = AddButton("Go", 10, 20, 100, 30.4)',
-    'Dim l = AddLabel(42, 10, 60, 200, 24)',
-    'SetText(l, "n=" & 1)',
-    'SetBounds(b, 1, 2, 3, 4)',
-    'Print b, l, GetText(l), GetText(b)',
+    'Dim b = New Button("Go")',
+    'Dim label = new label(42)',
+    'label.setText("n=" & 1)',
+    'b.setBounds(1, 2, 3, 4.4)',
+    'label.setLeft(10)',
+    'label.setTop(60)',
+    'label.SetWidth(199.6)',
+    'label.setHeight(24)',
+    'Print label.getText(), b.getText(), b.getLeft(), b.getTop(), b.getWidth(), b.getHeight()',
+    'Print label.getLeft(), label.getTop(), label.getWidth(), label.getHeight()',
+    'Print b, New Label("x").getHeight(), b = b, b = label',
   ].join('\n')), { gui: host, out: (t) => out.push(t) });
   settle(vm);
   assert.equal(vm.halted, true);
-  assert.deepEqual(out, ['1 2 n=1 Go']);
+  assert.deepEqual(out, ['n=1 Go 1 2 3 4', '10 60 200 24', '<Button> 24 True False']);
   assert.deepEqual(host.widgets.get(1), { kind: 'button', text: 'Go', box: [1, 2, 3, 4], clicks: [] });
   assert.deepEqual(host.widgets.get(2).box, [10, 60, 200, 24]);
   assert.equal(host.widgets.get(2).kind, 'label');
+  assert.deepEqual(host.widgets.get(3).box, [0, 0, 100, 24]);   // a new widget's box
 });
 
-test('Crumb: OnClick runs the Sub for each click, after the module code', () => {
+test('Crumb: a variable may share its name with a class', () => {
+  const host = new FakeHost();
+  const out = [];
+  const vm = new VM(crumb('Dim label = New Label("Hello")\nlabel.setWidth(100)\nPrint label.getWidth()'),
+    { gui: host, out: (t) => out.push(t) });
+  settle(vm);
+  assert.deepEqual(out, ['100']);
+});
+
+test('Crumb: onClick runs the Sub for each click, after the module code', () => {
   const host = new FakeHost();
   const out = [];
   const vm = new VM(crumb([
     'Dim n = 0',
-    'Dim b = AddButton("Go", 0, 0, 50, 20)',
-    'Dim l = AddLabel("0", 0, 30, 50, 20)',
-    'OnClick(b, "clicked")',
+    'Dim b = New Button("Go")',
+    'Dim l = New Label("0")',
+    'b.onClick("clicked")',
     'Print "ready"',
     'Sub Clicked(w)',
     '  n = n + 1',
-    '  SetText(l, n)',
-    '  Print "click", w, n',
+    '  l.setText(n)',
+    '  Print "click", w.getText(), n',
     'End Sub',
   ].join('\n')), { gui: host, out: (t) => out.push(t) });
   settle(vm);
@@ -81,58 +97,107 @@ test('Crumb: OnClick runs the Sub for each click, after the module code', () => 
   host.click(1);
   host.click(1);                 // queued: both run, in order
   settle(vm);
-  assert.deepEqual(out, ['ready', 'click 1 1', 'click 1 2']);
+  assert.deepEqual(out, ['ready', 'click Go 1', 'click Go 2']);
   assert.equal(host.getText(2), '2');
   assert.equal(vm.waiting, true);
 });
 
-test('Crumb: widget errors', () => {
+test('Crumb: object load errors', () => {
+  const errorsOf = (source) => compile(source, { filename: 't.crumb' }).errors.map((e) => e.message);
+  assert.match(errorsOf('Dim x = New Window("a")')[0], /no class 'Window': the classes are Button, Label/);
+  assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
+  assert.match(errorsOf('Dim x = New Label')[0], /expected '\(' after 'New Label'/);
+  assert.match(errorsOf('Dim x = 1\nx.grow(2)')[0], /no method 'grow'/);
+  assert.match(errorsOf('Dim x = 1\nx.setWidth()')[0], /'setWidth' takes 1 argument, found 0/);
+  assert.match(errorsOf('Dim x = 1\nx.setWidth = 3')[0], /needs parentheses/);
+  assert.match(errorsOf('Dim x = 1\nx.getWidth() = 3')[0], /cannot assign to a method call/);
+  assert.match(errorsOf('Dim new = 1')[0], /'New' is a reserved word/);
+});
+
+test('Crumb: widget runtime errors', () => {
   const run = (source, gui = new FakeHost()) => {
     const vm = new VM(crumb(source), { gui, out: () => {} });
     assert.throws(() => settle(vm), (e) => { run.message = e.message; return true; });
     return run.message;
   };
-  assert.match(run('Dim b = AddButton("x", 0, 0, 1, 1)', null), /needs a screen/);
-  assert.match(run('SetText(3, "x")'), /no widget 3/);
-  assert.match(run('Dim b = AddButton("x", 0, 0, -1, 1)'), /width and height of 0 or more/);
-  assert.match(run('Dim b = AddButton("x", "0", 0, 1, 1)'), /expects a Number as argument 2/);
-  assert.match(run('Dim b = AddButton("x", 0, 0, 1, 1)\nOnClick(b, "Nope")'), /no Sub named 'Nope'/);
-  assert.match(run('Dim b = AddButton("x", 0, 0, 1, 1)\nOnClick(b, "F")\nFunction F()\n  Return 1\nEnd Function'),
+  assert.match(run('Dim b = New Button("x")', null), /New Button needs a screen/);
+  assert.match(run('Dim x = 3\nx.setText("x")'), /cannot call method 'setText' on a Number/);
+  assert.match(run('Dim x\nx.setText("x")'), /on Nothing: only an object has methods/);
+  assert.match(run('Dim b = New Button("x")\nb.setWidth(-1)'), /width of 0 or more/);
+  assert.match(run('Dim b = New Button("x")\nb.setLeft("0")'), /setLeft expects a Number as argument 1, got String/);
+  assert.match(run('Dim b = New Button("x")\nb.setText(b)'), /cannot show a Button/);
+  assert.match(run('Dim b = New Button("x")\nPrint "b=" & b'), /cannot convert a Button to a String/);
+  assert.match(run('Dim b = New Button("x")\nb.onClick("Nope")'), /no Sub named 'Nope'/);
+  assert.match(run('Dim b = New Button("x")\nb.onClick("F")\nFunction F()\n  Return 1\nEnd Function'),
     /a click handler must be a Sub/);
 });
 
-test('MiniPy: add_button, on_click and handlers with or without the widget', () => {
+test('MiniPy: Label, Button, their methods and handlers with or without the widget', () => {
   const host = new FakeHost();
   const out = [];
   const vm = new VM(py([
     'count = [0]',
-    'b = add_button("Go", 5, 5, 80, 24)',
-    'lab = add_label("0", 5, 40, 80, 24)',
+    'b = Button("Go")',
+    'lab = Label("0")',
     'def clicked(w):',
     '    count[0] = count[0] + 1',
-    '    set_text(lab, count[0])',
-    '    print("clicked", w, get_text(lab))',
+    '    lab.set_text(count[0])',
+    '    print("clicked", w.get_text(), w is b, lab.get_text())',
     'def other():',
     '    print("other")',
-    'on_click(b, clicked)',
-    'on_click(b, other)',
-    'set_bounds(lab, 1, 2, 3.0, 4)',
+    'b.on_click(clicked)',
+    'b.on_click(other)',
+    'lab.set_bounds(1, 2, 3.0, 4)',
+    'lab.set_width(30)',
+    'print(lab.get_left(), lab.get_top(), lab.get_width(), lab.get_height(), lab)',
     'print("ready")',
   ].join('\n')), { gui: host, out: (t) => out.push(t) });
   settle(vm);
   host.click(1);
   settle(vm);
-  assert.deepEqual(out, ['ready', 'clicked 1 1', 'other']);
-  assert.deepEqual(host.widgets.get(2).box, [1, 2, 3, 4]);
+  assert.deepEqual(out, ['1 2 30 4 <Label object>', 'ready', 'clicked Go True 1', 'other']);
+  assert.deepEqual(host.widgets.get(2).box, [1, 2, 30, 4]);
+});
+
+test('MiniPy: widget errors are exceptions', () => {
+  const host = new FakeHost();
+  const out = [];
+  const vm = new VM(py([
+    'lab = Label("x")',
+    'try:',
+    '    lab.nope()',
+    'except AttributeError as e:',
+    '    print(e)',
+    'try:',
+    '    lab.set_width("1")',
+    'except TypeError as e:',
+    '    print(e)',
+    'try:',
+    '    lab.set_width(-1)',
+    'except ValueError as e:',
+    '    print(e)',
+    'try:',
+    '    lab.set_text()',
+    'except TypeError as e:',
+    '    print(e)',
+  ].join('\n')), { gui: host, out: (t) => out.push(t) });
+  settle(vm);
+  assert.deepEqual(out, [
+    "'Label' object has no attribute 'nope'",
+    "set_width() expects a number, not 'str'",
+    'set_width() expects a width of 0 or more, got -1',
+    'set_text() takes 1 argument (0 given)',
+  ]);
+  assert.throws(() => settle(new VM(py('Label("x")'), { out: () => {} })), /Label\(\) needs a screen/);
 });
 
 test('MiniPy: an exception in a handler ends the program', () => {
   const host = new FakeHost();
   const vm = new VM(py([
-    'b = add_button("Go", 0, 0, 10, 10)',
+    'b = Button("Go")',
     'def boom():',
     '    raise ValueError("bad click")',
-    'on_click(b, boom)',
+    'b.on_click(boom)',
   ].join('\n')), { gui: host, out: () => {} });
   settle(vm);
   host.click(1);
@@ -145,8 +210,8 @@ test('Scheduler: a waiting process sleeps off the queues until a click', () => {
   const scheduler = new Scheduler({ quantum: 1000 });
   scheduler.start = () => {};    // drive it by hand
   const process = scheduler.spawn(crumb([
-    'Dim b = AddButton("Go", 0, 0, 50, 20)',
-    'OnClick(b, "Hit")',
+    'Dim b = New Button("Go")',
+    'b.onClick("Hit")',
     'Sub Hit()',
     '  Print "hit"',
     'End Sub',

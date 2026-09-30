@@ -364,6 +364,18 @@ export class Parser {
       this.expectOperator(')', `after the arguments to '${name.value}'`);
     }
 
+    // name.method(...) or name(args).method(...): a method call statement.
+    if (this.atOperator('.')) {
+      const base = args === null
+        ? { type: 'Variable', name: name.value, nameLower: name.lower, line: name.line, column: name.column }
+        : { type: 'Apply', name: name.value, nameLower: name.lower, args, line: name.line, column: name.column };
+      const call = this.parseMembers(base);
+      if (this.atOperator('=')) {
+        this.fail("cannot assign to a method call: change an object by calling its methods, as in 'label.setWidth(100)'");
+      }
+      return { type: 'MethodCallStatement', call, line: name.line, column: name.column };
+    }
+
     if (this.atOperator('=')) {
       this.advance();
       const value = this.parseExpression();
@@ -734,14 +746,63 @@ export class Parser {
    * `-2 ^ 2` mean `-(2 ^ 2)`.
    */
   parsePower() {
-    const base = this.parsePrimary();
+    const base = this.parseMembers(this.parsePrimary());
     const token = this.matchOperator('^');
     if (!token) return base;
     return this.binary('^', base, this.parseUnary(), token);
   }
 
   /**
+   * member-expr = primary { "." IDENT "(" [ args ] ")" }  — level 1, left
+   * A method call always has parentheses: objects have methods, not fields.
+   */
+  parseMembers(base) {
+    let object = base;
+    let dot;
+    while ((dot = this.matchOperator('.'))) {
+      const name = this.expectIdent("after '.'");
+      if (!this.atOperator('(')) {
+        this.fail(`expected '(' after '${name.value}': a method call needs parentheses, as in '.${name.value}()'`);
+      }
+      const args = this.parseArgs(name.value);
+      object = {
+        type: 'MethodCall', object, method: name.value, methodLower: name.lower, args,
+        line: dot.line, column: dot.column,
+      };
+    }
+    return object;
+  }
+
+  /** "(" [ args ] ")" after a name; returns the argument expressions. */
+  parseArgs(what) {
+    this.expectOperator('(');
+    const args = [];
+    if (!this.atOperator(')')) {
+      do {
+        args.push(this.parseExpression());
+      } while (this.matchOperator(','));
+    }
+    this.expectOperator(')', `after the arguments to '${what}'`);
+    return args;
+  }
+
+  /** new-expr = "New" IDENT "(" [ args ] ")" */
+  parseNew() {
+    const keyword = this.expectKeyword('New');
+    const name = this.expectIdent("after 'New' for the class");
+    if (!this.atOperator('(')) {
+      this.fail(`expected '(' after 'New ${name.value}': give its arguments, as in 'New ${name.value}("text")'`);
+    }
+    const args = this.parseArgs(name.value);
+    return {
+      type: 'New', className: name.value, classLower: name.lower, args,
+      line: keyword.line, column: keyword.column,
+    };
+  }
+
+  /**
    * primary = NUMBER | STRING | "True" | "False" | "Nothing"
+   *         | new-expr
    *         | IDENT [ "(" [ args ] ")" ]
    *         | "(" expression ")"
    */
@@ -775,6 +836,7 @@ export class Parser {
         this.advance();
         return { type: 'NothingLiteral', line: token.line, column: token.column };
       }
+      if (token.lower === 'new') return this.parseNew();
       return this.fail(`${describeToken(token)} cannot appear in an expression`);
     }
 

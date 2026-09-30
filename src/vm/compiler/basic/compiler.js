@@ -9,6 +9,7 @@
 
 import { Op, CRUMB_BINARY_OPS as BINARY_OPS, FORMAT } from '../../opcodes.js';
 import { BUILTINS } from '../../runtime/crumb-builtins.js';
+import { CLASSES, CLASS_LIST, METHODS } from '../../runtime/crumb-objects.js';
 import { CrumbError, sortErrors } from './diagnostics.js';
 
 class Scope {
@@ -263,6 +264,10 @@ export class Compiler {
       case 'DimStatement': return this.dim(node);
       case 'AssignStatement': return this.assign(node);
       case 'CallStatement': return this.callStatement(node);
+      case 'MethodCallStatement':
+        this.expression(node.call);
+        this.emit(Op.POP);
+        return undefined;
       case 'PrintStatement': return this.print(node);
       case 'TranscriptStatement': return this.transcript(node);
       case 'IfStatement': return this.ifStatement(node);
@@ -537,6 +542,10 @@ export class Compiler {
         return this.variable(node);
       case 'Apply':
         return this.apply(node, { statement: false });
+      case 'New':
+        return this.newObject(node);
+      case 'MethodCall':
+        return this.methodCall(node);
       case 'Unary':
         return this.unary(node);
       case 'Binary':
@@ -635,6 +644,45 @@ export class Compiler {
     this.emitGet(ref);
     this.expression(node.args[0]);
     this.emit(Op.GET_INDEX);
+  }
+
+  /** New Class(args): the class is known at compile time (section 10.1). */
+  newObject(node) {
+    const cls = CLASSES.get(node.classLower);
+    for (const arg of node.args) this.expression(arg);
+    if (!cls) {
+      const names = CLASS_LIST.map((c) => c.name).sort().join(', ');
+      this.error(`there is no class '${node.className}': the classes are ${names}`, node);
+      this.emit(Op.NOTHING);
+      return;
+    }
+    if (node.args.length !== cls.arity) {
+      this.error(
+        `'New ${cls.name}' takes ${cls.arity} argument${cls.arity === 1 ? '' : 's'}, found ${node.args.length}`,
+        node,
+      );
+    }
+    this.emit(Op.NEW_OBJECT, cls.index, node.args.length);
+  }
+
+  /**
+   * object.method(args). Which object it is is only known at run time, but
+   * the method must exist and get the right number of arguments.
+   */
+  methodCall(node) {
+    const method = METHODS.get(node.methodLower);
+    if (!method) {
+      this.error(`there is no method '${node.method}'`, node);
+    } else if (node.args.length !== method.arity) {
+      this.error(
+        `'${method.name}' takes ${method.arity} argument${method.arity === 1 ? '' : 's'}, found ${node.args.length}`,
+        node,
+      );
+    }
+    this.expression(node.object);
+    for (const arg of node.args) this.expression(arg);
+    this.line = node.line;
+    this.emit(Op.CALL_METHOD, this.constant(method ? method.name : node.method), node.args.length);
   }
 
   unary(node) {

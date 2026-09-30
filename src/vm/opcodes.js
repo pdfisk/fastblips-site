@@ -27,6 +27,7 @@
 //   target  jump target (absolute address)
 //   proc    index into chunk.procedures
 //   builtin index into Crumb's built-in table
+//   class   index into Crumb's class table (runtime/crumb-objects.js)
 //   count   a number of stack values
 //   fmt     a value formatter (FORMAT below)
 //   flag    0 or 1
@@ -85,6 +86,8 @@ const TABLE = [
   ['OR_JUMP', 'crumb', ['target'], 'top must be Boolean: True -> jump keeping it, else pop'],
 
   ['CALL_BUILTIN', 'crumb', ['builtin', 'count'], 'call a Crumb built-in with n arguments'],
+  ['NEW_OBJECT', 'crumb', ['class', 'count'], 'New: pop n arguments, push a new object of the class'],
+  ['CALL_METHOD', 'crumb', ['const', 'count'], 'pop n arguments and an object; call its method named constants[k]'],
   ['NO_RETURN', 'crumb', [], 'reached the End of a Function: runtime error'],
 
   // ---------------------------------------------------------------- python --

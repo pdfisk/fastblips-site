@@ -14,8 +14,9 @@
 import { Op, OP_NAMES, FORMAT } from './opcodes.js';
 import { NOTHING, UNBOUND, CrumbArray, PyTuple, PyDict, PyFunction, PyClass, PyInstance, PyBoundMethod, PyBuiltinFunction } from './values.js';
 import { Fault, describeFault, RuntimeFault } from './faults.js';
-import { typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray } from './runtime/crumb-values.js';
+import { typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray, isObject } from './runtime/crumb-values.js';
 import { BUILTIN_LIST, BuiltinError } from './runtime/crumb-builtins.js';
+import { newObject, callMethod } from './runtime/crumb-objects.js';
 import { typeName as pyTypeName, isTruthy, pyStr } from './runtime/python-values.js';
 import * as py from './runtime/python-ops.js';
 
@@ -64,7 +65,7 @@ export class VM {
     maxSteps = Infinity,
     random = Math.random,
     sleep = blockingSleep,   // (ms) => void, used by run() for Sleep / sleep()
-    gui = null,              // widget host for AddButton / add_button etc. (runtime/widgets.js)
+    gui = null,              // widget host for New Label / Label() etc. (runtime/widgets.js)
     fetch = globalThis.fetch?.bind(globalThis) ?? null,   // for Fetch / fetch() (runtime/fetch.js)
   } = {}) {
     this.chunk = chunk;
@@ -432,6 +433,9 @@ export class VM {
           const right = this.pop();
           const left = this.pop();
           if (isArray(left) || isArray(right)) this.fail('operator & cannot convert an Array to a String');
+          if (isObject(left) || isObject(right)) {
+            this.fail(`operator & cannot convert a ${typeName(isObject(left) ? left : right)} to a String`);
+          }
           this.push(toStr(left) + toStr(right));
           break;
         }
@@ -471,6 +475,22 @@ export class VM {
           if (this.blocked) return false;             // wait for Fetch; its result is pushed later
           this.push(result);
           if (this.sleepMs !== null) return false;   // yield for Sleep
+          break;
+        }
+        case Op.NEW_OBJECT: {
+          const index = code[this.ip];
+          const argc = code[this.ip + 1];
+          this.ip += 2;
+          this.push(this.crumbCall(() => newObject(this, index, this.popN(argc))));
+          break;
+        }
+        case Op.CALL_METHOD: {
+          const name = constants[code[this.ip]];
+          const argc = code[this.ip + 1];
+          this.ip += 2;
+          const args = this.popN(argc);
+          const obj = this.pop();
+          this.push(this.crumbCall(() => callMethod(this, obj, name, args)));
           break;
         }
         case Op.NO_RETURN:
@@ -818,6 +838,16 @@ export class VM {
 
   // -------------------------------------------------------------- crumb ops
 
+  /** Runs a Crumb built-in's body, turning a BuiltinError into a runtime error. */
+  crumbCall(body) {
+    try {
+      return body();
+    } catch (err) {
+      if (err instanceof BuiltinError) this.fail(err.message);
+      throw err;
+    }
+  }
+
   checkIndex(array, index) {
     if (!isArray(array)) this.fail(`only an Array can be subscripted, got ${typeName(array)}`);
     if (!isNumber(index) || !Number.isInteger(index)) {
@@ -883,8 +913,9 @@ export class VM {
     }
 
     // = and <> also accept Nothing on either side (section 3), and compare
-    // arrays by identity. Otherwise both sides must have the same type.
-    const sameType = typeName(left) === typeName(right);
+    // arrays and objects by identity; any two objects may be compared.
+    // Otherwise both sides must have the same type.
+    const sameType = typeName(left) === typeName(right) || (isObject(left) && isObject(right));
     const eitherNothing = left === NOTHING || right === NOTHING;
     if (!sameType && !eitherNothing) {
       this.fail(`operator ${symbol} expects the same type on both sides, got ${typeName(left)}, ${typeName(right)}`);

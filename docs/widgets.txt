@@ -496,7 +496,7 @@ opened from a console's Launch menu; any number can be open at once.
     previous one.
   - The content (window.screen) is the app's screen, an AppScreen: a
     TextPanel (window.textPanel) that fills all of it, which the program
-    prints to, with the program's widgets (AddButton, ...) over it. The
+    prints to, with the program's widgets (New Button, ...) over it. The
     same in DesktopLaunchWindow and MobileLaunchWindow.
   - Its ButtonBar has Go and Reset buttons (window.goButton and
     window.resetButton), which call go() and reset().
@@ -759,7 +759,7 @@ The screen a program runs on, in a LaunchWindow and on the ?run= page
 
   - A TextPanel (screen.textPanel) fills it: the program's Print output.
   - Over it, a transparent layer (screen.widgetLayer) holds the widgets the
-    program adds: Buttons and Labels, placed and sized by the program
+    program makes: Buttons and Labels, placed and sized by the program
     (left, top, width, height in pixels from the top left of the screen).
     Clicks outside the widgets go through to the text. The program's Labels
     are opaque, so printed text does not show through them.
@@ -769,9 +769,13 @@ The screen a program runs on, in a LaunchWindow and on the ?run= page
     setText(id, text), getText(id), setBounds(id, left, top, width, height)
     and onClick(id, callback). Ids count from 1.
   - clearWidgets() removes them all (Go and Reset do this).
-  - The widget built-ins are AddButton, AddLabel, SetText, GetText,
-    SetBounds and OnClick in Crumb, and add_button, add_label, set_text,
-    get_text, set_bounds and on_click in MiniPy (spec section 10.1). A
-    program that calls OnClick / on_click keeps running after its top-level
+  - Programs make widgets as objects and set their properties through
+    methods (spec section 10.1): in Crumb, Dim label = New Label("Hello")
+    then label.setWidth(100); in MiniPy, label = Label("Hello") then
+    label.set_width(100). The classes are Label and Button; the methods are
+    setText/getText, setLeft/setTop/setWidth/setHeight and their get
+    methods, setBounds and onClick (set_text, ..., on_click in MiniPy).
+    Program ids are the host's business: each object holds its id. A
+    program that calls onClick / on_click keeps running after its top-level
     code, waiting for clicks (its process shows as 'waiting' in the Process
     window), until it is stopped. examples/button-demo.crumb shows them all.

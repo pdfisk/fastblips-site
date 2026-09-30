@@ -60,7 +60,7 @@ for (const file of readdirSync(corpus).filter((f) => f.endsWith('.py')).sort()) 
 // --------------------------------------------------------- one instruction set
 
 test('every opcode has a unique name, a section and known operand kinds', () => {
-  const kinds = new Set(['const', 'slot', 'target', 'proc', 'builtin', 'count', 'fmt', 'flag']);
+  const kinds = new Set(['const', 'slot', 'target', 'proc', 'builtin', 'class', 'count', 'fmt', 'flag']);
   const names = new Set();
   OP_INFO.forEach((info, code) => {
     assert.equal(info.code, code);

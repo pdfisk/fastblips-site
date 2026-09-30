@@ -10,10 +10,10 @@ export const TokenType = Object.freeze({
   EOF: 'EOF',
 });
 
-/** The 24 reserved words, in their canonical VB house-style spelling. */
+/** The 25 reserved words, in their canonical VB house-style spelling. */
 export const KEYWORDS = Object.freeze([
   'And', 'Dim', 'Else', 'ElseIf', 'End', 'Exit', 'False', 'For', 'Function',
-  'If', 'Mod', 'Next', 'Not', 'Nothing', 'Or', 'Print', 'Return', 'Step',
+  'If', 'Mod', 'New', 'Next', 'Not', 'Nothing', 'Or', 'Print', 'Return', 'Step',
   'Sub', 'Then', 'To', 'True', 'Until', 'While',
 ]);
 
@@ -26,18 +26,17 @@ export const KEYWORD_TABLE = new Map(KEYWORDS.map((k) => [k.toLowerCase(), k]));
  */
 export const OPERATORS = Object.freeze([
   '<>', '<=', '>=',
-  '+', '-', '*', '/', '\\', '^', '&', '=', '<', '>', '(', ')', ',',
+  '+', '-', '*', '/', '\\', '^', '&', '=', '<', '>', '(', ')', ',', '.',
 ]);
 
 /**
- * The 27 built-ins of section 10 are deliberately NOT keywords. They are listed
+ * The 21 built-ins of section 10 are deliberately NOT keywords. They are listed
  * here only so tools (a highlighter, the resolver) have one source of truth.
  */
 export const BUILTINS = Object.freeze([
   'Len', 'Mid', 'InStr', 'UCase', 'LCase', 'Trim', 'Str', 'Val',
   'Int', 'Abs', 'Sqr', 'Rnd', 'Chr', 'Asc', 'UBound',
   'Transcript', 'Sleep',
-  'AddButton', 'AddLabel', 'SetText', 'GetText', 'SetBounds', 'OnClick',
   'Fetch', 'JsonGet', 'JsonCount', 'JsonKey',
 ]);
 

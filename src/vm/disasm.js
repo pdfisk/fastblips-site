@@ -8,6 +8,7 @@ import { OP_INFO, FORMAT } from './opcodes.js';
 import { toStr, isString } from './runtime/crumb-values.js';
 import { pyRepr } from './runtime/python-values.js';
 import { BUILTIN_LIST } from './runtime/crumb-builtins.js';
+import { CLASS_LIST } from './runtime/crumb-objects.js';
 
 function showConstant(chunk, value) {
   if (chunk.language === 'python') return pyRepr(value);
@@ -27,6 +28,7 @@ function annotate(chunk, info, operands, proc) {
         break;
       case 'proc': { const p = chunk.procedures[v]; notes.push(p ? p.name : '?'); break; }
       case 'builtin': notes.push(`builtin ${BUILTIN_LIST[v]?.name ?? v}`); break;
+      case 'class': notes.push(`New ${CLASS_LIST[v]?.name ?? v}`); break;
       case 'fmt': notes.push(v === FORMAT.PYTHON ? 'str()' : 'Str'); break;
       default: break;   // count, flag: the number says it all
     }
@@ -34,7 +36,8 @@ function annotate(chunk, info, operands, proc) {
   if (info.name === 'PRINT' || info.name === 'TRANSCRIPT') {
     return `${operands[0]} value${operands[0] === 1 ? '' : 's'} as ${operands[1] === FORMAT.PYTHON ? 'str()' : 'Str'}`;
   }
-  if (info.name === 'CALL' || info.name === 'CALL_BUILTIN') return `${notes[0]}/${operands[1]}`;
+  if (['CALL', 'CALL_BUILTIN', 'NEW_OBJECT'].includes(info.name)) return `${notes[0]}/${operands[1]}`;
+  if (info.name === 'CALL_METHOD') return `.${chunk.constants[operands[0]]}/${operands[1]}`;
   return notes.filter(Boolean).join(' ');
 }
 

@@ -25,7 +25,8 @@ parentheses, a `Function` must `Return`); no type coercion.
 | Statements | assignment, `Print`, `Transcript`, block and single-line `If`/`ElseIf`/`Else`, `While`, `For … To … Step … Next`, `Exit For`/`Exit While`, `Return`, calls |
 | Procedures | `Sub` and `Function`, fixed arity, pass by value, recursion, call-before-declare |
 | Operators | `^`, unary `-`/`+`, `* / \ Mod`, `+ -`, `&` (the only converting operator), comparisons, `Not`, short-circuit `And`/`Or` |
-| Built-ins (27) | Strings: `Len Mid InStr UCase LCase Trim Str Val Chr Asc` · Maths: `Int Abs Sqr Rnd` · `UBound` · `Transcript Sleep` · Widgets: `AddButton AddLabel SetText GetText SetBounds OnClick` · Web: `Fetch JsonGet JsonCount JsonKey` |
+| Built-ins (21) | Strings: `Len Mid InStr UCase LCase Trim Str Val Chr Asc` · Maths: `Int Abs Sqr Rnd` · `UBound` · `Transcript Sleep` · Web: `Fetch JsonGet JsonCount JsonKey` |
+| Objects | Widgets are objects: `Dim label = New Label("Hello")`, then methods such as `label.setWidth(100)` (classes `Label`, `Button`) |
 | Errors | All load errors reported together before running (§11); runtime errors with line and call traceback |
 
 Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
@@ -41,7 +42,7 @@ Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
 | Functions | `def`, default arguments, `return` |
 | Classes | `class` with single inheritance, methods, attributes, `isinstance` |
 | Exceptions | `try`/`except`/`else`/`finally`, `raise`, Python-style tracebacks |
-| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlip's `sleep transcript fetch` and widgets `add_button add_label set_text get_text set_bounds on_click` |
+| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlip's `sleep transcript fetch` and the widget classes `Label Button` (`label = Label("Hello")`, `label.set_width(100)`) |
 | Verification | Every test program's output is compared with CPython's own |
 
 Not yet: `import`, `lambda`, `global`/`nonlocal`, generators/`yield`, `with`,
@@ -74,7 +75,7 @@ compiler emits only core plus its own section.
 | Scheduler | Crumb and MiniPy processes run side by side and take turns; the Process window lists both. |
 | Sleep | `Sleep(n)` and `sleep(s)` park the process the same way. |
 | Transcript | `Transcript` and `transcript()` write to the same log window. |
-| Widgets | Both drive the same widget host with equivalent built-ins (`AddButton` ≡ `add_button`, …). |
+| Widgets | Both make the same widget objects with the same methods (`New Label("Hi")` ≡ `Label("Hi")`, `label.setWidth(100)` ≡ `label.set_width(100)`, …). |
 | Fetch | One implementation; Crumb receives a String and reads it with `JsonGet`, MiniPy receives dicts and lists. |
 | Database and `?run=` | Both languages have a source table; a `?run=` URL finds a program in either. |
 | Tools | One disassembler, one fault system (with per-language wording), one runtime value model. |

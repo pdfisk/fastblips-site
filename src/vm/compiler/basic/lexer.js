@@ -96,7 +96,14 @@ export class Lexer {
         continue;
       }
 
-      // --- operator --------------------------------------------------------
+      // --- a leading-dot number: .5 ------------------------------------------
+      if (ch === '.' && DIGIT.test(src[this.pos + 1] ?? '')) {
+        this.error("unexpected '.': a number needs a digit before the point, as in 0.5", this.line, this.column);
+        this.pos += 1;
+        continue;
+      }
+
+      // --- operator (including '.', member access) ---------------------------
       const op = OPERATORS.find((candidate) => src.startsWith(candidate, this.pos));
       if (op !== undefined) {
         const column = this.column;
@@ -107,11 +114,7 @@ export class Lexer {
 
       // --- anything else ---------------------------------------------------
       const column = this.column;
-      // A lone '.' is the common case: Crumb has no member access and no
-      // leading-dot number literals.
-      if (ch === '.') {
-        this.error("unexpected '.': Crumb has no member access, and a number needs a digit before the point", this.line, column);
-      } else if (ch === '$' || ch === '%' || ch === '!' || ch === '#' || ch === '@') {
+      if (ch === '$' || ch === '%' || ch === '!' || ch === '#' || ch === '@') {
         this.error(`unexpected '${ch}': type suffixes were removed in v0.1 (see spec section 15)`, this.line, column);
       } else {
         this.error(`unexpected character '${ch}'`, this.line, column);

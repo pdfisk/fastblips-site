@@ -13,8 +13,8 @@ import {
   add, order, normIndex, toSequenceArray,
 } from './python-ops.js';
 import { RuntimeFault } from '../faults.js';
-import { UNBOUND, PyFunction, PyBoundMethod } from '../values.js';
-import { hostFor, checkWidget, checkBox } from './widgets.js';
+import { UNBOUND, PyFunction, PyBoundMethod, Widget } from '../values.js';
+import { hostFor, createWidget, WIDGET_CLASSES, WIDGET_METHODS } from './widgets.js';
 import { checkUrl, startFetch } from './fetch.js';
 
 /**
@@ -48,27 +48,51 @@ export const EXCEPTION_NAMES = [
   'OSError',
 ];
 
-// ---- Widgets (need a screen: vm.gui). See ./widgets.js. A widget is its
-// id, an int. Positions and sizes are numbers of CSS pixels.
+// ---- Widgets (need a screen: vm.gui). See ./widgets.js. A widget is an
+// object: Label(text) and Button(text) make one, and its methods (set_text,
+// set_width, on_click, ...) change it. Positions and sizes are CSS pixels.
 
-const guiOf = (vm, name) => hostFor(vm, `${name}()`, (m) => vm.raise('RuntimeError', m));
+/** The shared widget error, raised as a MiniPy exception. */
+const widgetFail = (vm, excType) => (m) => vm.raise(excType, m);
 
-function widgetArg(vm, name, id) {
-  if (!isInt(id) || typeof id === 'boolean') vm.raise('TypeError', `${name}() expects a widget (an int), not '${typeName(id)}'`);
-  return checkWidget(guiOf(vm, name), `${name}()`, toIndex(id), (m) => vm.raise('ValueError', m));
-}
-
-function boxArgs(vm, name, values) {
-  for (const v of values) {
-    if (!isNum(v)) vm.raise('TypeError', `${name}() expects numbers for left, top, width and height, not '${typeName(v)}'`);
+/** A widget method's arguments, checked and converted; see WIDGET_METHODS. */
+function widgetArgs(vm, what, params, args) {
+  if (args.length !== params.length) {
+    vm.raise('TypeError', `${what} takes ${params.length} argument${params.length === 1 ? '' : 's'} (${args.length} given)`);
   }
-  return checkBox(`${name}()`, values.map(toFloat), (m) => vm.raise('ValueError', m));
+  return params.map((kind, i) => {
+    const v = args[i];
+    if (kind === 'text') return pyStr(v);
+    if (kind === 'handler') {
+      if (!(v instanceof PyFunction || v instanceof PyBoundMethod)) {
+        vm.raise('TypeError', `${what} expects a function as the handler, not '${typeName(v)}'`);
+      }
+      return { fn: v };
+    }
+    if (!isNum(v)) vm.raise('TypeError', `${what} expects a number, not '${typeName(v)}'`);
+    return toFloat(v);
+  });
 }
 
-const addWidget = (name, kind) => [5, 5, (vm, [text, ...box]) => {
-  const gui = guiOf(vm, name);
-  return BigInt(gui.create(kind, pyStr(text), ...boxArgs(vm, name, box)));
+/** Label(text) / Button(text): a new widget showing text. */
+const widgetClass = (cls) => [1, 1, (vm, [text]) => {
+  const what = `${cls.name}()`;
+  hostFor(vm, what, widgetFail(vm, 'RuntimeError'));
+  return createWidget(vm, cls, pyStr(text), what, widgetFail(vm, 'ValueError'));
 }];
+
+/** widget.name, found through GET_ATTR: a built-in bound to the widget. */
+function widgetMethod(widget, name) {
+  const method = WIDGET_METHODS.find((m) => m.py === name);
+  if (!method) return undefined;
+  const what = `${method.py}()`;
+  return new PyBuiltinFunction(method.py, (vm, args) => {
+    hostFor(vm, what, widgetFail(vm, 'RuntimeError'));
+    const result = method.call(vm, widget, widgetArgs(vm, what, method.params, args), what, widgetFail(vm, 'ValueError'));
+    if (result === undefined) return NOTHING;
+    return typeof result === 'number' ? BigInt(result) : result;
+  });
+}
 
 /** Built-in functions: name -> [minArgs, maxArgs, fn(vm, args)] */
 const FUNCTIONS = {
@@ -186,34 +210,8 @@ const FUNCTIONS = {
   // Transcript, a host without a transcript sends it to the output.
   transcript: [0, Infinity, (vm, args) => { vm.transcript(args.map(pyStr).join(' ')); return NOTHING; }],
 
-  // add_button / add_label(text, left, top, width, height) -> widget
-  add_button: addWidget('add_button', 'button'),
-  add_label: addWidget('add_label', 'label'),
-
-  // set_text(widget, value): the text shown, converted as str() does.
-  set_text: [2, 2, (vm, [w, text]) => {
-    vm.gui.setText(widgetArg(vm, 'set_text', w), pyStr(text));
-    return NOTHING;
-  }],
-  get_text: [1, 1, (vm, [w]) => vm.gui.getText(widgetArg(vm, 'get_text', w))],
-
-  // set_bounds(widget, left, top, width, height): moves and sizes it.
-  set_bounds: [5, 5, (vm, [w, ...box]) => {
-    const id = widgetArg(vm, 'set_bounds', w);
-    vm.gui.setBounds(id, ...boxArgs(vm, 'set_bounds', box));
-    return NOTHING;
-  }],
-
-  // on_click(widget, handler): calls handler each time the widget is
-  // clicked, with no arguments, or with the widget if it takes one.
-  on_click: [2, 2, (vm, [w, handler]) => {
-    const id = widgetArg(vm, 'on_click', w);
-    if (!(handler instanceof PyFunction || handler instanceof PyBoundMethod)) {
-      vm.raise('TypeError', `on_click() expects a function as the handler, not '${typeName(handler)}'`);
-    }
-    vm.listen(BigInt(id), { fn: handler }, (post) => vm.gui.onClick(id, post));
-    return NOTHING;
-  }],
+  // Label(text) / Button(text) -> a widget object (see widgetMethod).
+  ...Object.fromEntries(WIDGET_CLASSES.map((cls) => [cls.name, widgetClass(cls)])),
 
   // fetch(url): the response at url. JSON comes back as dicts, lists, str,
   // int, float, bool and None; anything else as a str. The program waits
@@ -472,6 +470,7 @@ export function createPythonRuntime() {
       if (Array.isArray(obj)) return listMethod(obj, name);
       if (obj instanceof PyDict) return dictMethod(obj, name);
       if (typeof obj === 'string') return strMethod(obj, name);
+      if (obj instanceof Widget) return widgetMethod(obj, name);
       return undefined;
     },
   };

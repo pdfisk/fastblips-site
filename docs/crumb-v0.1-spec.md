@@ -1,7 +1,8 @@
 # Crumb — language specification, draft v0.1
 
 A small imperative language with Visual Basic's surface syntax. One statement per line,
-blocks closed with `End`, four value types, dynamically typed, no coercion.
+blocks closed with `End`, four value types plus arrays and widget objects, dynamically
+typed, no coercion.
 Target implementation: recursive-descent parser + bytecode compiler and VM.
 
 Published spec (styled): https://claude.ai/code/artifact/cb906b5d-57c8-4a62-ba25-ba9618798afa
@@ -23,8 +24,8 @@ Published spec (styled): https://claude.ai/code/artifact/cb906b5d-57c8-4a62-ba25
 - IDENT: `[A-Za-z_][A-Za-z0-9_]*`
 - NUMBER: `digits [ . digits ] [ (e|E) [+|-] digits ]`
 - STRING: double-quoted, `""` is an escaped quote. No escape sequences, no multiline.
-- OPERATOR: `+ - * / \ ^ & = <> <= >= < > ( ) ,`
-- 24 reserved words (§12).
+- OPERATOR: `+ - * / \ ^ & = <> <= >= < > ( ) , .` — `.` is member access (§10.1)
+- 25 reserved words (§12).
 
 ## 3. Values and types
 
@@ -35,6 +36,7 @@ Published spec (styled): https://claude.ai/code/artifact/cb906b5d-57c8-4a62-ba25
 | Boolean | `True` / `False`; the only type a condition accepts |
 | Nothing | Value of a bare `Dim`, result of a `Sub`; only `=` / `<>` accept it |
 | Array | Fixed-length, reference value (§9) |
+| Object | A widget made with `New`: a `Label` or a `Button` (§10.1). Reference value; its type name is its class |
 
 **No coercion, one exception:** `+` requires two Numbers; `&` converts both operands to
 String. `"a" + 1` is an error, `"a" & 1` is `"a1"`.
@@ -78,6 +80,8 @@ undeclared name is an error (`Option Explicit` always on).
 - **Exit** — `Exit For`, `Exit While`; nearest enclosing loop of that kind. No `Continue`.
 - **Return** — expression required in a `Function`, forbidden in a `Sub`.
 - **Call** — `Name(args)` as a statement; parentheses always required, even for zero args.
+- **Method call** — `object.method(args)` as a statement (§10.1), e.g. `label.setWidth(100)`;
+  parentheses always required. A method call cannot be assigned to.
 
 ## 7. Procedures
 
@@ -103,7 +107,7 @@ namespace.
 
 | Lvl | Operators | Assoc | Operands → result |
 |---|---|---|---|
-| 1 | `()` `f(…)` `a(i)` | — | grouping, call, index |
+| 1 | `()` `f(…)` `a(i)` `New C(…)` `.m(…)` | left | grouping, call, index, object creation, method call |
 | 2 | `^` | right | Num, Num → Num |
 | 3 | unary `-` `+` | right | Num → Num |
 | 4 | `*` `/` `\` `Mod` | left | Num, Num → Num; `\` truncates toward zero; `Mod` takes the left sign |
@@ -124,13 +128,13 @@ fixed — no `ReDim`, no `Option Base`, one dimension only. Index must be an int
 Number in range. Arrays are references (assignment aliases). `a(i)` and `f(i)` share
 syntax; resolved when the name is resolved.
 
-## 10. Built-ins (27, not reserved words, not shadowable)
+## 10. Built-ins (21, not reserved words, not shadowable)
 
 `Len(s)` · `Mid(s, start, count)` (1-based, truncates past end) · `InStr(hay, needle)`
 (1-based or 0) · `UCase(s)` · `LCase(s)` · `Trim(s)` · `Str(v)` · `Val(s)` · `Int(n)` ·
 `Abs(n)` · `Sqr(n)` · `Rnd()` → `[0,1)` · `Chr(n)` · `Asc(s)` · `UBound(a)` ·
-`Transcript(v)` · `Sleep(n)` · widgets: `AddButton` · `AddLabel` · `SetText` · `GetText` ·
-`SetBounds` · `OnClick` (§10.1) · web: `Fetch` · `JsonGet` · `JsonCount` · `JsonKey` (§10.2)
+`Transcript(v)` · `Sleep(n)` · web: `Fetch` · `JsonGet` · `JsonCount` · `JsonKey` (§10.2).
+Widgets are objects, not built-ins (§10.1).
 
 `Transcript(v)` writes `v`, converted as by `Str`, as one line to the transcript — a
 host-provided log separate from `Print` output (in the playground, the Transcript
@@ -159,44 +163,75 @@ Sleep(500.5)                 ' half a second (500.5 ms)
 Print "go"
 ```
 
-### 10.1 Widgets
+### 10.1 Widgets (objects)
 
 A program can put buttons and labels on the screen it runs on — in the playground, a
-launch window (a console's Launch menu) or a `?run=` page. Positions and sizes are in
-pixels from the top left of the screen, rounded to whole pixels. A widget is a Number,
-its id (1, 2, ...). A host with no screen (the command line, a console window) makes
-every widget built-in a runtime error.
+launch window (a console's Launch menu) or a `?run=` page. A widget is an **object**:
+`New` creates it, and its properties are set by calling its **methods** with a dot.
 
-| Built-in | Does |
+```vb
+Dim label = New Label("Hello")
+label.setWidth(100)
+```
+
+**Classes.** `New Label(text)` and `New Button(text)` create a widget showing `text`
+(converted as by `Str`) and return it. Both take exactly one argument. A new widget is
+placed at the top left of the screen, 100 pixels wide; a Label is 24 and a Button 32
+pixels high. There are no other classes; `New` with any other name is a load error.
+
+**Methods.** Every widget has the same methods. Positions and sizes are in pixels from
+the top left of the screen, rounded to whole pixels; a width or height must be 0 or more.
+
+| Method | Does |
 |---|---|
-| `AddButton(text, left, top, width, height)` | Adds a button; returns its id. `text` is converted as by `Str`. |
-| `AddLabel(text, left, top, width, height)` | Adds a label (a line of text); returns its id. |
-| `SetText(w, text)` | Changes the text shown by widget `w`. Returns `Nothing`. |
-| `GetText(w)` | The text widget `w` shows, a String. |
-| `SetBounds(w, left, top, width, height)` | Moves and sizes widget `w`. Returns `Nothing`. |
-| `OnClick(w, "SubName")` | Calls that `Sub` each time `w` is clicked. Returns `Nothing`. |
+| `setText(text)` | Changes the text shown; `text` is converted as by `Str`. |
+| `getText()` | The text shown, a String. |
+| `setLeft(n)` · `setTop(n)` · `setWidth(n)` · `setHeight(n)` | Moves or resizes the widget along one edge. |
+| `getLeft()` · `getTop()` · `getWidth()` · `getHeight()` | The widget's position or size, a Number. |
+| `setBounds(left, top, width, height)` | Moves and sizes it in one call. |
+| `onClick("SubName")` | Calls that `Sub` each time the widget is clicked. |
 
-The handler is named by a String (case-insensitive) and must be a `Sub` taking no
-arguments, or one: the widget clicked. Once a program has called `OnClick`, reaching the
-end of its top-level code does not end it: it waits for clicks and runs each handler in
-turn, until it is stopped (Reset, or closing its window). Clicks made while the program is
-still running its top-level code, or a handler, wait their turn.
+The `set` methods and `onClick` return `Nothing`. The rules for method calls:
+
+- A method call always has parentheses, even with no arguments: `label.getText()`.
+  Objects have methods, not fields, so `label.width = 100` is a load error.
+- Class and method names are case-insensitive like every name (`label.SetWidth(100)` is
+  the same call), and have namespaces of their own: a variable may be called `label`.
+- The method name and argument count are checked at load time; whether the value is an
+  object is checked when the call runs (`x.setText("a")` with `x` a Number is a runtime
+  error).
+- Calls chain left to right, binding tighter than any operator:
+  `New Label("a").getHeight()` is 24.
+- An object compares with `=` / `<>` by identity, and with any other object or `Nothing`.
+  `Print` shows it as `<Label>` / `<Button>`; `&` cannot convert it to a String.
+
+A host with no screen (the command line, a console window) makes `New Label` and
+`New Button` a runtime error.
+
+**Clicks.** The handler named by `onClick` is a String (case-insensitive) and must be a
+`Sub` taking no arguments, or one: the widget clicked. Once a program has called
+`onClick`, reaching the end of its top-level code does not end it: it waits for clicks
+and runs each handler in turn, until it is stopped (Reset, or closing its window). Clicks
+made while the program is still running its top-level code, or a handler, wait their turn.
 
 ```vb
 Dim clicks = 0
-Dim counter = AddLabel("Clicks: 0", 20, 20, 200, 24)
-Dim button = AddButton("Click me", 20, 50, 120, 32)
-OnClick(button, "Clicked")
+Dim counter = New Label("Clicks: 0")
+counter.setBounds(20, 20, 200, 24)
+Dim button = New Button("Click me")
+button.setBounds(20, 50, 120, 32)
+button.onClick("Clicked")
 
 Sub Clicked()
   clicks = clicks + 1
-  SetText(counter, "Clicks: " & clicks)
+  counter.setText("Clicks: " & clicks)
 End Sub
 ```
 
-MiniPy has the same built-ins, named `add_button`, `add_label`, `set_text`, `get_text`,
-`set_bounds` and `on_click`; the handler given to `on_click` is a function, called with no
-arguments or with the widget.
+MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
+(no `New`), and `set_text`, `get_text`, `set_left` … `get_height`, `set_bounds` and
+`on_click`. The handler given to `on_click` is a function, called with no arguments or
+with the widget.
 
 ### 10.2 Fetch and JSON
 
@@ -250,10 +285,10 @@ tally.crumb:14: error: operator + expects Number, Number but got String, Number
 tally.crumb:14:   total = label + 1
 ```
 
-## 12. Reserved words (24)
+## 12. Reserved words (25)
 
-`And Dim Else ElseIf End Exit False For Function If Mod Next Not Nothing Or Print Return
-Step Sub Then To True Until While`
+`And Dim Else ElseIf End Exit False For Function If Mod New Next Not Nothing Or Print
+Return Step Sub Then To True Until While`
 
 `End` is one token; `End If` etc. are two-token pairs. `Until` is reserved but unused,
 held for a future `Do…Loop`.
@@ -269,13 +304,14 @@ sub-decl       = "Sub" IDENT "(" [ params ] ")" NEWLINE body "End" "Sub" ;
 function-decl  = "Function" IDENT "(" [ params ] ")" NEWLINE body "End" "Function" ;
 params         = IDENT { "," IDENT } ;
 
-statement      = dim-stmt | assign-stmt | call-stmt | print-stmt | transcript-stmt | if-stmt
-               | while-stmt | for-stmt | exit-stmt | return-stmt ;
+statement      = dim-stmt | assign-stmt | call-stmt | method-stmt | print-stmt
+               | transcript-stmt | if-stmt | while-stmt | for-stmt | exit-stmt | return-stmt ;
 
 dim-stmt       = "Dim" IDENT [ "=" expression | "(" expression ")" ] ;
 assign-stmt    = lvalue "=" expression ;
 lvalue         = IDENT [ "(" expression ")" ] ;
 call-stmt      = IDENT "(" [ args ] ")" ;
+method-stmt    = IDENT [ "(" [ args ] ")" ] method-call { method-call } ;
 print-stmt     = "Print" [ expression { "," expression } ] ;
 transcript-stmt = "Transcript" [ expression { "," expression } ] ;   (* built-in name, not a keyword *)
 
@@ -300,15 +336,19 @@ concat-expr    = add-expr { "&" add-expr } ;
 add-expr       = mul-expr { ( "+" | "-" ) mul-expr } ;
 mul-expr       = unary-expr { ( "*" | "/" | "\" | "Mod" ) unary-expr } ;
 unary-expr     = ( "-" | "+" ) unary-expr | power-expr ;
-power-expr     = primary [ "^" unary-expr ] ;
+power-expr     = member-expr [ "^" unary-expr ] ;
+member-expr    = primary { method-call } ;
+method-call    = "." IDENT "(" [ args ] ")" ;
 primary        = NUMBER | STRING | "True" | "False" | "Nothing"
+               | "New" IDENT "(" [ args ] ")"
                | IDENT [ "(" [ args ] ")" ]
                | "(" expression ")" ;
 args           = expression { "," expression } ;
 ```
 
-LL(1) with one wrinkle: a line starting with IDENT may be an assignment or a call, both
-beginning `IDENT "("`. Parse the `lvalue`, then branch on whether the next token is `=`.
+LL(1) with one wrinkle: a line starting with IDENT may be an assignment, a call or a method
+call, all beginning `IDENT "("`. Parse the `lvalue`, then branch on whether the next token
+is `=` or `.`.
 
 ## 14. Samples
 
@@ -365,7 +405,7 @@ Print squares(9)          ' 81
 | `Continue For/While` | Two keywords for a case `If` covers. |
 | `ByRef`, `Optional`, `ParamArray` | Each changes the calling convention. |
 | Multi-dim arrays, `ReDim` | Index lists + reallocation. Arrays can hold arrays already. |
-| `Structure`, `Class`, `Enum` | User-defined types, member access, construction. Largest item here. |
+| `Structure`, `Class`, `Enum` | User-defined types. Member access and construction exist for the built-in widget classes (§10.1); declaring classes does not. Largest item here. |
 | `Try`/`Catch`, `On Error` | Needs an unwinding model. |
 | Modules, `Imports` | Loader + name qualification. |
 | Type sigils (`x%`, `s$`) | Nothing to attach them to with one Number type. |

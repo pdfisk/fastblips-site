@@ -1,7 +1,7 @@
 // AppScreen: the screen a program runs on, in a LaunchWindow and on the
 // ?run= page (see docs/widgets.txt). A TextPanel fills it (the program's
-// Print output), and the widgets the program adds (AddButton, AddLabel, ...)
-// float above the text at the positions it gives.
+// Print output), and the widgets the program makes (New Button, New Label,
+// ...) float above the text at the positions it gives them.
 //
 // screen.host (a WidgetHost) is the VM's widget host, its `gui` option: it
 // implements create / has / setText / getText / setBounds / onClick, as

@@ -32,6 +32,9 @@ function lines(node) {
     case 'CallStatement':
       return wrap('call', lines(node.call));
 
+    case 'MethodCallStatement':
+      return wrap('call', lines(node.call));
+
     case 'PrintStatement':
       return node.args.length === 0
         ? [`${OPEN}print${CLOSE}`]
@@ -82,6 +85,14 @@ function lines(node) {
       return node.args.length === 0
         ? [`${OPEN}apply ${node.name}${CLOSE}`]
         : wrap(`apply ${node.name}`, node.args.flatMap(lines));
+
+    case 'New':
+      return node.args.length === 0
+        ? [`${OPEN}new ${node.className}${CLOSE}`]
+        : wrap(`new ${node.className}`, node.args.flatMap(lines));
+
+    case 'MethodCall':
+      return wrap(`method ${node.method}`, [...lines(node.object), ...node.args.flatMap(lines)]);
 
     case 'Index':
       return wrap(`index ${node.name}`, lines(node.index));

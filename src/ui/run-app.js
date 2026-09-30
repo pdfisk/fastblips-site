@@ -3,7 +3,7 @@
 //
 //   - The browser window (tab) is titled with the program name.
 //   - An AppScreen fills the Viewport: a TextPanel the program prints to,
-//     with the program's widgets (AddButton, ...) over it.
+//     with the program's widgets (New Button, ...) over it.
 //   - Go and Reset buttons sit in a ButtonBar along the bottom of the
 //     Viewport and act as in a LaunchWindow (see ProgramRunner).
 //   - The program starts as soon as it has loaded, as if Go were pressed.
