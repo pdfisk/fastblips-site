@@ -14,7 +14,9 @@ import {
 } from './python-ops.js';
 import { RuntimeFault } from '../faults.js';
 import { UNBOUND, PyFunction, PyBoundMethod, Widget } from '../values.js';
-import { hostFor, createWidget, WIDGET_CLASSES, WIDGET_METHODS } from './widgets.js';
+import {
+  hostFor, createWidget, callWidget, checkNumber, WIDGET_CLASSES,
+} from './widgets.js';
 import { checkUrl, startFetch } from './fetch.js';
 
 /**
@@ -49,48 +51,62 @@ export const EXCEPTION_NAMES = [
 ];
 
 // ---- Widgets (need a screen: vm.gui). See ./widgets.js. A widget is an
-// object: Label(text) and Button(text) make one, and its methods (set_text,
-// set_width, on_click, ...) change it. Positions and sizes are CSS pixels.
+// object: Label(text), HPanel(), Window(title), ... make one, and its
+// methods (set_text, set_width, add, on_click, ...) change it.
 
-/** The shared widget error, raised as a MiniPy exception. */
-const widgetFail = (vm, excType) => (m) => vm.raise(excType, m);
+/** One argument of the given kind (see widgets.js), checked and converted. */
+function widgetArg(vm, what, kind, position, v) {
+  const typeError = (wanted) => vm.raise('TypeError', `${what} expects ${wanted} as argument ${position}, not '${typeName(v)}'`);
+  switch (kind) {
+    case 'text': return pyStr(v);
+    case 'boolean':
+      if (typeof v !== 'boolean') typeError('a bool');
+      return v;
+    case 'widget':
+      if (!(v instanceof Widget)) typeError('a widget');
+      return v;
+    case 'index':
+      if (!isInt(v) || typeof v === 'boolean') typeError('an int');
+      return toIndex(v);
+    default:
+      if (kind.startsWith('handler')) {
+        if (!(v instanceof PyFunction || v instanceof PyBoundMethod)) typeError('a function');
+        return { fn: v };
+      }
+      if (!isNum(v) || typeof v === 'boolean') typeError('a number');
+      return checkNumber(what, kind, position, toFloat(v), (m) => vm.raise('ValueError', m));
+  }
+}
 
-/** A widget method's arguments, checked and converted; see WIDGET_METHODS. */
 function widgetArgs(vm, what, params, args) {
   if (args.length !== params.length) {
     vm.raise('TypeError', `${what} takes ${params.length} argument${params.length === 1 ? '' : 's'} (${args.length} given)`);
   }
-  return params.map((kind, i) => {
-    const v = args[i];
-    if (kind === 'text') return pyStr(v);
-    if (kind === 'handler') {
-      if (!(v instanceof PyFunction || v instanceof PyBoundMethod)) {
-        vm.raise('TypeError', `${what} expects a function as the handler, not '${typeName(v)}'`);
-      }
-      return { fn: v };
-    }
-    if (!isNum(v)) vm.raise('TypeError', `${what} expects a number, not '${typeName(v)}'`);
-    return toFloat(v);
+  return params.map((kind, i) => widgetArg(vm, what, kind, i + 1, args[i]));
+}
+
+/** A result or event value as a MiniPy value: whole numbers are ints. */
+const widgetValue = (kind, v) => (kind === 'int' ? BigInt(Math.trunc(v)) : v);
+
+const widgetLang = (vm, what) => ({ what, fail: (m) => vm.raise('ValueError', m), value: widgetValue });
+
+/** Label(text), HPanel(), ...: the class's constructor, a built-in function. */
+function widgetClass(cls) {
+  const what = `${cls.name}()`;
+  return new PyBuiltinFunction(cls.name, (vm, args) => {
+    hostFor(vm, what, (m) => vm.raise('RuntimeError', m));
+    return createWidget(vm, cls, widgetArgs(vm, what, cls.params, args), widgetLang(vm, what));
   });
 }
 
-/** Label(text) / Button(text): a new widget showing text. */
-const widgetClass = (cls) => [1, 1, (vm, [text]) => {
-  const what = `${cls.name}()`;
-  hostFor(vm, what, widgetFail(vm, 'RuntimeError'));
-  return createWidget(vm, cls, pyStr(text), what, widgetFail(vm, 'ValueError'));
-}];
-
 /** widget.name, found through GET_ATTR: a built-in bound to the widget. */
 function widgetMethod(widget, name) {
-  const method = WIDGET_METHODS.find((m) => m.py === name);
-  if (!method) return undefined;
-  const what = `${method.py}()`;
-  return new PyBuiltinFunction(method.py, (vm, args) => {
-    hostFor(vm, what, widgetFail(vm, 'RuntimeError'));
-    const result = method.call(vm, widget, widgetArgs(vm, what, method.params, args), what, widgetFail(vm, 'ValueError'));
-    if (result === undefined) return NOTHING;
-    return typeof result === 'number' ? BigInt(result) : result;
+  const m = widget.cls.byPy.get(name);
+  if (!m) return undefined;
+  const what = `${m.py}()`;
+  return new PyBuiltinFunction(m.py, (vm, args) => {
+    hostFor(vm, what, (msg) => vm.raise('RuntimeError', msg));
+    return callWidget(vm, widget, m, widgetArgs(vm, what, m.params, args), widgetLang(vm, what));
   });
 }
 
@@ -210,9 +226,6 @@ const FUNCTIONS = {
   // Transcript, a host without a transcript sends it to the output.
   transcript: [0, Infinity, (vm, args) => { vm.transcript(args.map(pyStr).join(' ')); return NOTHING; }],
 
-  // Label(text) / Button(text) -> a widget object (see widgetMethod).
-  ...Object.fromEntries(WIDGET_CLASSES.map((cls) => [cls.name, widgetClass(cls)])),
-
   // fetch(url): the response at url. JSON comes back as dicts, lists, str,
   // int, float, bool and None; anything else as a str. The program waits
   // for it (other programs keep running); a failed request raises OSError.
@@ -236,7 +249,7 @@ const FUNCTIONS = {
 export const FUNCTION_NAMES = Object.keys(FUNCTIONS);
 
 /** Every name a MiniPy program starts with, in global-slot order. */
-export const BUILTIN_NAMES = [...EXCEPTION_NAMES, ...FUNCTION_NAMES, '__builtins__'];
+export const BUILTIN_NAMES = [...EXCEPTION_NAMES, ...FUNCTION_NAMES, ...WIDGET_CLASSES.map((c) => c.name), '__builtins__'];
 
 function builtin(name, [min, max, fn]) {
   return new PyBuiltinFunction(name, (vm, args) => {
@@ -451,6 +464,8 @@ export function createPythonRuntime() {
   const globals = new Map();
   for (const name of EXCEPTION_NAMES) globals.set(name, exceptionClasses[name]);
   for (const [name, spec] of Object.entries(FUNCTIONS)) globals.set(name, builtin(name, spec));
+  // The widget classes: Label(text), HPanel(), Window(title), ...
+  for (const cls of WIDGET_CLASSES) globals.set(cls.name, widgetClass(cls));
 
   // __builtins__: a read-mostly stand-in for Python's builtins module. Its
   // attributes are the built-in values as they were at startup, so

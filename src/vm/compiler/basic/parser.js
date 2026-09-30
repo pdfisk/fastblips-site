@@ -791,7 +791,7 @@ export class Parser {
     const keyword = this.expectKeyword('New');
     const name = this.expectIdent("after 'New' for the class");
     if (!this.atOperator('(')) {
-      this.fail(`expected '(' after 'New ${name.value}': give its arguments, as in 'New ${name.value}("text")'`);
+      this.fail(`expected '(' after 'New ${name.value}': a new object needs parentheses, as in 'New ${name.value}(...)'`);
     }
     const args = this.parseArgs(name.value);
     return {

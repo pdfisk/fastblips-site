@@ -6,73 +6,97 @@
 //
 // Class and method names are case-insensitive, like every Crumb name, and
 // live in their own namespaces: a variable may be called label. The classes,
-// the methods and what they do are shared with MiniPy (./widgets.js); this
+// their methods and what they do are shared with MiniPy (./widgets.js); this
 // file checks arguments the Crumb way and reports Crumb runtime errors.
 
-import { NOTHING, typeName, toStr, isNumber, isString, isArray, isObject } from './crumb-values.js';
-import { WIDGET_CLASSES, WIDGET_METHODS, createWidget } from './widgets.js';
+import {
+  NOTHING, typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray, isObject,
+} from './crumb-values.js';
+import { WIDGET_CLASSES, createWidget, callWidget, checkNumber } from './widgets.js';
 import { BuiltinError } from './crumb-builtins.js';
 
 const fail = (message) => { throw new BuiltinError(message); };
 
-/** The classes, in NEW_OBJECT's operand order. Every one takes one argument, its text. */
-export const CLASS_LIST = WIDGET_CLASSES.map((cls) => ({ ...cls, arity: 1 }));
+/** The classes, in NEW_OBJECT's operand order. */
+export const CLASS_LIST = WIDGET_CLASSES.map((cls) => ({ ...cls, arity: cls.params.length }));
 
-/** lowercase name -> { index, name, kind, box, arity } */
-export const CLASSES = new Map(CLASS_LIST.map((cls, index) => [cls.name.toLowerCase(), { index, ...cls }]));
+/** lowercase name -> { index, name, params, arity, ... } */
+export const CLASSES = new Map(CLASS_LIST.map((cls, index) => [cls.name.toLowerCase(), { ...cls, index }]));
 
-/** lowercase name -> { name, arity, params, call } */
-export const METHODS = new Map(WIDGET_METHODS.map((m) => [m.name.toLowerCase(), { ...m, arity: m.params.length }]));
-
-/** A value shown on a widget: anything but an Array or an object, as by Str. */
-function wantText(what, position, value) {
-  if (isArray(value) || isObject(value)) {
-    fail(`${what} cannot show ${isArray(value) ? 'an Array' : `a ${typeName(value)}`} as a widget's text (argument ${position})`);
+/**
+ * Every method name any class has: lowercase name -> { name, arities }, for
+ * the load-time check. Which class the object is only shows at run time.
+ */
+export const METHODS = new Map();
+for (const cls of WIDGET_CLASSES) {
+  for (const m of cls.methods) {
+    const key = m.name.toLowerCase();
+    if (!METHODS.has(key)) METHODS.set(key, { name: m.name, arities: new Set() });
+    METHODS.get(key).arities.add(m.params.length);
   }
-  return toStr(value);
 }
 
-/** OnClick's handler: the name of a Sub taking no arguments, or one (the widget). */
+/** A handler: the name of a Sub taking up to two arguments (the widget and the event's value). */
 function wantHandler(what, position, vm, name) {
   if (!isString(name)) fail(`${what} expects the name of a Sub (a String) as argument ${position}, got ${typeName(name)}`);
   const proc = vm.chunk.procedures.find((p) => p.name.toLowerCase() === name.toLowerCase());
   if (!proc) fail(`${what}: there is no Sub named '${name}'`);
-  if (proc.kind !== 'Sub') fail(`${what}: '${proc.name}' is a ${proc.kind}; a click handler must be a Sub`);
-  if (proc.arity > 1) fail(`${what}: Sub '${proc.name}' takes ${proc.arity} arguments; a click handler takes none, or one (the widget)`);
+  if (proc.kind !== 'Sub') fail(`${what}: '${proc.name}' is a ${proc.kind}; an event handler must be a Sub`);
+  if (proc.arity > 2) {
+    fail(`${what}: Sub '${proc.name}' takes ${proc.arity} arguments; an event handler takes none, one (the widget) or two (the widget and the event's value)`);
+  }
   return { proc };
 }
 
-function convert(what, params, args, vm) {
-  return params.map((kind, i) => {
-    const v = args[i];
-    switch (kind) {
-      case 'text': return wantText(what, i + 1, v);
-      case 'handler': return wantHandler(what, i + 1, vm, v);
-      default:
-        if (!isNumber(v)) fail(`${what} expects a Number as argument ${i + 1}, got ${typeName(v)}`);
-        return v;
-    }
-  });
+/** Checks and converts one argument of the given kind (see widgets.js). */
+function convert(what, kind, position, v, vm) {
+  switch (kind) {
+    case 'text':
+      if (isArray(v) || isObject(v)) {
+        fail(`${what} cannot show ${isArray(v) ? 'an Array' : `a ${typeName(v)}`} as text (argument ${position})`);
+      }
+      return toStr(v);
+    case 'boolean':
+      if (!isBoolean(v)) fail(`${what} expects a Boolean as argument ${position}, got ${typeName(v)}`);
+      return v;
+    case 'widget':
+      if (!isObject(v)) fail(`${what} expects a widget as argument ${position}, got ${typeName(v)}`);
+      return v;
+    case 'index':
+      if (!isNumber(v)) fail(`${what} expects a Number as argument ${position}, got ${typeName(v)}`);
+      if (!Number.isInteger(v)) fail(`${what} expects a whole Number as argument ${position}, got ${formatNumber(v)}`);
+      return v;
+    default:
+      if (kind.startsWith('handler')) return wantHandler(what, position, vm, v);
+      if (!isNumber(v)) fail(`${what} expects a Number as argument ${position}, got ${typeName(v)}`);
+      return checkNumber(what, kind, position, v, fail);
+  }
 }
+
+const convertAll = (what, params, args, vm) => params.map((kind, i) => convert(what, kind, i + 1, args[i], vm));
+
+/** Results and event values: every kind is already a Crumb value. */
+const value = (_kind, v) => v;
 
 /** NEW_OBJECT: a new object of class CLASS_LIST[index]. */
 export function newObject(vm, index, args) {
-  const cls = CLASS_LIST[index];
+  const cls = WIDGET_CLASSES[index];
   const what = `New ${cls.name}`;
-  const [text] = convert(what, ['text'], args, vm);
-  return createWidget(vm, WIDGET_CLASSES[index], text, what, fail);
+  return createWidget(vm, cls, convertAll(what, cls.params, args, vm), { what, fail });
 }
 
 /** CALL_METHOD: obj.name(args), name in any case; the result is a Crumb value. */
 export function callMethod(vm, obj, name, args) {
-  const method = METHODS.get(String(name).toLowerCase());
+  const known = METHODS.get(String(name).toLowerCase());
+  const shown = known?.name ?? name;
   if (!isObject(obj)) {
-    fail(`cannot call method '${method?.name ?? name}' on ${obj === NOTHING ? 'Nothing' : `a ${typeName(obj)}`}: only an object has methods`);
+    fail(`cannot call method '${shown}' on ${obj === NOTHING ? 'Nothing' : `a ${typeName(obj)}`}: only an object has methods`);
   }
-  if (!method) fail(`a ${obj.cls.name} has no method '${name}'`);
-  if (args.length !== method.arity) {
-    fail(`'${method.name}' takes ${method.arity} argument${method.arity === 1 ? '' : 's'}, found ${args.length}`);
+  const m = obj.cls.byName.get(String(name).toLowerCase());
+  if (!m) fail(`a ${obj.cls.name} has no method '${shown}'`);
+  if (args.length !== m.params.length) {
+    fail(`'${m.name}' of a ${obj.cls.name} takes ${m.params.length} argument${m.params.length === 1 ? '' : 's'}, found ${args.length}`);
   }
-  const result = method.call(vm, obj, convert(method.name, method.params, args, vm), method.name, fail);
-  return result === undefined ? NOTHING : result;
+  const result = callWidget(vm, obj, m, convertAll(m.name, m.params, args, vm), { what: m.name, fail, value });
+  return result === null ? NOTHING : result;
 }

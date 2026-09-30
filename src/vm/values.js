@@ -42,22 +42,17 @@ export class CrumbArray {
 // ------------------------------------------------------------------ shared --
 
 /**
- * A GUI widget a program created (New Label(...) in Crumb, Label(...) in
- * MiniPy). The widget itself belongs to the host (vm.gui); this object holds
- * its host id and its class ({ name, kind } from runtime/widgets.js), and
- * remembers the box the program gave it, which only the program changes.
+ * A GUI widget a program made (New Label(...) in Crumb, Label(...) in MiniPy),
+ * or one the host handed it (a Window's ButtonBar). The widget itself
+ * belongs to the host (vm.gui); this object holds its host id and its class
+ * (from runtime/widgets.js). There is one object per id, so = / `is`
+ * compare widgets by identity.
  */
 export class Widget {
-  constructor(cls, id, [left, top, width, height]) {
+  constructor(cls, id) {
     this.cls = cls;
     this.id = id;
-    this.left = left;
-    this.top = top;
-    this.width = width;
-    this.height = height;
   }
-
-  get box() { return [this.left, this.top, this.width, this.height]; }
 }
 
 // ------------------------------------------------------------------ MiniPy --

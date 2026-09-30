@@ -38,6 +38,16 @@ export class Widget {
     return Math.ceil(this.element.scrollWidth);
   }
 
+  /** Natural height, used by VPanel for children without a fixed size. */
+  preferredHeight() {
+    // Measure without the height a previous layout imposed.
+    const saved = this.element.style.height;
+    this.element.style.height = '';
+    const h = Math.ceil(this.element.scrollHeight);
+    this.element.style.height = saved;
+    return h;
+  }
+
   /** Sizes and positions this widget's contents. Subclasses override. */
   layout() {}
 

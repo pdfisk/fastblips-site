@@ -99,23 +99,15 @@ export class VM {
     this.blockedOn = null; // a promise that settles when the wait is over
     this.resumed = null;   // { value } or { error, onError }, applied on the next slice
 
-    // Events (widget clicks). Once a handler is registered the program does
-    // not halt at the end of its module code: it waits there for events and
-    // runs each one's handler, until it is killed.
+    // Events (widget clicks, selections, ...). Once a handler is registered
+    // (runtime/widgets.js sets listening) the program does not halt at the
+    // end of its module code: it waits there for events and runs each one's
+    // handler, until it is killed.
     this.listening = false;
+    this.widgetObjects = new Map();   // host widget id -> Widget
     this.events = [];      // queued { handler, args }
     this.waiting = false;  // at the end of module code with no event queued
     this.onWake = null;    // called when an event arrives while waiting (set by the Scheduler)
-  }
-
-  /**
-   * Registers an event handler: { proc } (a Crumb Sub) or { fn } (a MiniPy
-   * callable). register(post) is given the function the host calls for each
-   * event; the handler then receives `arg` if it takes an argument.
-   */
-  listen(arg, handler, register) {
-    this.listening = true;
-    register(() => this.postEvent(handler, [arg]));
   }
 
   /** Queues an event; the program runs its handler when it is next idle. */
@@ -164,10 +156,12 @@ export class VM {
       this.enter(handler.proc, args.slice(0, handler.proc.arity));
       return;
     }
+    // A MiniPy handler gets as many of the event's arguments (the widget,
+    // then the event's value) as it takes.
     const fn = handler.fn;
     const proc = fn instanceof PyBoundMethod ? fn.func.proc : fn.proc;
     const bound = fn instanceof PyBoundMethod ? 1 : 0;
-    this.callValue(fn, proc && proc.arity - bound >= 1 ? args : []);
+    this.callValue(fn, proc ? args.slice(0, Math.max(0, proc.arity - bound)) : args);
   }
 
   // ------------------------------------------------------------------ helpers

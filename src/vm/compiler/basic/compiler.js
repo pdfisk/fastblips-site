@@ -658,7 +658,7 @@ export class Compiler {
     }
     if (node.args.length !== cls.arity) {
       this.error(
-        `'New ${cls.name}' takes ${cls.arity} argument${cls.arity === 1 ? '' : 's'}, found ${node.args.length}`,
+        `'New ${cls.name}' takes ${cls.arity} argument${cls.arity === 1 ? '' : 's'}, found ${node.args.length}${cls.arity === 0 ? `: write 'New ${cls.name}()'` : ''}`,
         node,
       );
     }
@@ -673,11 +673,12 @@ export class Compiler {
     const method = METHODS.get(node.methodLower);
     if (!method) {
       this.error(`there is no method '${node.method}'`, node);
-    } else if (node.args.length !== method.arity) {
-      this.error(
-        `'${method.name}' takes ${method.arity} argument${method.arity === 1 ? '' : 's'}, found ${node.args.length}`,
-        node,
-      );
+    } else if (!method.arities.has(node.args.length)) {
+      const counts = [...method.arities].sort();
+      const takes = counts.length === 1
+        ? `${counts[0]} argument${counts[0] === 1 ? '' : 's'}`
+        : `${counts.slice(0, -1).join(', ')} or ${counts[counts.length - 1]} arguments`;
+      this.error(`'${method.name}' takes ${takes}, found ${node.args.length}`, node);
     }
     this.expression(node.object);
     for (const arg of node.args) this.expression(arg);

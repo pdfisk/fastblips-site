@@ -101,6 +101,7 @@ subclasses decide how the children are arranged.
 
 HPanel and VPanel
 -----------------
+(src/ui/widgets/hpanel.js, vpanel.js)
 Panels that arrange their children in a single row or column.
 
   - HPanel places children left to right; VPanel places them top to bottom.
@@ -113,6 +114,7 @@ Panels that arrange their children in a single row or column.
 
 HSplitPanel and VSplitPanel
 ---------------------------
+(src/ui/widgets/hsplit-panel.js, vsplit-panel.js)
 Panels with exactly two children separated by a divider the user can drag.
 Both share an abstract SplitPanel base.
 
@@ -758,24 +760,60 @@ The screen a program runs on, in a LaunchWindow and on the ?run= page
 (src/ui/widgets/app-screen.js).
 
   - A TextPanel (screen.textPanel) fills it: the program's Print output.
-  - Over it, a transparent layer (screen.widgetLayer) holds the widgets the
-    program makes: Buttons and Labels, placed and sized by the program
-    (left, top, width, height in pixels from the top left of the screen).
-    Clicks outside the widgets go through to the text. The program's Labels
-    are opaque, so printed text does not show through them.
-  - screen.host, a WidgetHost, is what the VM calls to add and change the
-    widgets (its `gui` option; the interface is in src/vm/runtime/widgets.js):
-    create(kind, text, left, top, width, height) -> id, has(id),
-    setText(id, text), getText(id), setBounds(id, left, top, width, height)
-    and onClick(id, callback). Ids count from 1.
+  - Over it, a transparent layer (screen.widgetLayer, a FreeLayer) holds the
+    widgets the program makes. Clicks outside them go through to the text.
+    The program's Labels are opaque, so printed text does not show through.
+  - screen.host, a ProgramWidgetHost, is what the VM calls to make and
+    change the widgets (its `gui` option).
   - clearWidgets() removes them all (Go and Reset do this).
-  - Programs make widgets as objects and set their properties through
-    methods (spec section 10.1): in Crumb, Dim label = New Label("Hello")
-    then label.setWidth(100); in MiniPy, label = Label("Hello") then
-    label.set_width(100). The classes are Label and Button; the methods are
-    setText/getText, setLeft/setTop/setWidth/setHeight and their get
-    methods, setBounds and onClick (set_text, ..., on_click in MiniPy).
-    Program ids are the host's business: each object holds its id. A
-    program that calls onClick / on_click keeps running after its top-level
-    code, waiting for clicks (its process shows as 'waiting' in the Process
-    window), until it is stopped. examples/button-demo.crumb shows them all.
+
+
+Program widgets
+---------------
+Programs build their screens from this toolkit (spec section 10.1). Every
+general-purpose class is available, in Crumb as an object made with New and
+changed through methods, and in MiniPy the same way with Python spellings:
+
+  Dim label = New Label("Hello")        label = Label("Hello")
+  label.setWidth(100)                   label.set_width(100)
+
+  - The classes: Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
+    ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
+    MonacoPanel and ListPanel. Left out on purpose: the singletons
+    (Viewport, Navbar, StatusBar, TranscriptWindow, SchedulerWindow), the
+    IDE's own windows (consoles, DatabaseWindow, LaunchWindows) and panels
+    made for them (RecordPanel, OutputPanel), and the BoardPanel and
+    CanvasPanel placeholders.
+  - A program's Panel is a FreePanel: its children sit where the program
+    puts them (the toolkit's Panel is abstract).
+  - The classes and their methods are one table, WIDGET_CLASSES in
+    src/vm/runtime/widgets.js, shared by both languages: each method's
+    Crumb name (camelCase), MiniPy name (snake_case), argument kinds and
+    result kind. The Crumb compiler checks method names and argument counts
+    against it at load time.
+  - ProgramWidgetHost (src/ui/program-widgets.js) implements the host
+    interface: create(className, args) -> id, has(id), classOf(id) and
+    call(id, method, args) -> result. Ids count from 1; each program object
+    holds its id. Widgets the host makes itself (a Window's ButtonBar, the
+    Buttons made by ButtonBar.addButton) get ids when the program first
+    reaches them. A call the program got wrong (an index out of range, a
+    Window put inside a panel, a widget put inside itself) throws a
+    WidgetError, which the program sees as a runtime error.
+  - Layout. A new widget goes on the FreeLayer at its class's default box
+    (Label 100 x 24, Button 100 x 32, HPanel 320 x 32, other containers
+    320 x 200, ...). On the layer and in a Panel a widget sits at the box
+    the program gave it, or fills the area after fill(). In an HPanel,
+    VPanel or ButtonBar, setWidth / setHeight set fixedWidth / fixedHeight,
+    setFlex sets flex, and otherwise the widget's natural size is used
+    (its text's width for Labels, Buttons and Menus; its class's default
+    size for the rest). Program Windows float on the layer; they have no
+    minimize button, since the screen has no StatusBar to restore them from.
+  - Events: onClick, onSelect, onChange, onSubmit, onClose and Menu.addItem
+    register handlers. The host calls the VM's callback with the event's
+    value (a row or tab index, the new text, the divider position, the
+    item's label); the VM queues it and runs the handler, with the widget
+    and that value as its arguments, when the program is idle. A program
+    with a handler keeps running after its top-level code, waiting for
+    events (its process shows as 'waiting' in the Process window), until
+    it is stopped. examples/widget-tour.crumb and widget-tour.py show most
+    of the classes; examples/button-demo.crumb is a small one.

@@ -19,6 +19,9 @@ import { ButtonBar } from './widgets/button-bar.js';
 import { Spacer } from './widgets/spacer.js';
 import { SplitPanel } from './widgets/split-panel.js';
 import { HSplitPanel } from './widgets/hsplit-panel.js';
+import { VSplitPanel } from './widgets/vsplit-panel.js';
+import { VPanel } from './widgets/vpanel.js';
+import { ProgramWidgetHost } from './program-widgets.js';
 import { Window } from './windows/window.js';
 import { HSplitWindow } from './windows/hsplit-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
@@ -49,15 +52,15 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, Navbar, Menu, Button, ButtonBar, Spacer,
-  SplitPanel, HSplitPanel, TextPanel, MonacoPanel, ListPanel,
+  Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer,
+  SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram,
-  ProgramRunner, AppScreen, isMobileDevice,
+  ProgramRunner, AppScreen, ProgramWidgetHost, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 

@@ -1,40 +1,190 @@
 // GUI widgets for programs: the part both languages share.
 //
-// A program makes a widget as an object and then works with it through its
-// methods:
+// Every general-purpose widget of the FastBlip UI toolkit (docs/widgets.txt)
+// is a class a program can make, as an object whose properties it sets by
+// calling methods:
 //
 //   Crumb                              MiniPy
 //   Dim label = New Label("Hello")     label = Label("Hello")
 //   label.setWidth(100)                label.set_width(100)
 //
-// WIDGET_CLASSES lists the classes and WIDGET_METHODS their methods, each
-// with its Crumb and its MiniPy name. Each language checks and converts the
-// arguments in its own style (crumb-objects.js, python-builtins.js), then
-// calls the shared implementation here. The value a program holds is a
-// Widget (../values.js).
+// WIDGET_CLASSES lists the classes, their constructor arguments and their
+// methods. A method has a Crumb name (camelCase) and a MiniPy name (the same
+// in snake_case), the kinds of its arguments and the kind of its result.
+// Each language checks and converts arguments in its own style
+// (crumb-objects.js, python-builtins.js) and then calls callWidget() here.
+// The value a program holds is a Widget (../values.js).
 //
-// The widgets themselves belong to the host (in the browser, the screen of a
-// LaunchWindow or of the ?run= page), passed to the VM as the `gui` option.
-// A host implements:
+// The widgets themselves belong to the host (in the browser, the AppScreen
+// of a LaunchWindow or of the ?run= page), passed to the VM as the `gui`
+// option. A host implements four methods:
 //
-//   create(kind, text, left, top, width, height) -> id   kind: 'button' | 'label'
-//   has(id) -> boolean
-//   setText(id, text)
-//   getText(id) -> string
-//   setBounds(id, left, top, width, height)
-//   onClick(id, callback)      calls callback() each time the widget is clicked
+//   create(className, args) -> id   a new widget, placed on the screen
+//   has(id) -> boolean              the id names a widget
+//   classOf(id) -> className        for widgets the host made itself
+//                                   (a Window's ButtonBar, addButton, ...)
+//   call(id, method, args) -> value runs a method (its Crumb name)
 //
-// Ids are whole numbers from 1; programs never see them. Positions and sizes
-// are CSS pixels from the top left of the screen. Without a host (the
-// command line, a console) making a widget is a runtime error.
+// Arguments reach the host as JS values: strings, numbers, booleans, widget
+// ids, and, for a handler, a function the host calls with the event's value
+// (or nothing). Results come back the same way; a widget result is an id, or
+// 0 for none. A host rejects a bad call (an index out of range, ...) by
+// throwing a WidgetError, which becomes a runtime error in the program.
+// Without a host (the command line, a console) making a widget is a runtime
+// error.
 
 import { Widget } from '../values.js';
 
-/** The widget classes. box: where a new widget goes, and its size. */
+/** Thrown by a host for a call the program got wrong; message says why. */
+export class WidgetError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'WidgetError';
+  }
+}
+
+/** camelCase -> snake_case: setWidth -> set_width. */
+export const snakeCase = (name) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+
+// Argument kinds:
+//   text      any value, converted to a string (Str / str())
+//   position  a finite number, rounded to whole pixels
+//   size      a finite number of 0 or more, rounded to whole pixels
+//   number    a finite number
+//   index     a whole number
+//   boolean   True or False
+//   widget    a widget object; the host gets its id
+//   handler   a procedure to call on an event: a Sub name in Crumb, a
+//             function in MiniPy. handler:<kind> passes the event's value,
+//             of that kind, as the handler's second argument.
+// Result kinds: text, int (a whole number), number, boolean, widget; none
+// for Nothing / None.
+
+const method = (name, params = [], result = null) => Object.freeze({
+  name, py: snakeCase(name), params: Object.freeze(params), result,
+});
+
+/** Every widget has these. */
+const COMMON = [
+  method('setLeft', ['position']),
+  method('setTop', ['position']),
+  method('setWidth', ['size']),
+  method('setHeight', ['size']),
+  method('setBounds', ['position', 'position', 'size', 'size']),
+  method('getLeft', [], 'int'),
+  method('getTop', [], 'int'),
+  method('getWidth', [], 'int'),
+  method('getHeight', [], 'int'),
+  method('setFlex', ['size']),
+  method('fill'),
+  method('setVisible', ['boolean']),
+  method('isVisible', [], 'boolean'),
+  method('setBackground', ['text']),
+  method('setColor', ['text']),
+  method('getParent', [], 'widget'),
+  method('remove'),
+];
+
+const TEXT = [method('setText', ['text']), method('getText', [], 'text')];
+const CLICK = [method('onClick', ['handler'])];
+const CONTAINER = [
+  method('add', ['widget']),
+  method('getCount', [], 'int'),
+  method('getChild', ['index'], 'widget'),
+  method('clear'),
+];
+const ROW = [...CONTAINER, method('setPadding', ['size']), method('setSpacing', ['size'])];
+const SPLIT = [
+  method('setFirst', ['widget']),
+  method('setSecond', ['widget']),
+  method('getFirst', [], 'widget'),
+  method('getSecond', [], 'widget'),
+  method('setPosition', ['number']),
+  method('getPosition', [], 'number'),
+  method('onChange', ['handler:number']),
+];
+const TEXT_AREA = [
+  ...TEXT,
+  method('append', ['text']),
+  method('setReadOnly', ['boolean']),
+  method('isReadOnly', [], 'boolean'),
+  method('focus'),
+  method('onChange', ['handler:text']),
+  method('onSubmit', ['handler']),
+];
+
+const cls = (name, params, methods) => {
+  const all = [...COMMON, ...methods];
+  return Object.freeze({
+    name,
+    params: Object.freeze(params),
+    methods: Object.freeze(all),
+    byName: new Map(all.map((m) => [m.name.toLowerCase(), m])),
+    byPy: new Map(all.map((m) => [m.py, m])),
+  });
+};
+
+/** The widget classes a program can make, with their constructor arguments. */
 export const WIDGET_CLASSES = Object.freeze([
-  Object.freeze({ name: 'Button', kind: 'button', box: Object.freeze([0, 0, 100, 32]) }),
-  Object.freeze({ name: 'Label', kind: 'label', box: Object.freeze([0, 0, 100, 24]) }),
+  cls('Label', ['text'], [...TEXT, ...CLICK]),
+  cls('Button', ['text'], [
+    ...TEXT, ...CLICK,
+    method('setEnabled', ['boolean']),
+    method('isEnabled', [], 'boolean'),
+  ]),
+  cls('Menu', ['text'], [
+    ...TEXT,
+    method('addItem', ['text', 'handler:text']),
+    method('addSeparator'),
+    method('clear'),
+  ]),
+  cls('Spacer', [], []),
+  cls('Panel', [], CONTAINER),
+  cls('HPanel', [], ROW),
+  cls('VPanel', [], ROW),
+  cls('ButtonBar', [], [...CONTAINER, method('addButton', ['text'], 'widget')]),
+  cls('HSplitPanel', [], SPLIT),
+  cls('VSplitPanel', [], SPLIT),
+  cls('TabPanel', [], [
+    method('addTab', ['text', 'widget']),
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('getSelectedText', [], 'text'),
+    method('getCount', [], 'int'),
+    method('onSelect', ['handler:int']),
+  ]),
+  cls('Window', ['text'], [
+    method('setTitle', ['text']),
+    method('getTitle', [], 'text'),
+    method('setContent', ['widget']),
+    method('getContent', [], 'widget'),
+    method('getButtonBar', [], 'widget'),
+    method('open'),
+    method('close'),
+    method('maximize'),
+    method('restore'),
+    method('isMaximized', [], 'boolean'),
+    method('onClose', ['handler']),
+  ]),
+  cls('TextPanel', ['text'], TEXT_AREA),
+  cls('MonacoPanel', ['text', 'text'], TEXT_AREA),
+  cls('ListPanel', [], [
+    method('addItem', ['text']),
+    method('removeItem', ['index']),
+    method('setItem', ['index', 'text']),
+    method('getItem', ['index'], 'text'),
+    method('getCount', [], 'int'),
+    method('clear'),
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('getSelectedText', [], 'text'),
+    method('setEmptyText', ['text']),
+    method('onSelect', ['handler:int']),
+  ]),
 ]);
+
+/** className -> class */
+export const CLASS_BY_NAME = new Map(WIDGET_CLASSES.map((c) => [c.name, c]));
 
 /** The host, or fails if the VM has none. */
 export function hostFor(vm, what, fail) {
@@ -44,112 +194,75 @@ export function hostFor(vm, what, fail) {
   return vm.gui;
 }
 
-/** Makes a widget of class cls showing text (already a string). */
-export function createWidget(vm, cls, text, what, fail) {
-  const gui = hostFor(vm, what, fail);
-  const box = [...cls.box];
-  const id = gui.create(cls.kind, text, ...box);
-  return new Widget(cls, id, box);
+/** A number argument of kind position / size / number, checked and rounded. */
+export function checkNumber(what, kind, position, v, fail) {
+  if (!Number.isFinite(v)) fail(`${what} expects a finite number as argument ${position}, got ${v}`);
+  if (kind === 'size' && v < 0) fail(`${what} expects a size of 0 or more as argument ${position}, got ${v}`);
+  return kind === 'number' ? v : Math.round(v);
 }
 
-/** The host, checking the widget is still on it. */
-function live(vm, widget, what, fail) {
-  const gui = hostFor(vm, what, fail);
-  if (!gui.has(widget.id)) fail(`${what}: this ${widget.cls.name} is no longer on the screen`);
-  return gui;
-}
-
-/** A position or size: finite, a size 0 or more; rounded to whole pixels. */
-function checkEdge(what, field, v, fail) {
-  if (!Number.isFinite(v)) fail(`${what} expects a finite ${field}, got ${v}`);
-  if ((field === 'width' || field === 'height') && v < 0) fail(`${what} expects a ${field} of 0 or more, got ${v}`);
-  return Math.round(v);
-}
-
-/**
- * Checks a box (left, top, width, height), already converted to JS numbers.
- * Returns it rounded to whole pixels.
- */
-export function checkBox(what, [left, top, width, height], fail) {
-  for (const [name, v] of [['left', left], ['top', top], ['width', width], ['height', height]]) {
-    if (!Number.isFinite(v)) fail(`${what} expects a finite ${name}, got ${v}`);
+/** The object for a host widget id (one object per id), or null for 0. */
+export function wrapWidget(vm, id) {
+  if (!id) return null;
+  vm.widgetObjects ??= new Map();
+  let w = vm.widgetObjects.get(id);
+  if (!w) {
+    const cls = CLASS_BY_NAME.get(vm.gui.classOf(id));
+    w = new Widget(cls, id);
+    vm.widgetObjects.set(id, w);
   }
-  if (width < 0 || height < 0) fail(`${what} expects a width and height of 0 or more, got ${width} x ${height}`);
-  return [left, top, width, height].map(Math.round);
+  return w;
 }
 
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
-
-/** setLeft / getLeft and the like, for one edge of the box. */
-function edgeMethods(field) {
-  return [
-    {
-      name: `set${cap(field)}`,
-      py: `set_${field}`,
-      params: ['number'],
-      call(vm, w, [v], what, fail) {
-        const gui = live(vm, w, what, fail);
-        w[field] = checkEdge(what, field, v, fail);
-        gui.setBounds(w.id, ...w.box);
-      },
-    },
-    {
-      name: `get${cap(field)}`,
-      py: `get_${field}`,
-      params: [],
-      call(vm, w, _args, what, fail) {
-        live(vm, w, what, fail);
-        return w[field];
-      },
-    },
-  ];
+/** Runs a host call, turning a WidgetError into the language's error. */
+function hostCall(fail, body) {
+  try {
+    return body();
+  } catch (err) {
+    if (err?.name === 'WidgetError') fail(err.message);
+    throw err;
+  }
 }
 
 /**
- * The methods of every widget. params gives each argument's kind, which the
- * language checks and converts before call() sees it:
- *   text     a string (the language's own string conversion)
- *   number   a JS number
- *   handler  what vm.listen() takes: { proc } for Crumb, { fn } for MiniPy
- * call(vm, widget, args, what, fail) returns undefined (Nothing / None), a
- * string, or a whole number of pixels.
+ * Makes a widget. args are already converted to JS values (all this
+ * class's parameters are text).
+ * lang = { what, fail } as for callWidget.
  */
-export const WIDGET_METHODS = Object.freeze([
-  {
-    name: 'setText',
-    py: 'set_text',
-    params: ['text'],
-    call(vm, w, [text], what, fail) { live(vm, w, what, fail).setText(w.id, text); },
-  },
-  {
-    name: 'getText',
-    py: 'get_text',
-    params: [],
-    call(vm, w, _args, what, fail) { return live(vm, w, what, fail).getText(w.id); },
-  },
-  ...edgeMethods('left'),
-  ...edgeMethods('top'),
-  ...edgeMethods('width'),
-  ...edgeMethods('height'),
-  {
-    name: 'setBounds',
-    py: 'set_bounds',
-    params: ['number', 'number', 'number', 'number'],
-    call(vm, w, box, what, fail) {
-      const gui = live(vm, w, what, fail);
-      [w.left, w.top, w.width, w.height] = checkBox(what, box, fail);
-      gui.setBounds(w.id, ...w.box);
-    },
-  },
-  {
-    // Calls the handler each time the widget is clicked; the handler may
-    // take one argument, the widget.
-    name: 'onClick',
-    py: 'on_click',
-    params: ['handler'],
-    call(vm, w, [handler], what, fail) {
-      const gui = live(vm, w, what, fail);
-      vm.listen(w, handler, (post) => gui.onClick(w.id, post));
-    },
-  },
-].map((m) => Object.freeze(m)));
+export function createWidget(vm, cls, args, { what, fail }) {
+  const gui = hostFor(vm, what, fail);
+  const id = hostCall(fail, () => gui.create(cls.name, args));
+  const w = new Widget(cls, id);
+  (vm.widgetObjects ??= new Map()).set(id, w);
+  return w;
+}
+
+/**
+ * Calls method (from w.cls.methods) with arguments already checked and
+ * converted by the language: numbers, strings, booleans, Widget objects and
+ * handlers ({ proc } or { fn }, what VM.postEvent takes).
+ *   lang.what         the name to use in error messages
+ *   lang.fail(m)      throws the language's runtime error
+ *   lang.value(kind, v)  a result or event value as a language value
+ * Returns the result as a language value (null for none).
+ */
+export function callWidget(vm, w, m, args, lang) {
+  const gui = hostFor(vm, lang.what, lang.fail);
+  if (!gui.has(w.id)) lang.fail(`${lang.what}: this ${w.cls.name} no longer exists`);
+  const hostArgs = m.params.map((kind, i) => {
+    const v = args[i];
+    if (kind === 'widget') return v.id;
+    if (kind.startsWith('handler')) {
+      const detail = kind.split(':')[1] ?? null;
+      vm.listening = true;
+      return (value) => vm.postEvent(v, detail === null || value === undefined
+        ? [w]
+        : [w, lang.value(detail, value)]);
+    }
+    return v;
+  });
+  const result = hostCall(lang.fail, () => gui.call(w.id, m.name, hostArgs));
+  if (m.result === null || result === undefined) return null;
+  if (m.result === 'widget') return wrapWidget(vm, result);
+  return lang.value(m.result, result);
+}

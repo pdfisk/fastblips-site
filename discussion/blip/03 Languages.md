@@ -26,7 +26,7 @@ parentheses, a `Function` must `Return`); no type coercion.
 | Procedures | `Sub` and `Function`, fixed arity, pass by value, recursion, call-before-declare |
 | Operators | `^`, unary `-`/`+`, `* / \ Mod`, `+ -`, `&` (the only converting operator), comparisons, `Not`, short-circuit `And`/`Or` |
 | Built-ins (21) | Strings: `Len Mid InStr UCase LCase Trim Str Val Chr Asc` · Maths: `Int Abs Sqr Rnd` · `UBound` · `Transcript Sleep` · Web: `Fetch JsonGet JsonCount JsonKey` |
-| Objects | Widgets are objects: `Dim label = New Label("Hello")`, then methods such as `label.setWidth(100)` (classes `Label`, `Button`) |
+| Objects | Widgets are objects: `Dim label = New Label("Hello")`, then methods such as `label.setWidth(100)`; every general-purpose IDE widget is a class (`Label`, `Button`, `Menu`, `HPanel`, `VPanel`, `TabPanel`, `Window`, `ListPanel`, `TextPanel`, `MonacoPanel`, …) |
 | Errors | All load errors reported together before running (§11); runtime errors with line and call traceback |
 
 Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
@@ -42,7 +42,7 @@ Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
 | Functions | `def`, default arguments, `return` |
 | Classes | `class` with single inheritance, methods, attributes, `isinstance` |
 | Exceptions | `try`/`except`/`else`/`finally`, `raise`, Python-style tracebacks |
-| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlip's `sleep transcript fetch` and the widget classes `Label Button` (`label = Label("Hello")`, `label.set_width(100)`) |
+| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlip's `sleep transcript fetch` and the same widget classes as Crumb (`label = Label("Hello")`, `label.set_width(100)`, `HPanel()`, `Window("t")`, …) |
 | Verification | Every test program's output is compared with CPython's own |
 
 Not yet: `import`, `lambda`, `global`/`nonlocal`, generators/`yield`, `with`,

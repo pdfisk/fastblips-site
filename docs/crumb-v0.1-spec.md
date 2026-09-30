@@ -165,73 +165,136 @@ Print "go"
 
 ### 10.1 Widgets (objects)
 
-A program can put buttons and labels on the screen it runs on — in the playground, a
-launch window (a console's Launch menu) or a `?run=` page. A widget is an **object**:
-`New` creates it, and its properties are set by calling its **methods** with a dot.
+A program builds its screen from the same widgets the FastBlip IDE is made of — labels,
+buttons, menus, rows and columns, split and tab panels, text and code editors, lists and
+floating windows. It runs on a screen: in the playground, a launch window (a console's
+Launch menu) or a `?run=` page. A widget is an **object**: `New` creates it, and its
+properties are set and read by calling its **methods** with a dot.
 
 ```vb
 Dim label = New Label("Hello")
 label.setWidth(100)
 ```
 
-**Classes.** `New Label(text)` and `New Button(text)` create a widget showing `text`
-(converted as by `Str`) and return it. Both take exactly one argument. A new widget is
-placed at the top left of the screen, 100 pixels wide; a Label is 24 and a Button 32
-pixels high. There are no other classes; `New` with any other name is a load error.
+**Classes.** `New` takes the class name and its arguments, always in parentheses:
 
-**Methods.** Every widget has the same methods. Positions and sizes are in pixels from
-the top left of the screen, rounded to whole pixels; a width or height must be 0 or more.
+| Class | `New` | What it is |
+|---|---|---|
+| `Label` | `New Label(text)` | A line of text |
+| `Button` | `New Button(text)` | A push button |
+| `Menu` | `New Menu(text)` | A button that opens a list of items |
+| `Spacer` | `New Spacer()` | Empty space; in a row or column it takes the space left over |
+| `Panel` | `New Panel()` | A container whose children sit where the program puts them |
+| `HPanel` / `VPanel` | `New HPanel()` | A row / column that lays its children out |
+| `ButtonBar` | `New ButtonBar()` | A row of buttons, styled like a window's bottom bar |
+| `HSplitPanel` / `VSplitPanel` | `New HSplitPanel()` | Two panes side by side / stacked, with a divider the user drags |
+| `TabPanel` | `New TabPanel()` | Pages chosen by a row of tabs |
+| `Window` | `New Window(title)` | A floating window with a title bar, content and a button bar |
+| `TextPanel` | `New TextPanel(text)` | A multi-line text box the user can edit |
+| `MonacoPanel` | `New MonacoPanel(text, language)` | A code editor (Monaco, the editor of VS Code); `language` is a Monaco language id such as `"vb"` or `"python"` |
+| `ListPanel` | `New ListPanel()` | A list the user picks a row from |
+
+`New` with any other name, or the wrong number of arguments, is a load error. Text
+arguments are converted as by `Str`.
+
+**Methods of every widget.** Positions and sizes are in pixels, rounded to whole pixels; a
+size must be 0 or more.
 
 | Method | Does |
 |---|---|
-| `setText(text)` | Changes the text shown; `text` is converted as by `Str`. |
-| `getText()` | The text shown, a String. |
-| `setLeft(n)` · `setTop(n)` · `setWidth(n)` · `setHeight(n)` | Moves or resizes the widget along one edge. |
-| `getLeft()` · `getTop()` · `getWidth()` · `getHeight()` | The widget's position or size, a Number. |
-| `setBounds(left, top, width, height)` | Moves and sizes it in one call. |
-| `onClick("SubName")` | Calls that `Sub` each time the widget is clicked. |
+| `setLeft(n)` `setTop(n)` `setWidth(n)` `setHeight(n)` `setBounds(left, top, width, height)` | Place and size the widget (see Layout) |
+| `getLeft()` `getTop()` `getWidth()` `getHeight()` | Where it is and how big, as laid out |
+| `setFlex(n)` | Its share of the space left over in a row or column |
+| `fill()` | Fill the screen or `Panel` it is in (a `Window`: maximize) |
+| `setVisible(b)` / `isVisible()` | Show or hide it |
+| `setBackground(color)` / `setColor(color)` | Background and text colour, any CSS colour (`"red"`, `"#336"`) |
+| `getParent()` | The container it is in, or `Nothing` |
+| `remove()` | Take it out of its container (it can be added again) |
 
-The `set` methods and `onClick` return `Nothing`. The rules for method calls:
+**Methods by class.** Indexes (list rows, tabs, children) count from 0; `-1` means none.
+
+| Class | Methods |
+|---|---|
+| `Label` | `setText(t)` `getText()` `onClick(sub)` |
+| `Button` | `setText(t)` `getText()` `setEnabled(b)` `isEnabled()` `onClick(sub)` |
+| `Menu` | `setText(t)` `getText()` `addItem(label, sub)` `addSeparator()` `clear()` |
+| `Panel` `HPanel` `VPanel` `ButtonBar` | `add(w)` `getCount()` `getChild(i)` `clear()`; `HPanel` and `VPanel` also `setPadding(n)` `setSpacing(n)`; `ButtonBar` also `addButton(text)`, which returns the new `Button` |
+| `HSplitPanel` `VSplitPanel` | `setFirst(w)` `setSecond(w)` `getFirst()` `getSecond()` `setPosition(f)` `getPosition()` (the fraction, 0 to 1, given to the first pane) `onChange(sub)` |
+| `TabPanel` | `addTab(label, w)` `select(i)` `getSelectedIndex()` `getSelectedText()` `getCount()` `onSelect(sub)` |
+| `Window` | `setTitle(t)` `getTitle()` `setContent(w)` `getContent()` `getButtonBar()` `open()` `close()` `maximize()` `restore()` `isMaximized()` `onClose(sub)` |
+| `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
+| `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
+
+Methods that set something return `Nothing`. A method that returns a widget (`getChild`,
+`getParent`, `getButtonBar`, `addButton`, ...) returns the same object each time for the
+same widget, so `=` can tell widgets apart.
+
+**Layout.** A new widget appears on the screen at the top left, at its class's default size
+(a `Label` is 100 × 24, a `Button` 100 × 32, a container 320 wide). `add` (or
+`setContent`, `setFirst`, `addTab`, ...) moves it into a container. On the screen and in a
+`Panel`, a widget sits where `setLeft`/`setTop`/`setBounds` put it, or fills the area
+after `fill()`. In an `HPanel`, `VPanel` or `ButtonBar` the container places it: along a
+row its width is the one `setWidth` gave it, else a share of the space left over if it
+has `setFlex`, else its natural width; its height is the row's. A column works the same
+way with heights. A `Window` floats above everything else and cannot go inside another
+widget. Nesting rows and columns builds any layout:
+
+```vb
+Dim page = New VPanel()
+page.fill()
+Dim toolbar = New HPanel()
+page.add(toolbar)
+toolbar.add(New Button("Open"))
+Dim list = New ListPanel()
+list.setFlex(1)                   ' the list takes the rest of the column
+page.add(list)
+```
+
+**Rules for method calls.**
 
 - A method call always has parentheses, even with no arguments: `label.getText()`.
   Objects have methods, not fields, so `label.width = 100` is a load error.
 - Class and method names are case-insensitive like every name (`label.SetWidth(100)` is
   the same call), and have namespaces of their own: a variable may be called `label`.
-- The method name and argument count are checked at load time; whether the value is an
-  object is checked when the call runs (`x.setText("a")` with `x` a Number is a runtime
-  error).
+- The method name and argument count are checked at load time against every class; that
+  the object has that method, and the argument types, are checked when the call runs.
+  Calling a method on a value that is not an object is a runtime error, and so is an index
+  out of range.
 - Calls chain left to right, binding tighter than any operator:
-  `New Label("a").getHeight()` is 24.
-- An object compares with `=` / `<>` by identity, and with any other object or `Nothing`.
-  `Print` shows it as `<Label>` / `<Button>`; `&` cannot convert it to a String.
+  `win.getButtonBar().addButton("OK")`.
+- An object compares with `=` / `<>` by identity, with any other object or `Nothing`.
+  `Print` shows it as `<Label>`, `<Window>`, ...; `&` cannot convert it to a String.
 
-A host with no screen (the command line, a console window) makes `New Label` and
-`New Button` a runtime error.
+A host with no screen (the command line, a console window) makes every `New` of a widget
+a runtime error.
 
-**Clicks.** The handler named by `onClick` is a String (case-insensitive) and must be a
-`Sub` taking no arguments, or one: the widget clicked. Once a program has called
-`onClick`, reaching the end of its top-level code does not end it: it waits for clicks
-and runs each handler in turn, until it is stopped (Reset, or closing its window). Clicks
-made while the program is still running its top-level code, or a handler, wait their turn.
+**Events.** `onClick`, `onSelect`, `onChange`, `onSubmit`, `onClose` and `Menu.addItem`
+name a `Sub` (a String, case-insensitive) to call when the event happens. The Sub takes
+no arguments; or one, the widget; or two, the widget and the event's value — the row or
+tab index for `onSelect`, the new text for a text panel's `onChange`, the divider
+position for a split panel's `onChange`, the item's label for a menu item. Once a program
+has registered a handler, reaching the end of its top-level code does not end it: it
+waits for events and runs each handler in turn, until it is stopped (Reset, or closing its
+window). Events that happen while the program is still running its top-level code, or a
+handler, wait their turn.
 
 ```vb
-Dim clicks = 0
-Dim counter = New Label("Clicks: 0")
-counter.setBounds(20, 20, 200, 24)
-Dim button = New Button("Click me")
-button.setBounds(20, 50, 120, 32)
-button.onClick("Clicked")
+Dim list = New ListPanel()
+list.addItem("apple")
+list.addItem("pear")
+Dim shown = New Label("")
+shown.setTop(170)
+list.onSelect("Picked")
 
-Sub Clicked()
-  clicks = clicks + 1
-  counter.setText("Clicks: " & clicks)
+Sub Picked(w, index)
+  shown.setText("You picked " & w.getItem(index))
 End Sub
 ```
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
-(no `New`), and `set_text`, `get_text`, `set_left` … `get_height`, `set_bounds` and
-`on_click`. The handler given to `on_click` is a function, called with no arguments or
-with the widget.
+(no `New`), methods in snake_case (`set_width`, `get_selected_index`,
+`on_click`, ...), and handlers are functions, called with as many of (widget, value) as
+they take. Whole-number results are ints.
 
 ### 10.2 Fetch and JSON
 
