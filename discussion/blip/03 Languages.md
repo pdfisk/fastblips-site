@@ -1,8 +1,8 @@
-# FastBlip Languages
+# FastBlips Languages
 
-FastBlip supports two languages:
+FastBlips supports two languages:
 
-- **Crumb** ("FastBlip Basic") — a custom, Visual-Basic-flavoured language
+- **Crumb** ("FastBlips Basic") — a custom, Visual-Basic-flavoured language
   specified in `docs/crumb-v0.1-spec.md`.
 - **MiniPy** — a subset of Python, aiming to behave exactly like CPython for
   the programs it accepts.
@@ -42,7 +42,7 @@ Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
 | Functions | `def`, default arguments, `return` |
 | Classes | `class` with single inheritance, methods, attributes, `isinstance` |
 | Exceptions | `try`/`except`/`else`/`finally`, `raise`, Python-style tracebacks |
-| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlip's `sleep transcript fetch` and the same widget classes as Crumb (`label = Label("Hello")`, `label.set_width(100)`, `HPanel()`, `Window("t")`, …) |
+| Built-ins | `print abs bool dict dir float int isinstance len list max min range sorted str sum tuple type`, plus FastBlips' `sleep transcript fetch` and the same widget classes as Crumb (`label = Label("Hello")`, `label.set_width(100)`, `HPanel()`, `Window("t")`, …) |
 | Verification | Every test program's output is compared with CPython's own |
 
 Not yet: `import`, `lambda`, `global`/`nonlocal`, generators/`yield`, `with`,

@@ -1,6 +1,6 @@
 // GUI widgets for programs: the part both languages share.
 //
-// Every general-purpose widget of the FastBlip UI toolkit (docs/widgets.txt)
+// Every general-purpose widget of the FastBlips UI toolkit (docs/widgets.txt)
 // is a class a program can make, as an object whose properties it sets by
 // calling methods:
 //

@@ -1,8 +1,8 @@
 # BLIP — Browser Loadable Interpreted Program
 
-A **BLIP** is a program that a browser loads from the FastBlip database and
+A **BLIP** is a program that a browser loads from the FastBlips database and
 runs on a bytecode interpreter inside the page. It is written in Basic or
-Python, compiled to FastBlip bytecode, and executed by a virtual machine
+Python, compiled to FastBlips bytecode, and executed by a virtual machine
 (VM) under a scheduler that can run many BLIPs at once.
 
 ```
@@ -17,14 +17,14 @@ first, then Python — decides the language, so no extension is needed.)
 ## Why a bytecode interpreter, and not plain JavaScript?
 
 The obvious way to run another language in a browser is to translate it to
-JavaScript and hand it to the browser's engine. FastBlip deliberately does
+JavaScript and hand it to the browser's engine. FastBlips deliberately does
 not. It compiles to its own bytecode and interprets it, because that buys
 properties JavaScript cannot give:
 
 ### 1. Programs can be stopped at any instruction
 
 JavaScript runs to completion: a `while (true)` loop freezes the tab, and
-nothing can pause a function halfway through. FastBlip's VM keeps *all*
+nothing can pause a function halfway through. FastBlips' VM keeps *all*
 execution state — the value stack, call frames, exception handlers, the
 program counter — in ordinary objects. `vm.runSlice(n)` executes at most `n`
 instructions and returns; calling it again carries on exactly where it
@@ -52,7 +52,7 @@ never blocks.
 ### 4. A safe sandbox
 
 A BLIP can only do what its opcodes and built-ins allow. It cannot touch the
-DOM, cookies or other pages except through the narrow built-ins FastBlip
+DOM, cookies or other pages except through the narrow built-ins FastBlips
 provides (widgets, `Fetch`, the transcript). An instruction budget
 (`maxSteps`) and a frame limit (`maxDepth`) turn runaway loops and runaway
 recursion into ordinary, reported errors rather than a hung or crashed tab.
@@ -86,7 +86,7 @@ native JavaScript — typically by an order of magnitude for tight numeric
 loops. Measured today on one core (Node 22): 13–23 M instructions/second for
 Crumb, 16–32 M for MiniPy (whose integers are exact bigints). That is ample
 for interactive apps, games of modest complexity, teaching and data-driven
-tools, which are FastBlip's targets. Heavy work (graphics, maths) belongs in
+tools, which are FastBlips' targets. Heavy work (graphics, maths) belongs in
 built-ins implemented in JavaScript and called from bytecode.
 
 ## Lifecycle of a BLIP

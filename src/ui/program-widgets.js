@@ -60,7 +60,7 @@ export function checkDoc(doc, kind) {
     throw new WidgetError(`not a saved viewport (its "format" must be "${VIEWPORT_FORMAT}")`);
   }
   if (doc.version > VIEWPORT_VERSION) {
-    throw new WidgetError(`this was saved by a newer FastBlip (version ${doc.version})`);
+    throw new WidgetError(`this was saved by a newer FastBlips (version ${doc.version})`);
   }
   if (kind && docKind(doc) !== kind) {
     throw new WidgetError(`that is a saved ${docKind(doc)}, not a ${kind}`);

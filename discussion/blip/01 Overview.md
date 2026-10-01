@@ -1,10 +1,10 @@
-# FastBlip — Overview
+# FastBlips — Overview
 
 *Site: [fastblips.com](https://fastblips.com) · Codebase: `crumb` (package `crumb-lang`)*
 
-## What FastBlip is
+## What FastBlips is
 
-FastBlip is a development and deployment framework for rapidly building
+FastBlips is a development and deployment framework for rapidly building
 applications that run in a web browser. A program is written in Basic or
 Python, compiled to bytecode, and run by an interpreter that lives entirely
 in the page. Programs are stored in a server database, so publishing one is
@@ -19,12 +19,32 @@ Program* (see *02 BLIP definition*).
 | Goal | What it means |
 |---|---|
 | **Rapid development** | Write, run and fix a program in one browser page, with no toolchain, build step or install. |
-| **Two approachable languages** | A Visual-Basic-style language (Crumb, "FastBlip Basic") and a Python subset (MiniPy), both compiling to the same bytecode. |
+| **Two approachable languages** | A Visual-Basic-style language (Crumb, "FastBlips Basic") and a Python subset (MiniPy), both compiling to the same bytecode. |
 | **Multitasking** | Many programs run at once in one page, taking turns under a scheduler, and can be paused, resumed or stopped individually. |
 | **Bytecode interpreter architecture** | One compact stack-machine VM shared by both languages; execution state lives in the VM, so any program can be paused after any instruction. |
 | **Runs anywhere a browser does** | Desktop and mobile browsers, with no plug-ins or native code. |
 | **Progressive Web Apps** | A BLIP can be installed to a home screen and behave like a native app (planned). |
 | **Instant deployment** | Programs are records in a server database; saving one publishes it. |
+| **Visual form designer** | Screens are built by placing widgets in the Designer, then wired to short handlers. |
+| **Apps run without source** | A published BLIP can be delivered as bytecode only (planned). |
+| **Low-code apps** | Screens from the designer plus data binding, so small apps need little code (partly built). |
+
+## First audience: learners
+
+FastBlips is aimed first at **people learning to program**. That sets the
+priorities:
+
+- **Crumb first** for beginners: strict, explicit, with errors that point
+  at the mistake; MiniPy for learners moving on to Python.
+- **Nothing to install** — a link is enough to start, on a school or
+  library computer or a phone.
+- **Seeing programs run** — single-step, breakpoints and a variable view
+  move up the list, as does the Process window as a teaching tool.
+- **Quick, visible results** — widgets, `Fetch` from free APIs, games on
+  Board and Canvas.
+- **Tutorials and examples** that open as the learner's own copy.
+- **A safe place to share** — moderation and minimal personal data, since
+  many learners are school students.
 
 ## How the pieces fit
 
@@ -65,4 +85,6 @@ Program* (see *02 BLIP definition*).
 
 1. *02 BLIP definition* — why a bytecode interpreter in the browser.
 2. *03 Languages* — what each language supports and how they cooperate.
-3. *04 GUI widgets* — the widget toolkit and what to build next.
+3. *04 Applications* — running from the database, mobile, the open-source runtime.
+4. *05 GUI widgets* — the widget toolkit and what to build next.
+5. *06 Community* — forum, gallery and where to post.

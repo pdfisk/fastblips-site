@@ -1,8 +1,8 @@
-# FastBlip GUI Widgets
+# FastBlips GUI Widgets
 
-FastBlip has two layers of widgets, and it helps to keep them apart:
+FastBlips has two layers of widgets, and it helps to keep them apart:
 
-1. **The UI toolkit** — the JavaScript classes the FastBlip IDE itself is
+1. **The UI toolkit** — the JavaScript classes the FastBlips IDE itself is
    built from (Viewport, Windows, panels, menus…; see `docs/widgets.txt`).
 2. **Program widgets** — the same toolkit, offered to BLIPs as objects.
    Every general-purpose class is available in both languages: a program

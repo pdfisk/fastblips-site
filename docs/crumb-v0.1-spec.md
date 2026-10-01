@@ -165,7 +165,7 @@ Print "go"
 
 ### 10.1 Widgets (objects)
 
-A program builds its screen from the same widgets the FastBlip IDE is made of — labels,
+A program builds its screen from the same widgets the FastBlips IDE is made of — labels,
 buttons, menus, rows and columns, split and tab panels, text and code editors, lists and
 floating windows. It runs on a screen: in the playground, a launch window (a console's
 Launch menu) or a `?run=` page. A widget is an **object**: `New` creates it, and its

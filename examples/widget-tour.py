@@ -28,7 +28,7 @@ notes = TextPanel("Type here. Ctrl+Enter copies the text to the title.")
 split.set_second(notes)
 
 box = Window("About")
-box.set_content(Label("Made with FastBlip widgets"))
+box.set_content(Label("Made with FastBlips widgets"))
 box.set_bounds(120, 120, 280, 140)
 ok = box.get_button_bar().add_button("OK")
 

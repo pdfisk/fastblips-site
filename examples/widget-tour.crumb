@@ -51,7 +51,7 @@ Dim about = bar.addButton("About")
 
 ' A floating window with its own content and button bar.
 Dim box = New Window("About")
-Dim text = New Label("Made with FastBlip widgets")
+Dim text = New Label("Made with FastBlips widgets")
 box.setContent(text)
 box.setBounds(120, 120, 280, 140)
 box.getButtonBar().addButton("OK").onClick("CloseAbout")
