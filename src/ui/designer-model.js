@@ -13,7 +13,7 @@ import { WIDGET_CLASSES } from '../vm/runtime/widgets.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
 
 /** The classes the designer offers: every widget class but the Viewport. */
-export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => n !== 'Viewport');
+export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => n !== 'Viewport').sort((a, b) => a.localeCompare(b));
 
 const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar']);
 const SPLITS = new Set(['HSplitPanel', 'VSplitPanel']);

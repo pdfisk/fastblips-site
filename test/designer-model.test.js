@@ -13,6 +13,7 @@ const field = (node, label, opts) => fieldsFor(node, opts).flatMap(([, fs]) => f
 test('the palette is every class but the Viewport; new nodes get New\'s defaults', () => {
   assert.equal(PALETTE.includes('Viewport'), false);
   assert.equal(PALETTE.length, 15);
+  assert.deepEqual(PALETTE, [...PALETTE].sort((a, b) => a.localeCompare(b)), 'palette is alphabetical');
   assert.deepEqual(newNode('Button'), { class: 'Button', text: 'Button', box: [0, 0, 100, 32] });
   assert.deepEqual(newNode('HSplitPanel'), { class: 'HSplitPanel', position: 0.5, first: null, second: null, box: [0, 0, 320, 200] });
   assert.deepEqual(newNode('Window').bounds, [20, 20, 320, 240]);
