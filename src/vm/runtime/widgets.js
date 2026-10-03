@@ -42,8 +42,12 @@
 // (or nothing). Results come back the same way; a widget result is an id, or
 // 0 for none. A host rejects a bad call (an index out of range, ...) by
 // throwing a WidgetError, which becomes a runtime error in the program.
-// Without a host (the command line, a console) making a widget is a runtime
-// error.
+// Without a host (the command line) making a widget is a runtime error.
+//
+// The Board is the program's board: a grid of cells for board games (a
+// BoardPanel, docs/widgets.txt). Like the Viewport it is a singleton, and it
+// is the one class a console's host has too: there it is the Board tab of
+// the console's output, and on an AppScreen it covers the screen's text.
 
 import { Widget } from '../values.js';
 
@@ -70,7 +74,9 @@ export const snakeCase = (name) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCa
 //             class's own spelling
 //   handler   a procedure to call on an event: a Sub name in Crumb, a
 //             function in MiniPy. handler:<kind> passes the event's value,
-//             of that kind, as the handler's second argument.
+//             of that kind, as the handler's second argument;
+//             handler:<kind>:<kind> passes two values (a Board's row and
+//             column), as its second and third.
 // Result kinds: text, int (a whole number), number, boolean, widget,
 // widgets (a list of widgets: a Crumb Array, a MiniPy list); none for
 // Nothing / None.
@@ -207,6 +213,30 @@ export const WIDGET_CLASSES = Object.freeze([
   ]),
   cls('TextPanel', ['text'], TEXT_AREA),
   cls('MonacoPanel', ['text', 'text'], TEXT_AREA),
+  // The program's board, a grid of cells that hold text. A singleton, like
+  // the Viewport, and not part of it: it has none of the common methods.
+  // Rows and columns count from 0, from the top left.
+  cls('Board', [], [
+    method('setSize', ['index', 'index']),
+    method('getRows', [], 'int'),
+    method('getColumns', [], 'int'),
+    method('setText', ['index', 'index', 'text']),
+    method('getText', ['index', 'index'], 'text'),
+    method('setBackground', ['index', 'index', 'text']),
+    method('getBackground', ['index', 'index'], 'text'),
+    method('setColor', ['index', 'index', 'text']),
+    method('getColor', ['index', 'index'], 'text'),
+    method('setCheckered', ['boolean']),
+    method('isCheckered', [], 'boolean'),
+    method('setSquareCells', ['boolean']),
+    method('isSquareCells', [], 'boolean'),
+    method('select', ['index', 'index']),
+    method('clearSelection'),
+    method('getSelectedRow', [], 'int'),
+    method('getSelectedColumn', [], 'int'),
+    method('clear'),
+    method('onClick', ['handler:int:int']),
+  ], { common: [] }),
   cls('ListPanel', [], [
     method('addItem', ['text']),
     method('removeItem', ['index']),
@@ -284,21 +314,25 @@ export function createWidget(vm, cls, args, { what, fail }) {
   const gui = hostFor(vm, what, fail);
   const id = hostCall(fail, () => gui.create(cls.name, args));
   vm.widgetObjects ??= new Map();
-  if (vm.widgetObjects.has(id)) return vm.widgetObjects.get(id);   // the Viewport
+  if (vm.widgetObjects.has(id)) return vm.widgetObjects.get(id);   // the Viewport, the Board
   const w = new Widget(cls, id);
   vm.widgetObjects.set(id, w);
   return w;
 }
 
+/** The kinds of the values a handler parameter's event passes: 'handler:int:int' -> ['int', 'int']. */
+export const detailKinds = (kind) => kind.split(':').slice(1);
+
 /**
  * A callback for the host: queues the handler with the widget (and the
- * event's value, converted to a language value) when the host calls it.
+ * event's values, of the kinds in details, converted to language values)
+ * when the host calls it.
  */
-function eventCallback(vm, w, handler, detail, lang) {
+function eventCallback(vm, w, handler, details, lang) {
   vm.listening = true;
-  const callback = (value) => vm.postEvent(handler, detail === null || value === undefined
+  const callback = (...values) => vm.postEvent(handler, values[0] === undefined
     ? [w]
-    : [w, lang.value(detail, value)]);
+    : [w, ...details.map((kind, i) => lang.value(kind, values[i]))]);
   callback.handlerName = lang.handlerName(handler);
   return callback;
 }
@@ -335,12 +369,12 @@ export function callWidget(vm, w, m, args, lang) {
   const hostArgs = m.params.map((kind, i) => {
     const v = args[i];
     if (kind === 'widget') return v.id;
-    if (kind.startsWith('handler')) return eventCallback(vm, w, v, kind.split(':')[1] ?? null, lang);
+    if (kind.startsWith('handler')) return eventCallback(vm, w, v, detailKinds(kind), lang);
     return v;
   });
   if (m.resolver) {
     hostArgs.push((widgetId, name, detail) => eventCallback(
-      vm, wrapWidget(vm, widgetId), lang.resolve(name), detail ?? null, lang,
+      vm, wrapWidget(vm, widgetId), lang.resolve(name), detail ? [detail] : [], lang,
     ));
   }
   const result = hostCall(lang.fail, () => gui.call(w.id, m.name, hostArgs));

@@ -34,6 +34,13 @@ const BASE = {
   'font-code': 'var(--cr-font-mono)',
   // How far a console's output pane fades while its program runs.
   'output-running-opacity': '0.6',
+  // A BoardPanel: its light and dark cells (a plain board is all light),
+  // the lines between them, its pieces' text and the selected cell's frame.
+  'board-light': '#f0d9b5',
+  'board-dark': '#b58863',
+  'board-line': '#6b4a2f',
+  'board-text': '#111111',
+  'board-selected': '#2f6fcf',
   // Shape. The defaults suit a flat theme; Classic and Smalltalk override them.
   'window-padding': '0px',
   'title-font-weight': 'normal',
@@ -210,6 +217,11 @@ export const THEMES = {
   // After Smalltalk-80: black on white, striped title bars with the title
   // centred on a white label, hard drop shadows, a dithered grey desktop.
   smalltalk: {
+    'board-light': '#ffffff',
+    'board-dark': '#b0b0b0',
+    'board-line': '#000000',
+    'board-text': '#000000',
+    'board-selected': '#000000',
     'font-ui': 'Geneva, Verdana, "DejaVu Sans", sans-serif',
     'font-mono': 'Monaco, "Courier New", monospace',
     'font-size': '12px',

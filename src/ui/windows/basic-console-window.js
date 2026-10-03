@@ -34,7 +34,7 @@ export class BasicConsoleWindow extends ConsoleWindow {
 
   /**
    * Spawns a Crumb program on the shared scheduler, printing to output (a
-   * TextPanel) and putting widgets on gui (an AppScreen's host), if given.
+   * TextPanel) and putting widgets on gui (an AppScreen's host, or a console's ConsoleBoardHost), if given.
    * The program runs from its compiled code when that is given and still
    * matches the source, else from this page's compile cache, else the source
    * is compiled (see src/vm/program-loader.js). Load errors are written to
@@ -77,9 +77,11 @@ export class BasicConsoleWindow extends ConsoleWindow {
   run() {
     this.stop();
     this.output.text = '';
+    this.resetBoard();
     const { process, errorCount } = BasicConsoleWindow.spawn(this.input.text, {
       name: this.title,
       output: this.output,
+      gui: this.boardHost,
       priority: this.priority,
       compiled: this.compiled,
       onExit: (p) => this.reportExited(p),

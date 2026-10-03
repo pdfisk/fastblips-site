@@ -2,8 +2,10 @@
 // src/vm/runtime/widgets.js without a DOM. It models just enough of the
 // browser host (src/ui/program-widgets.js) to check what the VM sends it:
 // properties, parents and children, list items, tabs and event handlers,
-// the Viewport (made on first use), ids, finding, and a simple JSON form
-// saved to an in-memory database (this.saved, name -> JSON text).
+// the Viewport (made on first use), ids, finding, a simple JSON form
+// saved to an in-memory database (this.saved, name -> JSON text), and the
+// Board (a singleton outside the Viewport: its size, its cells' text and
+// colours, its selection, and clickCell(row, column) to click a cell).
 
 import { WidgetError } from '../src/vm/runtime/widgets.js';
 
@@ -16,6 +18,54 @@ export class FakeHost {
     this.calls = [];
     this.saved = new Map();
     this.viewport = 0;
+    this.board = 0;
+  }
+
+  boardId() {
+    if (!this.board) {
+      this.board = this.create('Board', [], true);
+      const w = this.widgets.get(this.board);
+      w.detached = true;   // not in the Viewport
+      Object.assign(w.props, { rows: 8, columns: 8, checkered: true, squareCells: false });
+      w.cells = new Map();
+      w.selectedCell = null;
+    }
+    return this.board;
+  }
+
+  /** Simulates a click on a cell of the Board. */
+  clickCell(row, column) {
+    for (const handler of this.widgets.get(this.board).handlers.click ?? []) handler(row, column);
+  }
+
+  callBoard(w, method, args) {
+    const [a, b, c] = args;
+    const cell = () => {
+      if (a < 0 || a >= w.props.rows || b < 0 || b >= w.props.columns) {
+        throw new WidgetError(`the board has no cell at row ${a}, column ${b}`);
+      }
+      const key = `${a},${b}`;
+      if (!w.cells.has(key)) w.cells.set(key, { text: '', background: '', color: '' });
+      return w.cells.get(key);
+    };
+    switch (method) {
+      case 'setSize':
+        if (a < 1 || b < 1) throw new WidgetError(`a board's rows must be a whole number from 1 to 100, not ${a}`);
+        w.props.rows = a; w.props.columns = b; w.cells.clear(); w.selectedCell = null;
+        return undefined;
+      case 'setText': cell().text = c; return undefined;
+      case 'getText': return cell().text;
+      case 'setBackground': cell().background = c; return undefined;
+      case 'getBackground': return cell().background;
+      case 'setColor': cell().color = c; return undefined;
+      case 'getColor': return cell().color;
+      case 'select': cell(); w.selectedCell = [a, b]; return undefined;
+      case 'clearSelection': w.selectedCell = null; return undefined;
+      case 'getSelectedRow': return w.selectedCell?.[0] ?? -1;
+      case 'getSelectedColumn': return w.selectedCell?.[1] ?? -1;
+      case 'clear': w.cells.clear(); w.selectedCell = null; return undefined;
+      default: return null;   // the plain properties: the general code below
+    }
   }
 
   viewportId() {
@@ -69,6 +119,7 @@ export class FakeHost {
 
   create(className, args, internal = false) {
     if (className === 'Viewport' && !internal) return this.viewportId();
+    if (className === 'Board' && !internal) return this.boardId();
     const id = this.next++;
     const w = {
       id, className, args, props: { visible: true, enabled: true }, children: [], parent: null,
@@ -118,6 +169,10 @@ export class FakeHost {
     this.calls.push([id, method, ...args]);
     const on = /^on([A-Z]\w*)$/.exec(method);
     if (on) { (w.handlers[on[1].toLowerCase()] ??= []).push(args[0]); return undefined; }
+    if (w.className === 'Board') {
+      const result = this.callBoard(w, method, args);
+      if (result !== null) return result;
+    }
     switch (method) {
       case 'setBounds': [w.props.left, w.props.top, w.props.width, w.props.height] = args; return undefined;
       case 'add': this.adopt(w, args[0]); return undefined;

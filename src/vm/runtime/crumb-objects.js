@@ -13,7 +13,7 @@ import {
   NOTHING, CrumbArray, typeName, toStr, formatNumber, isNumber, isString, isBoolean, isArray, isObject,
 } from './crumb-values.js';
 import {
-  WIDGET_CLASSES, WidgetError, createWidget, callWidget, checkNumber, checkClassName,
+  WIDGET_CLASSES, WidgetError, createWidget, callWidget, checkNumber, checkClassName, detailKinds,
 } from './widgets.js';
 import { BuiltinError } from './crumb-builtins.js';
 
@@ -39,20 +39,23 @@ for (const cls of WIDGET_CLASSES) {
 }
 
 /** The Sub named name, as a handler: it takes up to two arguments (the
- *  widget and the event's value). Calls fail(message) if there is none. */
-function findHandler(what, vm, name, failWith) {
+ *  widget and the event's value), or three for an event with two values (a
+ *  Board's row and column). Calls fail(message) if there is none. */
+function findHandler(what, vm, name, failWith, values = 1) {
   const proc = vm.chunk.procedures.find((p) => p.name.toLowerCase() === name.toLowerCase());
   if (!proc) failWith(`${what}: there is no Sub named '${name}'`);
   if (proc.kind !== 'Sub') failWith(`${what}: '${proc.name}' is a ${proc.kind}; an event handler must be a Sub`);
-  if (proc.arity > 2) {
-    failWith(`${what}: Sub '${proc.name}' takes ${proc.arity} arguments; an event handler takes none, one (the widget) or two (the widget and the event's value)`);
+  if (proc.arity > 1 + values) {
+    failWith(values > 1
+      ? `${what}: Sub '${proc.name}' takes ${proc.arity} arguments; this event's handler takes none, one (the widget) or up to ${1 + values} (the widget and the event's ${values} values)`
+      : `${what}: Sub '${proc.name}' takes ${proc.arity} arguments; an event handler takes none, one (the widget) or two (the widget and the event's value)`);
   }
   return { proc };
 }
 
-function wantHandler(what, position, vm, name) {
+function wantHandler(what, position, vm, name, values) {
   if (!isString(name)) fail(`${what} expects the name of a Sub (a String) as argument ${position}, got ${typeName(name)}`);
-  return findHandler(what, vm, name, fail);
+  return findHandler(what, vm, name, fail, values);
 }
 
 /** Checks and converts one argument of the given kind (see widgets.js). */
@@ -77,7 +80,7 @@ function convert(what, kind, position, v, vm) {
       if (!Number.isInteger(v)) fail(`${what} expects a whole Number as argument ${position}, got ${formatNumber(v)}`);
       return v;
     default:
-      if (kind.startsWith('handler')) return wantHandler(what, position, vm, v);
+      if (kind.startsWith('handler')) return wantHandler(what, position, vm, v, Math.max(1, detailKinds(kind).length));
       if (!isNumber(v)) fail(`${what} expects a Number as argument ${position}, got ${typeName(v)}`);
       return checkNumber(what, kind, position, v, fail);
   }

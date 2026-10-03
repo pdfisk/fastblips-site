@@ -194,6 +194,7 @@ label.setWidth(100)
 | `TextPanel` | `New TextPanel(text)` | A multi-line text box the user can edit |
 | `MonacoPanel` | `New MonacoPanel(text, language)` | A code editor (Monaco, the editor of VS Code); `language` is a Monaco language id such as `"vb"` or `"python"` |
 | `ListPanel` | `New ListPanel()` | A list the user picks a row from |
+| `Board` | `New Board()` | The program's board: a grid of equal cells that hold text, for board games. A **singleton**, like the `Viewport`, but not a widget in it |
 
 `New` with any other name, or the wrong number of arguments, is a load error. Text
 arguments are converted as by `Str`.
@@ -231,6 +232,7 @@ size must be 0 or more.
 | `Window` | `setTitle(t)` `getTitle()` `setContent(w)` `getContent()` `getButtonBar()` `open()` `close()` `maximize()` `restore()` `isMaximized()` `onClose(sub)` |
 | `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
 | `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
+| `Board` | `setSize(rows, columns)` `getRows()` `getColumns()` `setText(row, column, t)` `getText(row, column)` `setBackground(row, column, c)` `getBackground(row, column)` `setColor(row, column, c)` `getColor(row, column)` `setCheckered(b)` `isCheckered()` `setSquareCells(b)` `isSquareCells()` `select(row, column)` `clearSelection()` `getSelectedRow()` `getSelectedColumn()` `clear()` `onClick(sub)`; it has none of the methods every widget has |
 
 Methods that set something return `Nothing`. A method that returns a widget (`getChild`,
 `getParent`, `getButtonBar`, `addButton`, ...) returns the same object each time for the
@@ -323,7 +325,8 @@ End Sub
 
 **Events.** `onClick`, `onSelect`, `onChange`, `onSubmit`, `onClose` and `Menu.addItem`
 name a `Sub` (a String, case-insensitive) to call when the event happens. The Sub takes
-no arguments; or one, the widget; or two, the widget and the event's value — the row or
+no arguments; or one, the widget; or two, the widget and the event's value (a `Board`'s
+`onClick` passes two values, the row and the column) — the row or
 tab index for `onSelect`, the new text for a text panel's `onChange`, the divider
 position for a split panel's `onChange`, the item's label for a menu item. Once a program
 has registered a handler, reaching the end of its top-level code does not end it: it
@@ -341,6 +344,30 @@ list.onSelect("Picked")
 
 Sub Picked(w, index)
   shown.setText("You picked " & w.getItem(index))
+End Sub
+```
+
+**The Board.** `New Board()` is the program's board: 8 rows by 8 columns of equal cells,
+checkered like a chess board, until `setSize` and `setCheckered(False)` say otherwise.
+Rows and columns count from 0, from the top left; a cell that is not on the board is a
+runtime error. A cell holds a short text (a piece: `"X"`, a chess glyph), drawn centred
+and sized to the cell, and can be given a background and a text colour of its own (`""`
+gives back the board's). `setSize` and `clear` empty the board. `select` frames one cell;
+`getSelectedRow()` is `-1` when none is. The cells fill the board's area;
+`setSquareCells(True)` keeps them square. `onClick` names a Sub that is called with the
+board, the row and the column of the cell clicked (or with fewer, as it takes).
+
+The Board is the one class a program can also make when run in a **console**: there it
+is the Board tab of the console's output. On a screen it covers the printed text.
+
+```vb
+Dim board = New Board()
+board.setSize(3, 3)
+board.setCheckered(False)
+board.onClick("Clicked")
+
+Sub Clicked(b, row, column)
+  If b.getText(row, column) = "" Then b.setText(row, column, "X")
 End Sub
 ```
 

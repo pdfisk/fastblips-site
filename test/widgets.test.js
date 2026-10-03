@@ -52,7 +52,7 @@ const crumbError = (source, gui = new FakeHost()) => {
 test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
-    'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel',
+    'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'Board', 'ListPanel',
   ]);
   for (const c of WIDGET_CLASSES) {
     for (const m of c.methods) assert.match(m.py, /^[a-z_]+$/, `${c.name}.${m.name}`);
@@ -213,7 +213,7 @@ test('Crumb: onClick runs the Sub for each click, after the module code', () => 
 
 test('Crumb: object load errors', () => {
   const errorsOf = (source) => compile(source, { filename: 't.crumb' }).errors.map((e) => e.message);
-  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Button, ButtonBar, HPanel/);
+  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, HPanel/);
   assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
   assert.match(errorsOf('Dim x = New HPanel(1)')[0], /'New HPanel' takes 0 arguments, found 1/);
   assert.match(errorsOf('Dim x = New HPanel')[0], /expected '\(' after 'New HPanel'/);
@@ -565,4 +565,119 @@ test('Crumb: a composite is saved from any widget and loaded as many times as wa
   assert.deepEqual(out.slice(1), ['pressed True']);
   const v2 = new VM(crumb('Dim vp = New Viewport()\nDim x = vp.loadComposite("none")'), { gui: new FakeHost(), out: () => {} });
   await assert.rejects(settleAsync(v2), /loadComposite: there is no saved composite named 'none'/);
+});
+
+// ------------------------------------------------------------------ Board
+
+test('Crumb: the Board is a singleton whose cells hold text and colours', () => {
+  const { host, out } = runCrumb([
+    'Dim b = New Board()',
+    'Print b, b = New Board(), b.getRows(), b.getColumns(), b.isCheckered()',
+    'b.setSize(3, 4)',
+    'b.setCheckered(False)',
+    'b.setSquareCells(True)',
+    'b.setText(1, 2, "X")',
+    'b.setText(0, 0, 7)',
+    'b.setBackground(1, 2, "gold")',
+    'b.setColor(1, 2, "red")',
+    'Print b.getRows(), b.getColumns(), b.isCheckered(), b.isSquareCells()',
+    'Print b.getText(1, 2) & b.getText(0, 0) & "[" & b.getText(2, 3) & "]", b.getBackground(1, 2), b.getColor(1, 2)',
+    'Print b.getSelectedRow(), b.getSelectedColumn()',
+    'b.select(2, 3)',
+    'Print b.getSelectedRow(), b.getSelectedColumn()',
+    'b.clearSelection()',
+    'b.clear()',
+    'Print "[" & b.getText(1, 2) & "]", b.getSelectedRow()',
+  ].join('\n'));
+  assert.deepEqual(out, [
+    '<Board> True 8 8 True', '3 4 False True', 'X7[] gold red', '-1 -1', '2 3', '[] -1',
+  ]);
+  assert.equal(host.get(host.board).className, 'Board');
+});
+
+test('Crumb: a click on the Board calls its handler with the row and column', () => {
+  const { vm, host, out } = runCrumb([
+    'Dim b = New Board()',
+    'b.setSize(3, 3)',
+    'b.onClick("Clicked")',
+    'Sub Clicked(board, row, column)',
+    '  board.setText(row, column, "X")',
+    '  Print row, column, board.getText(row, column)',
+    'End Sub',
+  ].join('\n'));
+  assert.equal(vm.waiting, true);
+  host.clickCell(2, 1);
+  host.clickCell(0, 0);
+  settle(vm);
+  assert.deepEqual(out, ['2 1 X', '0 0 X']);
+});
+
+test('Crumb: a Board handler may take fewer arguments, but not more than three', () => {
+  const { vm, host, out } = runCrumb('Dim b = New Board()\nb.onClick("Hit")\nSub Hit()\n  Print "hit"\nEnd Sub');
+  host.clickCell(1, 1);
+  settle(vm);
+  assert.deepEqual(out, ['hit']);
+  assert.match(
+    crumbError('Dim b = New Board()\nb.onClick("H")\nSub H(a, b, c, d)\nEnd Sub'),
+    /takes 4 arguments; this event's handler takes none, one \(the widget\) or up to 3/,
+  );
+  // Other events still pass one value.
+  assert.match(
+    crumbError('Dim l = New ListPanel()\nl.onSelect("H")\nSub H(a, b, c)\nEnd Sub'),
+    /takes 3 arguments; an event handler takes none, one \(the widget\) or two/,
+  );
+});
+
+test('Crumb: Board mistakes are runtime errors', () => {
+  assert.match(crumbError('Dim b = New Board()\nb.setText(8, 0, "X")'), /the board has no cell at row 8, column 0/);
+  assert.match(crumbError('Dim b = New Board()\nb.setSize(0, 3)'), /rows must be a whole number from 1 to 100/);
+  assert.match(crumbError('Dim b = New Board()\nb.setText(1.5, 0, "X")'), /expects a whole Number as argument 1/);
+  assert.match(crumbError('Dim b = New Board()\nb.setLeft(3)'), /a Board has no method 'setLeft'/);
+  assert.match(crumbError('Dim b = New Board()', null), /New Board needs a screen/);
+});
+
+test('MiniPy: the Board, with snake_case methods and a function for clicks', () => {
+  const { vm, host, out } = runPy([
+    'b = Board()',
+    'b.set_size(3, 3)',
+    'b.set_checkered(False)',
+    'turn = ["X"]',
+    'def clicked(board, row, column):',
+    '    if board.get_text(row, column) == "":',
+    '        board.set_text(row, column, turn[0])',
+    '        if turn[0] == "X":',
+    '            turn[0] = "O"',
+    '        else:',
+    '            turn[0] = "X"',
+    '    print(row, column, board.get_text(row, column))',
+    'b.on_click(clicked)',
+    'print(b is Board(), b.get_rows(), b.get_columns(), b.is_checkered(), b.get_selected_row())',
+  ].join('\n'));
+  assert.deepEqual(out, ['True 3 3 False -1']);
+  host.clickCell(1, 1);
+  host.clickCell(0, 2);
+  host.clickCell(1, 1);
+  settle(vm);
+  assert.deepEqual(out, ['True 3 3 False -1', '1 1 X', '0 2 O', '1 1 X']);
+});
+
+test('examples/tic-tac-toe.crumb and tic-tac-toe.py', () => {
+  const read = (name) => readFileSync(new URL(`../examples/${name}`, import.meta.url), 'utf8');
+  for (const run of [() => runCrumb(read('tic-tac-toe.crumb')), () => runPy(read('tic-tac-toe.py'))]) {
+    const { vm, host, out } = run();
+    const board = host.get(host.board);
+    assert.deepEqual([board.props.rows, board.props.columns, board.props.checkered], [3, 3, false]);
+    // X takes the top row; O plays twice in the middle row; a click on a
+    // taken cell is ignored.
+    for (const [row, column] of [[0, 0], [1, 0], [0, 1], [0, 1], [1, 1], [0, 2]]) host.clickCell(row, column);
+    settle(vm);
+    assert.equal(out.at(-1), 'X wins! Click the board to play again.');
+    assert.deepEqual(['0,0', '0,1', '0,2', '1,0', '1,1'].map((k) => board.cells.get(k).text), ['X', 'X', 'X', 'O', 'O']);
+    assert.equal(board.cells.get('0,1').background, '#9acd32');
+    assert.equal(board.cells.get('1,0').color, '#c03030');
+    host.clickCell(2, 2);            // starts a new game
+    settle(vm);
+    assert.equal(board.cells.size, 0);
+    assert.equal(out.at(-1), 'X to move: click a square.');
+  }
 });

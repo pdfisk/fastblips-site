@@ -12,6 +12,7 @@ import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
 import { describeOrigin } from '../program-runner.js';
 import { scheduler } from '../runtime.js';
+import { ConsoleBoardHost } from '../board-host.js';
 
 // While a program runs its output pane fades a little (the amount is a
 // theme variable), and comes back when the program ends.
@@ -88,6 +89,9 @@ export class ConsoleWindow extends HSplitWindow {
     this.outputPanel = new OutputPanel();
     this.outputPanel.element.classList.add('cr-console-output');
     this.output = this.outputPanel.textPanel;
+    // The widget host for programs run here: it has only the Board (New
+    // Board() / Board()), which is the output's Board page.
+    this.boardHost = new ConsoleBoardHost(this.outputPanel);
     this.left = this.input;
     this.right = this.outputPanel;
 
@@ -130,6 +134,15 @@ export class ConsoleWindow extends HSplitWindow {
   setPriority(level) {
     this.priority = level;
     if (this.process && !this.process.finished) scheduler.setPriority(this.process.pid, level);
+  }
+
+  /**
+   * Before a run: the board as new (8 by 8, empty, no handlers) and the
+   * Text page showing. A program that makes its Board shows the Board page.
+   */
+  resetBoard() {
+    this.boardHost.reset();
+    this.outputPanel.selectTab('Text');
   }
 
   /** Runs the source in the left pane. The base class does nothing. */
@@ -280,6 +293,8 @@ export class ConsoleWindow extends HSplitWindow {
   /** Reports how a program ended. */
   reportExited(process) {
     this.running = false;
+    // The error was printed on the Text page; show it.
+    if (process.state === 'failed') this.outputPanel.selectTab('Text');
     const bar = StatusBar.instance;
     if (process.state === 'failed') bar.show(`${this.title}: stopped with an error`, 'error');
     else if (process.state === 'killed') bar.show(`${this.title}: stopped`);

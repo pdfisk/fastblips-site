@@ -35,6 +35,7 @@ import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore } from './db-client.js';
+import { BoardBinding } from './board-host.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
@@ -217,8 +218,15 @@ const CLASSES = {
  * made by addButton) is registered with one.
  */
 export class ProgramWidgetHost {
-  constructor(layer) {
+  /**
+   * @param {FreeLayer} layer - the program's Viewport
+   * @param {{board?: import('./widgets/board-panel.js').BoardPanel}} [options] -
+   *   board: the screen's BoardPanel, hidden until the program makes its
+   *   Board (it is not in the Viewport); without one there is no Board.
+   */
+  constructor(layer, { board = null } = {}) {
     this.layer = layer;
+    this._board = board ? new BoardBinding(board) : null;
     this._widgets = new Map();       // id -> widget
     this._ids = new Map();           // widget -> id
     this._nextId = 1;
@@ -233,8 +241,13 @@ export class ProgramWidgetHost {
   /** Every widget, oldest first. */
   get widgets() { return [...this._widgets.values()]; }
 
-  /** Removes every widget; ids start from 1 again. */
+  /** Removes every widget; ids start from 1 again. The board is hidden
+   *  and put back as new. */
   clear() {
+    if (this._board) {
+      this._board.board.visible = false;
+      this._board.reset();
+    }
     for (const child of this.layer.children) {
       if (child instanceof Menu) child.close();
       this.layer.remove(child);
@@ -273,6 +286,13 @@ export class ProgramWidgetHost {
 
   create(className, args) {
     if (className === 'Viewport') return this._idOf(this.layer);
+    if (className === 'Board') {
+      if (!this._board) throw new WidgetError('there is no Board on this screen');
+      const { board } = this._board;
+      board.visible = true;
+      board.layout();
+      return this._ids.get(board) ?? this._register(board, 'Board');
+    }
     const spec = CLASSES[className];
     if (!spec) throw new WidgetError(`there is no widget class '${className}'`);
     const widget = spec.make(...args);
@@ -655,6 +675,7 @@ export class ProgramWidgetHost {
     const w = this._widgets.get(id);
     const cls = w.programClass;
     const [a, b] = args;
+    if (cls === 'Board') return this._board.call(method, args);
     if (/^on[A-Z]/.test(method)) { this._listen(w, method, a); return undefined; }
     switch (method) {
       // ---- every widget, and the Viewport
