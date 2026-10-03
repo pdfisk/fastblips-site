@@ -39,7 +39,7 @@ const outputOf = (chunk) => {
 test('every Crumb example runs the same from compiled code as from source', () => {
   for (const file of readdirSync('examples').filter((f) => f.endsWith('.crumb'))) {
     const { chunk } = compile(readFileSync(`examples/${file}`, 'utf8'), { filename: file });
-    if (!chunk || file === 'api-tour.crumb' || file === 'button-demo.crumb') continue;   // needs network / a screen
+    if (!chunk || file === 'api-tour.crumb' || file === 'button-demo.crumb' || file === 'json-explorer.crumb') continue;   // needs network / a screen
     const loaded = chunkFromJson(chunkToJsonString(chunk));
     assert.deepEqual(loaded.code, chunk.code, file);
     assert.deepEqual(outputOf(loaded), outputOf(chunk), file);

@@ -13,7 +13,9 @@ export class OutputPanel extends Panel {
     super();
     this.element.classList.add('cr-output-panel');
     this.tabPanel = super.add(new TabPanel({ tabPosition: 'bottom' }));
-    this.textPanel = this.tabPanel.addTab('Text', new TextPanel({ readOnly: true }));
+    // The Text page is writeable: the user can type notes into the output, or
+    // edit it, and programs keep printing at its end.
+    this.textPanel = this.tabPanel.addTab('Text', new TextPanel());
     this.textPanel.textArea.style.background = 'var(--cr-output-bg)';
     this.boardPanel = this.tabPanel.addTab('Board', new BoardPanel());
     this.canvasPanel = this.tabPanel.addTab('Canvas', new CanvasPanel());

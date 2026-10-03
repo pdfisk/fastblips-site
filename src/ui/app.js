@@ -21,7 +21,9 @@ import { SERVERS, setServer, serverName } from './db-client.js';
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
-import { runParameter, startRuntime } from './run-app.js';
+import { runParameter, startRuntime, RUN_TABLES } from './run-app.js';
+import { listApps } from './app-list.js';
+import { DesktopLaunchWindow } from './windows/launch-window.js';
 
 /**
  * Starts the UI the page calls for: with ?run=<program name>, that program
@@ -50,6 +52,7 @@ export function startDesktop() {
   navbar.add(new Button('Designer', () => new DesignerWindow().open(viewport)));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
+  navbar.add(applicationsMenu(viewport));
   navbar.add(new Spacer());
   navbar.add(buildLabel());
   viewport.navbar = navbar;
@@ -192,4 +195,54 @@ function windowsMenu(viewport, transcript) {
     }))];
   };
   return menu;
+}
+
+// The Applications menu, after Windows, lists the compiled apps: programs in
+// the Basic and Python tables saved with their compiled code (the Database
+// window's Compile button), by name. Choosing one runs it in a Desktop launch
+// window, from its compiled code. The list is read from the database each
+// time the menu opens: the last list shows at once, and the menu is redrawn
+// when the new one arrives.
+function applicationsMenu(viewport) {
+  const menu = new Menu('Applications');
+  const languages = Object.fromEntries(RUN_TABLES);
+  let apps = null;          // the last list read, or null before the first
+  let error = null;         // why the last read failed, or null
+  let loading = null;       // the read in progress
+  let redrawing = false;
+
+  const refresh = () => {
+    loading ??= listApps().then((list) => { apps = list; error = null; }, (err) => { error = err; })
+      .finally(() => {
+        loading = null;
+        if (!menu.isOpen) return;
+        redrawing = true;
+        try { menu.open(); } finally { redrawing = false; }
+      });
+  };
+  document.addEventListener('cr-dbserverchange', () => { apps = null; error = null; });
+
+  const note = (label) => ({ label, action() {}, enabled: () => false });
+  menu.itemsProvider = () => {
+    if (!redrawing) refresh();
+    if (apps === null) return [note(error ? `Cannot read the database: ${error.message}` : 'Loading...')];
+    if (apps.length === 0) return [note('No compiled apps: use Compile in a Database window')];
+    return apps.map((app) => ({
+      label: app.table === 'python' ? `${app.name} (Python)` : app.name,
+      action: () => launchApp(viewport, app, languages[app.table]),
+    }));
+  };
+  return menu;
+}
+
+/** Runs a compiled app in a new Desktop launch window. */
+function launchApp(viewport, app, language) {
+  const { record } = app;
+  new DesktopLaunchWindow({
+    title: app.name,
+    source: record.content ?? '',
+    language,
+    compiled: record.compiled_code,
+    priority: record.priority ?? undefined,
+  }).open(viewport);
 }

@@ -19,8 +19,14 @@ export class LaunchWindow extends Window {
    *   and `console` (the ConsoleWindow it was launched from). The title
    *   is the name of the console's script. `autoStart` (default true)
    *   runs the program as soon as the window is first opened.
+   *   Without a console (an app from the Applications menu), `language`
+   *   (BasicConsoleWindow or PythonConsoleWindow), `compiled` (the record's
+   *   compiled code) and `priority` say how to run the source; give a `title`.
    */
-  constructor({ source = '', console = null, autoStart = true, ...options } = {}) {
+  constructor({
+    source = '', console = null, language = null, compiled = null, priority,
+    autoStart = true, ...options
+  } = {}) {
     if (new.target === LaunchWindow) {
       throw new TypeError('LaunchWindow is abstract; use DesktopLaunchWindow or MobileLaunchWindow');
     }
@@ -37,7 +43,7 @@ export class LaunchWindow extends Window {
     // (see ConsoleWindow.spawn), so Go works even after the console closes.
     this.source = String(source ?? '');
     this.console = console;
-    this.language = console ? console.constructor : null;
+    this.language = console ? console.constructor : language;
     this.screen = new AppScreen();
     this.screen.element.classList.add('cr-launch-screen');
     this.textPanel = this.screen.textPanel;
@@ -49,8 +55,8 @@ export class LaunchWindow extends Window {
       name: () => this.title,
       // The console's compiled code (if its source came with some) and its
       // Priority menu's setting, as they are at each Go.
-      compiled: () => this.console?.compiled ?? null,
-      priority: () => this.console?.priority,
+      compiled: () => (this.console ? this.console.compiled ?? null : compiled),
+      priority: () => (this.console ? this.console.priority : priority),
     });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());

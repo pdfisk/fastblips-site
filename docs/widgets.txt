@@ -245,8 +245,9 @@ OutputPanel
 The output side of a ConsoleWindow: a TabPanel with its labels along the
 bottom and three pages.
 
-  - Text: a read-only TextPanel (outputPanel.textPanel) that programs print
-    to. It is selected at first.
+  - Text: a TextPanel (outputPanel.textPanel) that programs print to. It is
+    selected at first. It is writeable: the user can type in it and edit
+    what was printed; programs print at its end.
   - Board: a BoardPanel (outputPanel.boardPanel).
   - Canvas: a CanvasPanel (outputPanel.canvasPanel).
   - selectedTab is the label of the page showing; selectTab(label) shows
