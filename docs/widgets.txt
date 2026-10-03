@@ -624,8 +624,8 @@ suspended, resumed or killed.
 DatabaseWindow
 --------------
 An HSplitWindow that browses one table of source records on the database
-server (rails/server): records are listed on the left ("id  name"), and the
-selected one is edited in a RecordPanel on the right. Abstract: a subclass
+server (rails/server): records are listed on the left ("id  name"), sorted by
+name ignoring case, and the selected one is edited in a RecordPanel on the right. Abstract: a subclass
 sets the static table ('basic' or 'python', see src/ui/db-client.js),
 language (the Monaco language id) and consoleClass. There is one window per
 subclass, obtained with BasicDatabaseWindow.instance and

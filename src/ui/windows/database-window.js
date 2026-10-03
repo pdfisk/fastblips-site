@@ -113,7 +113,9 @@ export class DatabaseWindow extends HSplitWindow {
   async refresh() {
     this.setStatus('Loading…');
     try {
-      const records = await this.store.list();
+      // Listed by name, ignoring case (the server gives them by id).
+      const records = [...(await this.store.list() ?? [])].sort((x, y) => String(x.name ?? '')
+        .localeCompare(String(y.name ?? ''), undefined, { sensitivity: 'base' }) || x.id - y.id);
       this._suppressSelect = true;
       this.listPanel.items = records.map((r) => ({ value: r.id, label: rowLabel(r) }));
       this._suppressSelect = false;
