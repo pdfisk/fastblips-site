@@ -213,6 +213,21 @@ export const WIDGET_CLASSES = Object.freeze([
   ]),
   cls('TextPanel', ['text'], TEXT_AREA),
   cls('MonacoPanel', ['text', 'text'], TEXT_AREA),
+  cls('ListPanel', [], [
+    method('addItem', ['text']),
+    method('removeItem', ['index']),
+    method('setItem', ['index', 'text']),
+    method('getItem', ['index'], 'text'),
+    method('getCount', [], 'int'),
+    method('clear'),
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('getSelectedText', [], 'text'),
+    method('setEmptyText', ['text']),
+    method('onSelect', ['handler:int']),
+  ]),
+  // Classes are numbered in this order in compiled code (NEW_OBJECT's
+  // operand), so a new class goes at the end.
   // The program's board, a grid of cells that hold text. A singleton, like
   // the Viewport, and not part of it: it has none of the common methods.
   // Rows and columns count from 0, from the top left.
@@ -237,19 +252,6 @@ export const WIDGET_CLASSES = Object.freeze([
     method('clear'),
     method('onClick', ['handler:int:int']),
   ], { common: [] }),
-  cls('ListPanel', [], [
-    method('addItem', ['text']),
-    method('removeItem', ['index']),
-    method('setItem', ['index', 'text']),
-    method('getItem', ['index'], 'text'),
-    method('getCount', [], 'int'),
-    method('clear'),
-    method('select', ['index']),
-    method('getSelectedIndex', [], 'int'),
-    method('getSelectedText', [], 'text'),
-    method('setEmptyText', ['text']),
-    method('onSelect', ['handler:int']),
-  ]),
 ]);
 
 /** className -> class */
