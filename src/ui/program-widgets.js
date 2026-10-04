@@ -35,7 +35,7 @@ import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore } from './db-client.js';
-import { BoardBinding } from './board-host.js';
+import { BoardBinding, CanvasBinding } from './board-host.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
@@ -220,13 +220,18 @@ const CLASSES = {
 export class ProgramWidgetHost {
   /**
    * @param {FreeLayer} layer - the program's Viewport
-   * @param {{board?: import('./widgets/board-panel.js').BoardPanel}} [options] -
-   *   board: the screen's BoardPanel, hidden until the program makes its
-   *   Board (it is not in the Viewport); without one there is no Board.
+   * @param {{board?: import('./widgets/board-panel.js').BoardPanel,
+   *          canvas?: import('./widgets/canvas-panel.js').CanvasPanel}} [options] -
+   *   board, canvas: the screen's BoardPanel and CanvasPanel, each hidden
+   *   until the program makes its Board or its Canvas (they are not in the
+   *   Viewport); without one there is no Board or no Canvas.
    */
-  constructor(layer, { board = null } = {}) {
+  constructor(layer, { board = null, canvas = null } = {}) {
     this.layer = layer;
-    this._board = board ? new BoardBinding(board) : null;
+    /** className -> { binding, panel } for the screen's Board and Canvas. */
+    this._surfaces = {};
+    if (board) this._surfaces.Board = { binding: new BoardBinding(board), panel: board };
+    if (canvas) this._surfaces.Canvas = { binding: new CanvasBinding(canvas), panel: canvas };
     this._widgets = new Map();       // id -> widget
     this._ids = new Map();           // widget -> id
     this._nextId = 1;
@@ -241,12 +246,12 @@ export class ProgramWidgetHost {
   /** Every widget, oldest first. */
   get widgets() { return [...this._widgets.values()]; }
 
-  /** Removes every widget; ids start from 1 again. The board is hidden
-   *  and put back as new. */
+  /** Removes every widget; ids start from 1 again. The board and the
+   *  canvas are hidden and put back as new. */
   clear() {
-    if (this._board) {
-      this._board.board.visible = false;
-      this._board.reset();
+    for (const { binding, panel } of Object.values(this._surfaces)) {
+      panel.visible = false;
+      binding.reset();
     }
     for (const child of this.layer.children) {
       if (child instanceof Menu) child.close();
@@ -286,12 +291,13 @@ export class ProgramWidgetHost {
 
   create(className, args) {
     if (className === 'Viewport') return this._idOf(this.layer);
-    if (className === 'Board') {
-      if (!this._board) throw new WidgetError('there is no Board on this screen');
-      const { board } = this._board;
-      board.visible = true;
-      board.layout();
-      return this._ids.get(board) ?? this._register(board, 'Board');
+    if (className === 'Board' || className === 'Canvas') {
+      const surface = this._surfaces[className];
+      if (!surface) throw new WidgetError(`there is no ${className} on this screen`);
+      const { panel } = surface;
+      panel.visible = true;
+      panel.layout();
+      return this._ids.get(panel) ?? this._register(panel, className);
     }
     const spec = CLASSES[className];
     if (!spec) throw new WidgetError(`there is no widget class '${className}'`);
@@ -675,7 +681,7 @@ export class ProgramWidgetHost {
     const w = this._widgets.get(id);
     const cls = w.programClass;
     const [a, b] = args;
-    if (cls === 'Board') return this._board.call(method, args);
+    if (this._surfaces[cls]) return this._surfaces[cls].binding.call(method, args);
     if (/^on[A-Z]/.test(method)) { this._listen(w, method, a); return undefined; }
     switch (method) {
       // ---- every widget, and the Viewport

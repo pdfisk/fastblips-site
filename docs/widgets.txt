@@ -287,13 +287,55 @@ and checkered unless told otherwise.
   - clear() empties every cell's text and colours and the selection, and
     keeps the size. No widgets can be added.
   - Programs reach a BoardPanel as their Board (New Board() / Board()); see
-    "The Board" under Program widgets.
+    "The Board and the Canvas" under Program widgets.
 
 
 CanvasPanel
 -----------
-The Canvas page of an OutputPanel. For now a placeholder that shows its
-name; clear() does nothing.
+The Canvas page of an OutputPanel: a Panel that shows a drawing - 2D and
+simple 3D graphics, for showing data and for games.
+new CanvasPanel({ width, height }).
+
+  - The drawing has a size of its own, in units: 400 by 300 unless told
+    otherwise (width, height; setSize(width, height), 1 to 4000 each,
+    erases it). (0, 0) is the top left, x goes right and y down. The
+    drawing is scaled to fit the panel, keeping its shape and centred, so
+    coordinates mean the same at any window size. It is kept at two pixels
+    to the unit, so it stays sharp when shown larger.
+  - Settings: background (what clear() fills with; white), color (what is
+    drawn next; black), lineWidth (1) and fontSize (14), in units. Colours
+    are any CSS colour. They are not themed: a drawing looks the same in
+    every theme.
+  - 2D shapes are painted as they are drawn and stay until clear():
+    point(x, y); line(x1, y1, x2, y2); rect and fillRect(x, y, width,
+    height); circle and fillCircle(x, y, radius); triangle and fillTriangle
+    (three points); polygon and fillPolygon(points), each point [x, y];
+    text(x, y, text), with (x, y) its top left.
+  - 3D shapes: line3d, triangle3d and fillTriangle3d (points x, y, z),
+    box3d and fillBox3d(x, y, z, width, height, depth), centred on (x, y,
+    z). x is to the right, y up and z toward the viewer. They are kept in a
+    list (at most 20000; clear() empties it) and drawn over the 2D drawing,
+    farthest first, each time the drawing is shown. Solid ones are shaded by
+    how they face a fixed light. A shape that reaches behind the camera is
+    not drawn. This is drawing with the 2D canvas, not WebGL: shapes that
+    pass through each other are not cut where they cross.
+  - The camera: setCamera(x, y, z) puts it somewhere (it starts at 4, 3, 6);
+    lookAt(x, y, z) is the point it looks at (the origin); orbit(angle,
+    height, distance) puts it on a circle round that point, angle in
+    degrees. Because the shapes are kept, moving the camera and showing
+    the drawing again gives the new view without drawing them again.
+  - autoUpdate (true at first): each change is shown by itself, at the
+    browser's next frame. A game turns it off and calls update() when each
+    picture is complete, so a half-drawn picture is never seen.
+  - Input: a click fires a canvasclick event with detail { x, y }, in
+    units, and gives the canvas the keyboard; a key going down fires
+    canvaskey with detail { key }. isKeyDown(key) says whether a key is
+    held; mouseX and mouseY are where the mouse last was. Keys are named
+    in lower case, without "Arrow": "a", "left", "space", "enter"
+    (isKeyDown takes any case).
+  - reset() puts everything back as new. No widgets can be added.
+  - Programs reach a CanvasPanel as their Canvas (New Canvas() /
+    Canvas()); see "The Board and the Canvas" under Program widgets.
 
 
 Navbar (singleton)
@@ -807,15 +849,16 @@ The screen a program runs on, in a LaunchWindow and on the ?run= page
 (src/ui/widgets/app-screen.js).
 
   - A TextPanel (screen.textPanel) fills it: the program's Print output.
-  - A BoardPanel (screen.boardPanel) lies over the text, hidden until the
-    program makes its Board; it then covers the text.
+  - A BoardPanel (screen.boardPanel) and a CanvasPanel (screen.canvasPanel)
+    lie over the text, each hidden until the program makes its Board or
+    its Canvas; it then covers the text.
   - Over it, a transparent layer (screen.widgetLayer, a FreeLayer) holds the
     widgets the program makes. Clicks outside them go through to the text.
     The program's Labels are opaque, so printed text does not show through.
   - screen.host, a ProgramWidgetHost, is what the VM calls to make and
     change the widgets (its `gui` option).
-  - clearWidgets() removes them all, and hides the board and puts it back
-    as new (Go and Reset do this).
+  - clearWidgets() removes them all, and hides the board and the canvas
+    and puts them back as new (Go and Reset do this).
 
 
 Program widgets
@@ -829,26 +872,42 @@ changed through methods, and in MiniPy the same way with Python spellings:
 
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
-    MonacoPanel and ListPanel, and the Board (below). Left out on purpose:
-    the singletons (Navbar, StatusBar, TranscriptWindow, SchedulerWindow),
-    the IDE's own windows (consoles, DatabaseWindow, LaunchWindows) and
-    panels made for them (RecordPanel, OutputPanel), and the CanvasPanel
-    placeholder.
-  - The Board. New Board() / Board() is the program's board, a BoardPanel:
-    a singleton like the Viewport, but not part of it (it has none of the
-    common methods, is not saved by toJson, and the designer does not
-    offer it). Where it is depends on where the program runs:
-      - in a console, the Board page of the console's output, which is
-        shown when the program makes its Board. A console has no screen,
-        so the Board is the only class a program can make there
-        (ConsoleBoardHost, src/ui/board-host.js, is the console's host;
-        console.boardHost). Each Run starts with the board as new (8 by 8,
-        checkered, empty) and the Text page showing; a program that stops
-        with an error shows the Text page again, where the error is.
+    MonacoPanel and ListPanel, and the Board and the Canvas (below). Left
+    out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
+    SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
+    LaunchWindows) and panels made for them (RecordPanel, OutputPanel).
+  - The Board and the Canvas. New Board() / Board() is the program's
+    board, a BoardPanel, and New Canvas() / Canvas() its canvas, a
+    CanvasPanel: singletons like the Viewport, but not part of it (they
+    have none of the common methods, are not saved by toJson, and the
+    designer does not offer them). Where they are depends on where the
+    program runs:
+      - in a console, the Board and Canvas pages of the console's output;
+        a page is shown when the program makes that object. A console has
+        no screen, so these are the only classes a program can make there
+        (ConsoleOutputHost, src/ui/board-host.js, is the console's host;
+        console.outputHost). Each Run starts with the board and the canvas
+        as new and the Text page showing; a program that stops with an
+        error shows the Text page again, where the error is.
       - on an AppScreen (a launch window, the ?run= page), the screen's
-        own BoardPanel, which covers the printed text once the program
-        makes its Board. Widgets still float above it.
-    Its methods: setSize(rows, columns), getRows, getColumns; setText /
+        own BoardPanel and CanvasPanel, each covering the printed text
+        once the program makes it (the canvas over the board). Widgets
+        still float above them.
+    New classes go at the end of WIDGET_CLASSES: compiled code names a
+    class by its position there.
+    The Canvas's methods are the CanvasPanel's: setSize, getWidth,
+    getHeight; setBackground, setColor, setLineWidth, setFontSize; clear;
+    point, line, rect, fillRect, circle, fillCircle, triangle,
+    fillTriangle, text; setCamera, lookAt, orbit, line3d, triangle3d,
+    fillTriangle3d, box3d, fillBox3d; setAutoUpdate, isAutoUpdate, update;
+    isKeyDown(key), getMouseX, getMouseY; onClick(handler), called with
+    the canvas, x and y, and onKey(handler), called with the canvas and
+    the key's name. A program in a loop of its own (a game: draw, update,
+    Sleep) gets no events until the loop ends, so it asks isKeyDown and
+    getMouseX / getMouseY instead. CanvasBinding (src/ui/board-host.js)
+    runs these methods for both hosts. examples/canvas-demo.crumb and
+    canvas-demo.py use it.
+    The Board's methods: setSize(rows, columns), getRows, getColumns; setText /
     getText, setBackground / getBackground and setColor / getColor, each
     starting with (row, column); setCheckered / isCheckered and
     setSquareCells / isSquareCells; select(row, column), clearSelection,

@@ -5,7 +5,9 @@
 // the Viewport (made on first use), ids, finding, a simple JSON form
 // saved to an in-memory database (this.saved, name -> JSON text), and the
 // Board (a singleton outside the Viewport: its size, its cells' text and
-// colours, its selection, and clickCell(row, column) to click a cell).
+// colours, its selection, and clickCell(row, column) to click a cell), and
+// the Canvas (another such singleton: its drawing calls are kept in
+// w.drawn, its held keys in w.keys, with clickCanvas(x, y) and pressKey(key)).
 
 import { WidgetError } from '../src/vm/runtime/widgets.js';
 
@@ -19,6 +21,7 @@ export class FakeHost {
     this.saved = new Map();
     this.viewport = 0;
     this.board = 0;
+    this.canvas = 0;
   }
 
   boardId() {
@@ -31,6 +34,46 @@ export class FakeHost {
       w.selectedCell = null;
     }
     return this.board;
+  }
+
+  canvasId() {
+    if (!this.canvas) {
+      this.canvas = this.create('Canvas', [], true);
+      const w = this.widgets.get(this.canvas);
+      w.detached = true;   // not in the Viewport
+      Object.assign(w.props, { width: 400, height: 300, autoUpdate: true, mouseX: 0, mouseY: 0 });
+      w.drawn = [];
+      w.keys = new Set();
+    }
+    return this.canvas;
+  }
+
+  /** Simulates a click on the Canvas. */
+  clickCanvas(x, y) {
+    const w = this.widgets.get(this.canvas);
+    Object.assign(w.props, { mouseX: x, mouseY: y });
+    for (const handler of w.handlers.click ?? []) handler(x, y);
+  }
+
+  /** Simulates pressing (and holding) a key on the Canvas. */
+  pressKey(key) {
+    const w = this.widgets.get(this.canvas);
+    w.keys.add(key.toLowerCase());
+    for (const handler of w.handlers.key ?? []) handler(key.toLowerCase());
+  }
+
+  callCanvas(w, method, args) {
+    if (method === 'isKeyDown') return w.keys.has(String(args[0]).toLowerCase());
+    if (method === 'setSize') {
+      if (args[0] < 1 || args[1] < 1) throw new WidgetError(`a canvas's width must be a number from 1 to 4000, not ${args[0]}`);
+      [w.props.width, w.props.height] = args;
+      w.drawn = [];
+      return undefined;
+    }
+    if (/^(set|get|is)[A-Z]/.test(method) && !['setCamera'].includes(method)) return null;   // plain properties
+    if (method === 'clear') w.drawn = [];
+    else w.drawn.push([method, ...args]);
+    return undefined;
   }
 
   /** Simulates a click on a cell of the Board. */
@@ -120,6 +163,7 @@ export class FakeHost {
   create(className, args, internal = false) {
     if (className === 'Viewport' && !internal) return this.viewportId();
     if (className === 'Board' && !internal) return this.boardId();
+    if (className === 'Canvas' && !internal) return this.canvasId();
     const id = this.next++;
     const w = {
       id, className, args, props: { visible: true, enabled: true }, children: [], parent: null,
@@ -169,8 +213,8 @@ export class FakeHost {
     this.calls.push([id, method, ...args]);
     const on = /^on([A-Z]\w*)$/.exec(method);
     if (on) { (w.handlers[on[1].toLowerCase()] ??= []).push(args[0]); return undefined; }
-    if (w.className === 'Board') {
-      const result = this.callBoard(w, method, args);
+    if (w.className === 'Board' || w.className === 'Canvas') {
+      const result = w.className === 'Board' ? this.callBoard(w, method, args) : this.callCanvas(w, method, args);
       if (result !== null) return result;
     }
     switch (method) {

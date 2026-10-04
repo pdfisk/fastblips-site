@@ -44,10 +44,12 @@
 // throwing a WidgetError, which becomes a runtime error in the program.
 // Without a host (the command line) making a widget is a runtime error.
 //
-// The Board is the program's board: a grid of cells for board games (a
-// BoardPanel, docs/widgets.txt). Like the Viewport it is a singleton, and it
-// is the one class a console's host has too: there it is the Board tab of
-// the console's output, and on an AppScreen it covers the screen's text.
+// The Board is the program's board, a grid of cells for board games (a
+// BoardPanel, docs/widgets.txt), and the Canvas its drawing surface for 2D
+// and 3D graphics (a CanvasPanel). Like the Viewport they are singletons,
+// and they are the two classes a console's host has too: there they are the
+// Board and Canvas tabs of the console's output, and on an AppScreen each
+// covers the screen's text.
 
 import { Widget } from '../values.js';
 
@@ -252,6 +254,44 @@ export const WIDGET_CLASSES = Object.freeze([
     method('clear'),
     method('onClick', ['handler:int:int']),
   ], { common: [] }),
+  // The program's canvas, for 2D and simple 3D drawing. A singleton, like
+  // the Board. Its drawing is 400 by 300 units until setSize, (0, 0) at the
+  // top left; in 3D, x is to the right, y up and z toward the viewer.
+  cls('Canvas', [], [
+    method('setSize', ['size', 'size']),
+    method('getWidth', [], 'int'),
+    method('getHeight', [], 'int'),
+    method('setBackground', ['text']),
+    method('setColor', ['text']),
+    method('setLineWidth', ['number']),
+    method('setFontSize', ['number']),
+    method('clear'),
+    method('point', ['number', 'number']),
+    method('line', ['number', 'number', 'number', 'number']),
+    method('rect', ['number', 'number', 'number', 'number']),
+    method('fillRect', ['number', 'number', 'number', 'number']),
+    method('circle', ['number', 'number', 'number']),
+    method('fillCircle', ['number', 'number', 'number']),
+    method('triangle', Array(6).fill('number')),
+    method('fillTriangle', Array(6).fill('number')),
+    method('text', ['number', 'number', 'text']),
+    method('setCamera', ['number', 'number', 'number']),
+    method('lookAt', ['number', 'number', 'number']),
+    method('orbit', ['number', 'number', 'number']),
+    method('line3d', Array(6).fill('number')),
+    method('triangle3d', Array(9).fill('number')),
+    method('fillTriangle3d', Array(9).fill('number')),
+    method('box3d', Array(6).fill('number')),
+    method('fillBox3d', Array(6).fill('number')),
+    method('setAutoUpdate', ['boolean']),
+    method('isAutoUpdate', [], 'boolean'),
+    method('update'),
+    method('isKeyDown', ['text'], 'boolean'),
+    method('getMouseX', [], 'int'),
+    method('getMouseY', [], 'int'),
+    method('onClick', ['handler:int:int']),
+    method('onKey', ['handler:text']),
+  ], { common: [] }),
 ]);
 
 /** className -> class */
@@ -316,7 +356,7 @@ export function createWidget(vm, cls, args, { what, fail }) {
   const gui = hostFor(vm, what, fail);
   const id = hostCall(fail, () => gui.create(cls.name, args));
   vm.widgetObjects ??= new Map();
-  if (vm.widgetObjects.has(id)) return vm.widgetObjects.get(id);   // the Viewport, the Board
+  if (vm.widgetObjects.has(id)) return vm.widgetObjects.get(id);   // the Viewport, the Board, the Canvas
   const w = new Widget(cls, id);
   vm.widgetObjects.set(id, w);
   return w;

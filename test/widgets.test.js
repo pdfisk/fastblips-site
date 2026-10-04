@@ -52,10 +52,10 @@ const crumbError = (source, gui = new FakeHost()) => {
 test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
-    'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board',
+    'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board', 'Canvas',
   ]);
   for (const c of WIDGET_CLASSES) {
-    for (const m of c.methods) assert.match(m.py, /^[a-z_]+$/, `${c.name}.${m.name}`);
+    for (const m of c.methods) assert.match(m.py, /^[a-z_]+(3d)?$/, `${c.name}.${m.name}`);
   }
 });
 
@@ -213,7 +213,7 @@ test('Crumb: onClick runs the Sub for each click, after the module code', () => 
 
 test('Crumb: object load errors', () => {
   const errorsOf = (source) => compile(source, { filename: 't.crumb' }).errors.map((e) => e.message);
-  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, HPanel/);
+  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, Canvas, HPanel/);
   assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
   assert.match(errorsOf('Dim x = New HPanel(1)')[0], /'New HPanel' takes 0 arguments, found 1/);
   assert.match(errorsOf('Dim x = New HPanel')[0], /expected '\(' after 'New HPanel'/);
@@ -679,5 +679,114 @@ test('examples/tic-tac-toe.crumb and tic-tac-toe.py', () => {
     settle(vm);
     assert.equal(board.cells.size, 0);
     assert.equal(out.at(-1), 'X to move: click a square.');
+  }
+});
+
+// ----------------------------------------------------------------- Canvas
+
+test('Crumb: the Canvas is a singleton that draws in 2D and 3D', () => {
+  const { host, out } = runCrumb([
+    'Dim c = New Canvas()',
+    'Print c, c = New Canvas(), c.getWidth(), c.getHeight(), c.isAutoUpdate()',
+    'c.setSize(200, 100)',
+    'c.setBackground("black")',
+    'c.setColor("red")',
+    'c.setLineWidth(2.5)',
+    'c.clear()',
+    'c.line(0, 0, 200, 100)',
+    'c.fillRect(10, 10, 30, 20)',
+    'c.fillCircle(100, 50, 12.5)',
+    'c.fillTriangle(0, 0, 10, 0, 5, 8)',
+    'c.text(4, 4, 42)',
+    'c.orbit(30, 3, 6)',
+    'c.fillBox3d(0, 0, 0, 1, 2, 3)',
+    'c.line3d(0, 0, 0, 1, 1, 1)',
+    'c.setAutoUpdate(False)',
+    'c.update()',
+    'Print c.getWidth(), c.getHeight(), c.isAutoUpdate(), c.isKeyDown("Left"), c.getMouseX()',
+  ].join('\n'));
+  assert.deepEqual(out, ['<Canvas> True 400 300 True', '200 100 False False 0']);
+  const canvas = host.get(host.canvas);
+  assert.deepEqual(canvas.drawn, [
+    ['line', 0, 0, 200, 100],
+    ['fillRect', 10, 10, 30, 20],
+    ['fillCircle', 100, 50, 12.5],
+    ['fillTriangle', 0, 0, 10, 0, 5, 8],
+    ['text', 4, 4, '42'],
+    ['orbit', 30, 3, 6],
+    ['fillBox3d', 0, 0, 0, 1, 2, 3],
+    ['line3d', 0, 0, 0, 1, 1, 1],
+    ['update'],
+  ]);
+  assert.deepEqual([canvas.props.background, canvas.props.color, canvas.props.lineWidth], ['black', 'red', 2.5]);
+});
+
+test('Crumb: Canvas clicks pass x and y, keys their name, and keys can be asked for', () => {
+  const { vm, host, out } = runCrumb([
+    'Dim c = New Canvas()',
+    'c.onClick("Clicked")',
+    'c.onKey("Pressed")',
+    'Sub Clicked(canvas, x, y)',
+    '  Print "click", x, y, canvas.getMouseX(), canvas.getMouseY()',
+    'End Sub',
+    'Sub Pressed(canvas, key)',
+    '  Print "key", key, canvas.isKeyDown("LEFT"), canvas.isKeyDown("Right")',
+    'End Sub',
+  ].join('\n'));
+  host.clickCanvas(120, 45);
+  host.pressKey('Left');
+  settle(vm);
+  assert.deepEqual(out, ['click 120 45 120 45', 'key left True False']);
+});
+
+test('Crumb: Canvas mistakes are load or runtime errors', () => {
+  assert.match(crumbError('Dim c = New Canvas()\nc.setSize(0, 10)'), /width must be a number from 1 to 4000/);
+  assert.match(crumbError('Dim c = New Canvas()\nc.line(1, 2, 3, "x")'), /line expects a Number as argument 4/);
+  assert.match(crumbError('Dim c = New Canvas()\nc.setLeft(3)'), /a Canvas has no method 'setLeft'/);
+  const { errors } = compile('Dim c = New Canvas()\nc.line(1, 2, 3)', { filename: 't.crumb' });
+  assert.equal(errors.length, 1);
+});
+
+test('MiniPy: the Canvas, with snake_case methods', () => {
+  const { vm, host, out } = runPy([
+    'c = Canvas()',
+    'c.set_size(100, 100)',
+    'c.set_color("#336699")',
+    'c.fill_rect(0, 0, 10, 10)',
+    'c.fill_box3d(0, 0, 0, 1, 1, 1)',
+    'c.fill_triangle3d(0, 0, 0, 1, 0, 0, 0, 1, 0)',
+    'c.look_at(0, 1, 0)',
+    'c.set_auto_update(False)',
+    'c.update()',
+    'def clicked(canvas, x, y):',
+    '    print(x, y, canvas.is_key_down("a"))',
+    'c.on_click(clicked)',
+    'print(c is Canvas(), c.get_width(), c.is_auto_update())',
+  ].join('\n'));
+  host.pressKey('a');
+  host.clickCanvas(7, 9);
+  settle(vm);
+  assert.deepEqual(out, ['True 100 False', '7 9 True']);
+  assert.deepEqual(host.get(host.canvas).drawn.map((d) => d[0]),
+    ['fillRect', 'fillBox3d', 'fillTriangle3d', 'lookAt', 'update']);
+});
+
+test('examples/canvas-demo.crumb and canvas-demo.py', () => {
+  const read = (name) => readFileSync(new URL(`../examples/${name}`, import.meta.url), 'utf8');
+  for (const [make, source] of [[crumb, read('canvas-demo.crumb')], [py, read('canvas-demo.py')]]) {
+    const host = new FakeHost();
+    const out = [];
+    const vm = new VM(make(source), { gui: host, out: (t) => out.push(t), sleep: () => {} });
+    settle(vm);
+    const canvas = host.get(host.canvas);
+    assert.equal(canvas.drawn.filter((d) => d[0] === 'fillRect').length, 6);
+    assert.deepEqual(canvas.drawn.find((d) => d[0] === 'fillRect'), ['fillRect', 45, 176, 40, 84]);
+    assert.deepEqual(out, ['Click the chart to see it in 3D.']);
+    host.clickCanvas(10, 10);
+    for (let i = 0; i < 50 && !canvas.drawn.some((d) => d[0] === 'update'); i++) vm.runSlice(1000);
+    assert.equal(canvas.drawn.filter((d) => d[0] === 'fillBox3d').length, 6);
+    assert.equal(canvas.drawn.filter((d) => d[0] === 'line3d').length, 14);
+    assert.deepEqual(canvas.drawn.find((d) => d[0] === 'orbit'), ['orbit', 0, 4, 9]);
+    assert.equal(canvas.props.autoUpdate, false);
   }
 });

@@ -31,7 +31,7 @@ class FakeElement extends EventTarget {
 }
 
 let BoardPanel;
-let ConsoleBoardHost;
+let ConsoleOutputHost;
 
 before(async () => {
   globalThis.document = {
@@ -43,7 +43,7 @@ before(async () => {
     constructor(type, init = {}) { super(type, init); this.detail = init.detail ?? null; }
   };
   ({ BoardPanel } = await import('../src/ui/widgets/board-panel.js'));
-  ({ ConsoleBoardHost } = await import('../src/ui/board-host.js'));
+  ({ ConsoleOutputHost } = await import('../src/ui/board-host.js'));
 });
 
 test('a board is 8 by 8 and checkered by default', () => {
@@ -141,12 +141,13 @@ test('cells fill the panel, or stay square and centred', () => {
   assert.equal(board.grid.style.left, '0px');
 });
 
-// ------------------------------------------------------ ConsoleBoardHost
+// ------------------------------------------------------ ConsoleOutputHost
 
 function consoleHost() {
   const tabs = [];
-  const outputPanel = { boardPanel: new BoardPanel(), selectTab: (label) => tabs.push(label) };
-  return { host: new ConsoleBoardHost(outputPanel), board: outputPanel.boardPanel, tabs };
+  const canvasPanel = { element: new FakeElement('div'), reset() {} };
+  const outputPanel = { boardPanel: new BoardPanel(), canvasPanel, selectTab: (label) => tabs.push(label) };
+  return { host: new ConsoleOutputHost(outputPanel), board: outputPanel.boardPanel, tabs };
 }
 
 function clickCell(board, row, column) {

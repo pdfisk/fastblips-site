@@ -194,6 +194,7 @@ label.setWidth(100)
 | `TextPanel` | `New TextPanel(text)` | A multi-line text box the user can edit |
 | `MonacoPanel` | `New MonacoPanel(text, language)` | A code editor (Monaco, the editor of VS Code); `language` is a Monaco language id such as `"vb"` or `"python"` |
 | `ListPanel` | `New ListPanel()` | A list the user picks a row from |
+| `Canvas` | `New Canvas()` | The program's canvas: a surface for 2D and 3D drawing, for showing data and for games. A **singleton**, like the `Board` |
 | `Board` | `New Board()` | The program's board: a grid of equal cells that hold text, for board games. A **singleton**, like the `Viewport`, but not a widget in it |
 
 `New` with any other name, or the wrong number of arguments, is a load error. Text
@@ -232,6 +233,7 @@ size must be 0 or more.
 | `Window` | `setTitle(t)` `getTitle()` `setContent(w)` `getContent()` `getButtonBar()` `open()` `close()` `maximize()` `restore()` `isMaximized()` `onClose(sub)` |
 | `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
 | `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
+| `Canvas` | see **The Canvas** below |
 | `Board` | `setSize(rows, columns)` `getRows()` `getColumns()` `setText(row, column, t)` `getText(row, column)` `setBackground(row, column, c)` `getBackground(row, column)` `setColor(row, column, c)` `getColor(row, column)` `setCheckered(b)` `isCheckered()` `setSquareCells(b)` `isSquareCells()` `select(row, column)` `clearSelection()` `getSelectedRow()` `getSelectedColumn()` `clear()` `onClick(sub)`; it has none of the methods every widget has |
 
 Methods that set something return `Nothing`. A method that returns a widget (`getChild`,
@@ -325,8 +327,8 @@ End Sub
 
 **Events.** `onClick`, `onSelect`, `onChange`, `onSubmit`, `onClose` and `Menu.addItem`
 name a `Sub` (a String, case-insensitive) to call when the event happens. The Sub takes
-no arguments; or one, the widget; or two, the widget and the event's value (a `Board`'s
-`onClick` passes two values, the row and the column) — the row or
+no arguments; or one, the widget; or two, the widget and the event's value (the `onClick`
+of a `Board` or a `Canvas` passes two values: the row and the column, or x and y) — the row or
 tab index for `onSelect`, the new text for a text panel's `onChange`, the divider
 position for a split panel's `onChange`, the item's label for a menu item. Once a program
 has registered a handler, reaching the end of its top-level code does not end it: it
@@ -357,8 +359,8 @@ gives back the board's). `setSize` and `clear` empty the board. `select` frames 
 `setSquareCells(True)` keeps them square. `onClick` names a Sub that is called with the
 board, the row and the column of the cell clicked (or with fewer, as it takes).
 
-The Board is the one class a program can also make when run in a **console**: there it
-is the Board tab of the console's output. On a screen it covers the printed text.
+The Board (and the Canvas, below) can also be made when a program is run in a
+**console**: there it is the Board tab of the console's output. On a screen it covers the printed text.
 
 ```vb
 Dim board = New Board()
@@ -369,6 +371,54 @@ board.onClick("Clicked")
 Sub Clicked(b, row, column)
   If b.getText(row, column) = "" Then b.setText(row, column, "X")
 End Sub
+```
+
+**The Canvas.** `New Canvas()` is the program's canvas. Like the Board it can be made
+in a console (the Canvas tab of the output) as well as on a screen, where it covers the
+printed text. It has none of the methods every widget has.
+
+Its drawing is 400 units wide and 300 high until `setSize(width, height)` (which erases
+it), with (0, 0) at the top left, x to the right and y down. It is scaled to fit wherever
+it is shown, so coordinates mean the same at any size. Colours are any CSS colour
+(`"red"`, `"#3a6db0"`).
+
+| | Methods |
+|---|---|
+| Settings | `setSize(w, h)` `getWidth()` `getHeight()` `setBackground(c)` (what `clear()` fills with; white) `setColor(c)` (what is drawn next; black) `setLineWidth(n)` `setFontSize(n)` |
+| 2D | `clear()` `point(x, y)` `line(x1, y1, x2, y2)` `rect(x, y, w, h)` `fillRect(x, y, w, h)` `circle(x, y, r)` `fillCircle(x, y, r)` `triangle(x1, y1, x2, y2, x3, y3)` `fillTriangle(...)` `text(x, y, t)` |
+| 3D | `line3d(x1, y1, z1, x2, y2, z2)` `triangle3d(` three points `)` `fillTriangle3d(...)` `box3d(x, y, z, w, h, d)` `fillBox3d(...)` (centred on x, y, z) `setCamera(x, y, z)` `lookAt(x, y, z)` `orbit(angle, height, distance)` |
+| Showing | `setAutoUpdate(b)` `isAutoUpdate()` `update()` |
+| Input | `onClick(sub)` `onKey(sub)` `isKeyDown(key)` `getMouseX()` `getMouseY()` |
+
+2D shapes are painted as they are drawn. In 3D, x is to the right, y up and z toward the
+viewer; the shapes are remembered (until `clear()`) and drawn over the 2D drawing,
+farthest first, as the camera sees them, solid ones shaded by a fixed light. The camera
+starts at (4, 3, 6) looking at (0, 0, 0); `orbit` puts it on a circle round the point it
+looks at, `angle` in degrees. Moving the camera shows the same shapes from the new place,
+without drawing them again.
+
+Each change is shown as it is made. A game that redraws the whole picture many times a
+second calls `setAutoUpdate(False)` and then `update()` when each picture is complete.
+
+`onClick` names a Sub called with the canvas and the x and y of the click; `onKey`, one
+called with the canvas and the key's name in lower case (`"a"`, `"left"`, `"space"`,
+`"enter"`). The canvas gets the keyboard once it has been clicked. Handlers run only when
+the program is idle, so a program that loops forever asks instead: `isKeyDown("Left")` is
+`True` while that key is held, and `getMouseX()` / `getMouseY()` say where the mouse
+last was.
+
+```vb
+Dim c = New Canvas()
+c.setAutoUpdate(False)
+Dim x = 200
+While True
+  If c.isKeyDown("Left") Then x = x - 4
+  If c.isKeyDown("Right") Then x = x + 4
+  c.clear()
+  c.fillCircle(x, 150, 20)
+  c.update()
+  Sleep(20.5)                ' milliseconds
+End While
 ```
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`

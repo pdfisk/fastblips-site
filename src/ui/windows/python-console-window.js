@@ -37,7 +37,7 @@ export class PythonConsoleWindow extends ConsoleWindow {
 
   /**
    * Spawns a MiniPy program on the shared scheduler, printing to output (a
-   * TextPanel) and putting widgets on gui (an AppScreen's host, or a console's ConsoleBoardHost), if given.
+   * TextPanel) and putting widgets on gui (an AppScreen's host, or a console's ConsoleOutputHost), if given.
    * The program runs from its compiled code when that is given and still
    * matches the source, else from this page's compile cache, else the source
    * is compiled (see src/vm/program-loader.js). Load errors are written to
@@ -81,11 +81,11 @@ export class PythonConsoleWindow extends ConsoleWindow {
   run() {
     this.stop();
     this.output.text = '';
-    this.resetBoard();
+    this.resetOutput();
     const { process, errorCount } = PythonConsoleWindow.spawn(this.input.text, {
       name: this.title,
       output: this.output,
-      gui: this.boardHost,
+      gui: this.outputHost,
       priority: this.priority,
       compiled: this.compiled,
       onExit: (p) => this.reportExited(p),

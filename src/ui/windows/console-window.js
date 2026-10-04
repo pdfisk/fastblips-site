@@ -12,7 +12,7 @@ import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
 import { describeOrigin } from '../program-runner.js';
 import { scheduler } from '../runtime.js';
-import { ConsoleBoardHost } from '../board-host.js';
+import { ConsoleOutputHost } from '../board-host.js';
 
 // While a program runs its output pane fades a little (the amount is a
 // theme variable), and comes back when the program ends.
@@ -89,9 +89,10 @@ export class ConsoleWindow extends HSplitWindow {
     this.outputPanel = new OutputPanel();
     this.outputPanel.element.classList.add('cr-console-output');
     this.output = this.outputPanel.textPanel;
-    // The widget host for programs run here: it has only the Board (New
-    // Board() / Board()), which is the output's Board page.
-    this.boardHost = new ConsoleBoardHost(this.outputPanel);
+    // The widget host for programs run here: it has only the Board and the
+    // Canvas (New Board(), New Canvas()), which are the output's Board and
+    // Canvas pages.
+    this.outputHost = new ConsoleOutputHost(this.outputPanel);
     this.left = this.input;
     this.right = this.outputPanel;
 
@@ -137,11 +138,12 @@ export class ConsoleWindow extends HSplitWindow {
   }
 
   /**
-   * Before a run: the board as new (8 by 8, empty, no handlers) and the
-   * Text page showing. A program that makes its Board shows the Board page.
+   * Before a run: the board and the canvas as new (empty, no handlers) and
+   * the Text page showing. A program that makes its Board or its Canvas
+   * shows that page.
    */
-  resetBoard() {
-    this.boardHost.reset();
+  resetOutput() {
+    this.outputHost.reset();
     this.outputPanel.selectTab('Text');
   }
 
