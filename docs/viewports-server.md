@@ -3,7 +3,7 @@
 A program's Viewport is saved with `vp.save(name)` and loaded with
 `vp.load(name)` (spec section 10.1). The client (`viewportStore` in
 `src/ui/program-widgets.js`) talks to a `/viewports` resource on the same
-Rails server as `basic_sources` and `python_sources`, in the same style:
+Rails server as `apps`, in the same style:
 
 | Request | Does |
 |---|---|
@@ -17,8 +17,8 @@ A record is `{ id, name, content, created_at, updated_at }`. `content` is the
 saved viewport as a JSON object (not a string), in the format below. Saving
 under a name that exists updates that record; names are unique.
 
-The server side lives in `rails/server`, next to `basic_source` and
-`python_source` and in the same style:
+The server side lives in `rails/server`, next to `apps` and in the same
+style:
 
 - `db/migrate/20260930000001_create_viewport.rb` — the `viewport` table:
   `name` (string, not null, unique index), `content` (jsonb, not null),

@@ -32,14 +32,20 @@ test('list, get, create, update and remove hit the Rails routes', async () => {
   assert.equal((await s.update(2, { name: 'c.bas' })).name, 'c.bas');
   assert.equal(await s.remove(2), undefined);
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), [
-    'GET http://db.test/basic_sources',
-    'GET http://db.test/basic_sources/1',
-    'POST http://db.test/basic_sources',
-    'PATCH http://db.test/basic_sources/2',
-    'DELETE http://db.test/basic_sources/2',
+    'GET http://db.test/apps?language=basic',
+    'GET http://db.test/apps/1',
+    'POST http://db.test/apps',
+    'PATCH http://db.test/apps/2',
+    'DELETE http://db.test/apps/2',
   ]);
-  assert.deepEqual(fetch.calls[2].body, { basic_source: { name: 'b.bas', content: '' } });
-  assert.deepEqual(fetch.calls[3].body, { basic_source: { name: 'c.bas' } });
+  assert.deepEqual(fetch.calls[2].body, { app: { name: 'b.bas', content: '', language: 'basic' } });
+  assert.deepEqual(fetch.calls[3].body, { app: { name: 'c.bas' } });
+});
+
+test('a language store finds by name within its language', async () => {
+  const fetch = fakeFetch({ status: 200, body: [] });
+  await new SourceStore({ ...TABLES.python, baseUrl: 'http://db.test', fetch }).findByName('a b');
+  assert.equal(fetch.calls[0].url, 'http://db.test/apps?name=a%20b&language=python');
 });
 
 test('validation errors are reported readably', async () => {
@@ -49,15 +55,15 @@ test('validation errors are reported readably', async () => {
 });
 
 test('not found and network failures', async () => {
-  const s = store(fakeFetch({ status: 404, body: { error: "Couldn't find BasicSource" } }, new TypeError('Failed to fetch')));
-  await assert.rejects(s.get(9), /Couldn't find BasicSource/);
+  const s = store(fakeFetch({ status: 404, body: { error: "Couldn't find App" } }, new TypeError('Failed to fetch')));
+  await assert.rejects(s.get(9), /Couldn't find App/);
   await assert.rejects(s.list(), /Cannot reach the database server at http:\/\/db\.test/);
 });
 
 test('priority and compiled_code are sent in the record body', async () => {
   const fetch = fakeFetch({ status: 200, body: { id: 3, name: 'p.bas', priority: 5, compiled_code: '{}' } });
   await store(fetch).update(3, { name: 'p.bas', priority: 5, compiled_code: '{}' });
-  assert.deepEqual(fetch.calls[0].body, { basic_source: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
+  assert.deepEqual(fetch.calls[0].body, { app: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
 });
 
 test('the viewports store: find by name, content sent as a JSON object', async () => {

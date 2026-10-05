@@ -697,9 +697,9 @@ PythonDatabaseWindow.instance; closing it keeps its state.
   - Errors from the server (for example "name can't be blank") or the
     network are shown in red in the status line.
 
-BasicDatabaseWindow edits the basic_source table (VB highlighting, opens a
-BasicConsoleWindow); PythonDatabaseWindow edits python_source (Python
-highlighting, opens a PythonConsoleWindow).
+BasicDatabaseWindow edits the Basic programs in the apps table (VB
+highlighting, opens a BasicConsoleWindow); PythonDatabaseWindow edits the
+Python ones (Python highlighting, opens a PythonConsoleWindow).
 
 
 RecordPanel

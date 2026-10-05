@@ -1,5 +1,7 @@
 // SourceStore: a small client for the Rails API in rails/server, which
-// exposes JSON CRUD for the basic_source and python_source tables:
+// exposes JSON CRUD for its tables. Programs are in one table, apps, whatever
+// their language; a store given a language reads and makes only the apps in
+// that language (the server's ?language= filter).
 //
 //   GET    /<resource>          list (records ordered by id; ?name= filters)
 //   GET    /<resource>/:id      one record
@@ -15,10 +17,13 @@ export const REMOTE_SERVER_URL = 'https://fastblip-e2ba34b072c4.herokuapp.com';
 /** A server running on this machine, chosen with ?db=local. */
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
-/** The tables the Database menu offers. */
+/**
+ * The tables the Database menu offers: the apps table, one language each.
+ * (Each language had a table of its own before the server merged them.)
+ */
 export const TABLES = {
-  basic: { resource: 'basic_sources', key: 'basic_source', title: 'Basic' },
-  python: { resource: 'python_sources', key: 'python_source', title: 'Python' },
+  basic: { resource: 'apps', key: 'app', language: 'basic', title: 'Basic' },
+  python: { resource: 'apps', key: 'app', language: 'python', title: 'Python' },
 };
 
 /** The servers Settings > Database offers: [name, label, url]. */
@@ -77,14 +82,17 @@ export class StoreError extends Error {
 
 export class SourceStore {
   /**
-   * @param {{resource: string, key: string, baseUrl?: string|(() => string),
-   *          fetch?: typeof fetch}} options - baseUrl may be a function, so
-   *   a changed server URL is picked up by stores that already exist.
+   * @param {{resource: string, key: string, language?: string,
+   *          baseUrl?: string|(() => string), fetch?: typeof fetch}} options -
+   *   language limits the store to the records in that language, and is set
+   *   on the records it creates. baseUrl may be a function, so a changed
+   *   server URL is picked up by stores that already exist.
    */
-  constructor({ resource, key, baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  constructor({ resource, key, language, baseUrl = getServerUrl, fetch: fetchFn } = {}) {
     if (!resource || !key) throw new TypeError('SourceStore needs a resource and a key');
     this.resource = resource;
     this.key = key;
+    this.language = language ?? null;
     this._baseUrl = baseUrl;
     this._fetch = fetchFn ?? ((...args) => globalThis.fetch(...args));
   }
@@ -93,23 +101,34 @@ export class SourceStore {
     return trimUrl(typeof this._baseUrl === 'function' ? this._baseUrl() : this._baseUrl);
   }
 
-  /** Every record, ordered by id. */
-  list() { return this._request('GET', ''); }
+  /** Every record (in the store's language, if it has one), ordered by id. */
+  list() { return this._request('GET', this._query({})); }
 
   /** The records called name (the server's ?name= filter). */
-  findByName(name) { return this._request('GET', `?name=${encodeURIComponent(name)}`); }
+  findByName(name) { return this._request('GET', this._query({ name })); }
 
   /** The record with this id. */
   get(id) { return this._request('GET', `/${encodeURIComponent(id)}`); }
 
   /** Creates a record from { name, content } and returns it (with its id). */
-  create(fields) { return this._request('POST', '', this._body(fields)); }
+  create(fields) {
+    const body = this._body(fields);
+    if (this.language) body[this.key].language = this.language;
+    return this._request('POST', '', body);
+  }
 
   /** Updates the given fields of a record and returns the record. */
   update(id, fields) { return this._request('PATCH', `/${encodeURIComponent(id)}`, this._body(fields)); }
 
   /** Deletes a record. */
   async remove(id) { await this._request('DELETE', `/${encodeURIComponent(id)}`); }
+
+  // "?name=...&language=...", or "" with neither.
+  _query(filters) {
+    const all = { ...filters, ...(this.language ? { language: this.language } : {}) };
+    const parts = Object.entries(all).map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
+    return parts.length ? `?${parts.join('&')}` : '';
+  }
 
   _body({ name, content, priority, compiled_code: compiledCode }) {
     const record = {};
