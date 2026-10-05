@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
@@ -32,7 +32,7 @@ test('list, get, create, update and remove hit the Rails routes', async () => {
   assert.equal((await s.update(2, { name: 'c.bas' })).name, 'c.bas');
   assert.equal(await s.remove(2), undefined);
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), [
-    'GET http://db.test/apps?language=basic',
+    'GET http://db.test/apps?language=basic&owner=',
     'GET http://db.test/apps/1',
     'POST http://db.test/apps',
     'PATCH http://db.test/apps/2',
@@ -45,7 +45,34 @@ test('list, get, create, update and remove hit the Rails routes', async () => {
 test('a language store finds by name within its language', async () => {
   const fetch = fakeFetch({ status: 200, body: [] });
   await new SourceStore({ ...TABLES.python, baseUrl: 'http://db.test', fetch }).findByName('a b');
-  assert.equal(fetch.calls[0].url, 'http://db.test/apps?name=a%20b&language=python');
+  assert.equal(fetch.calls[0].url, 'http://db.test/apps?name=a%20b&language=python&owner=');
+});
+
+test('stores work in the user\'s space; a ?run= page fixes the space', async () => {
+  const fetch = fakeFetch({ status: 200, body: [] }, { status: 201, body: { id: 5 } },
+    { status: 200, body: [] }, { status: 200, body: [] }, { status: 200, body: [] });
+  const s = new SourceStore({ ...TABLES.basic, baseUrl: 'http://db.test', fetch });
+  assert.equal(s.space, '');
+  assert.throws(() => setUser('no spaces'), /user name/);
+  setUser('Peter');
+  try {
+    assert.equal(userName(), 'Peter');
+    await s.list();
+    await s.create({ name: 'mine' });
+    await s.inSpace('').findByName('x');
+    setSpace('ann');
+    assert.equal(spaceName(), 'ann');
+    await s.list();
+  } finally { setUser(''); setSpace(null); }
+  await new SourceStore({ resource: 'apps', key: 'app', baseUrl: 'http://db.test', fetch }).list();
+  assert.deepEqual(fetch.calls.map((c) => c.url), [
+    'http://db.test/apps?language=basic&owner=Peter',
+    'http://db.test/apps',
+    'http://db.test/apps?name=x&language=basic&owner=',
+    'http://db.test/apps?language=basic&owner=ann',
+    'http://db.test/apps',
+  ]);
+  assert.deepEqual(fetch.calls[1].body, { app: { name: 'mine', language: 'basic', owner: 'Peter' } });
 });
 
 test('validation errors are reported readably', async () => {

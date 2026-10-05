@@ -83,6 +83,8 @@ export class DatabaseWindow extends HSplitWindow {
     // Settings > Database switched server: reload from the new one.
     this._onServerChange = () => { if (this.isOpen) this.refresh(); };
     document.addEventListener('cr-dbserverchange', this._onServerChange);
+    // Settings > User switched user: show that user's space.
+    document.addEventListener('cr-userchange', this._onServerChange);
     this.updateButtons();
   }
 
@@ -123,7 +125,9 @@ export class DatabaseWindow extends HSplitWindow {
       if (this.current?.id != null && !records.some((r) => r.id === this.current.id) && !this.dirty) {
         this._showRecord(null);
       }
-      this.setStatus(`${records.length} record${records.length === 1 ? '' : 's'} · ${this.store.baseUrl}`);
+      const space = this.store.space;
+      this.setStatus(`${records.length} record${records.length === 1 ? '' : 's'} · `
+        + `${space == null ? '' : `${space || 'shared'} · `}${this.store.baseUrl}`);
     } catch (e) {
       this._suppressSelect = false;
       this.setStatus(e.message, 'error');
@@ -299,6 +303,7 @@ export class DatabaseWindow extends HSplitWindow {
 
   dispose() {
     document.removeEventListener('cr-dbserverchange', this._onServerChange);
+    document.removeEventListener('cr-userchange', this._onServerChange);
     instances.delete(this.constructor);
     super.dispose();
   }

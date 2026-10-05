@@ -13,7 +13,15 @@ Rails server as `apps`, in the same style:
 | `PATCH /viewports/:id` body `{ "viewport": { "content": { ... } } }` | update |
 | `DELETE /viewports/:id` | delete (204) |
 
-A record is `{ id, name, content, created_at, updated_at }`. `content` is the
+Names belong to a user's space (Settings > User): the client adds
+`?owner=<user>` to its lists and lookups (`?owner=` with no name is the
+shared space, the records with no owner) and `"owner"` to the records it
+creates. A name is unique within a space. `vp.load` and `vp.loadComposite`
+look in the page's space, then in the shared one; `vp.save` and
+`saveComposite` write to the page's space. On a `?run=peter/abc` page the
+space is the app owner's, `peter`, whoever is looking.
+
+A record is `{ id, name, owner, content, created_at, updated_at }`. `content` is the
 saved viewport as a JSON object (not a string), in the format below. Saving
 under a name that exists updates that record; names are unique.
 

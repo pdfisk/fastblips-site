@@ -34,7 +34,7 @@ import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
-import { SourceStore } from './db-client.js';
+import { SourceStore, spaceName } from './db-client.js';
 import { BoardBinding, CanvasBinding } from './board-host.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
 
@@ -44,8 +44,10 @@ export const VIEWPORT_VERSION = 1;
 
 /** The database table of saved viewports: records { name, content }. The
  *  content's kind says what it is: 'screen' (a whole Viewport; also when
- *  there is no kind) or 'composite' (one widget and everything in it). */
-export const viewportStore = new SourceStore({ resource: 'viewports', key: 'viewport' });
+ *  there is no kind) or 'composite' (one widget and everything in it).
+ *  It works in this page's space: the user's, or on a ?run= page the
+ *  space of the app being run. */
+export const viewportStore = new SourceStore({ resource: 'viewports', key: 'viewport', owner: spaceName });
 
 /** What a saved document is: 'screen' or 'composite'. */
 export const docKind = (doc) => (doc?.kind === 'composite' ? 'composite' : 'screen');
@@ -72,16 +74,18 @@ export function checkDoc(doc, kind) {
   return doc;
 }
 
-/** The saved document called name, checked to be of kind. */
+/** The saved document called name, checked to be of kind: the one in this
+ *  page's space, else the one in the shared space. */
 export async function fetchDoc(name, kind) {
-  const [record] = await viewportStore.findByName(name);
+  let [record] = await viewportStore.findByName(name);
+  if (!record && viewportStore.space) [record] = await viewportStore.inSpace('').findByName(name);
   if (!record) throw new WidgetError(`there is no saved ${kind ?? 'viewport'} named '${name}'`);
   const doc = typeof record.content === 'string' ? JSON.parse(record.content) : record.content;
   return checkDoc(doc, kind);
 }
 
-/** Saves doc under name: updates the record with that name, or makes one. A
- *  screen and a composite cannot share a name. */
+/** Saves doc under name in this page's space: updates the record with that
+ *  name, or makes one. A screen and a composite cannot share a name. */
 export async function storeDoc(name, doc) {
   if (!name) throw new WidgetError('a saved viewport needs a name');
   const [existing] = await viewportStore.findByName(name);
@@ -96,7 +100,7 @@ export async function storeDoc(name, doc) {
   }
 }
 
-/** The names of the saved documents of a kind, sorted. */
+/** The names of the saved documents of a kind in this page's space, sorted. */
 export async function listDocs(kind) {
   const records = await viewportStore.list();
   return records.filter((r) => docKind(typeof r.content === 'string' ? JSON.parse(r.content) : r.content) === kind)

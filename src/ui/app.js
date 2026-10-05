@@ -17,7 +17,7 @@ import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
-import { SERVERS, setServer, serverName } from './db-client.js';
+import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
@@ -153,7 +153,22 @@ function settingsMenu() {
     action: () => setServer(name),
     checked: () => serverName() === name,
   })));
+  // User: whose space the Database windows, the Designer and programs read
+  // and save in. Shared is the space of records with no owner. There is no
+  // sign-in yet, so this is only a name.
+  menu.addSubmenu('User', () => [
+    { label: 'Shared (no user)', action: () => setUser(''), checked: () => userName() === '' },
+    ...(userName() ? [{ label: userName(), action() {}, checked: () => true }] : []),
+    { separator: true },
+    { label: 'Change User...', action: changeUser },
+  ]);
   return menu;
+}
+
+function changeUser() {
+  const name = prompt('User name (2 to 30 letters, digits, - or _):', userName());
+  if (name === null) return;
+  try { setUser(name); } catch (e) { alert(e.message); }
 }
 
 // The Database menu, third on the Navbar, opens a browser for each table on
@@ -220,7 +235,9 @@ function applicationsMenu(viewport) {
         try { menu.open(); } finally { redrawing = false; }
       });
   };
-  document.addEventListener('cr-dbserverchange', () => { apps = null; error = null; });
+  const forget = () => { apps = null; error = null; };
+  document.addEventListener('cr-dbserverchange', forget);
+  document.addEventListener('cr-userchange', forget);
 
   const note = (label) => ({ label, action() {}, enabled: () => false });
   menu.itemsProvider = () => {
@@ -228,7 +245,7 @@ function applicationsMenu(viewport) {
     if (apps === null) return [note(error ? `Cannot read the database: ${error.message}` : 'Loading...')];
     if (apps.length === 0) return [note('No compiled apps: use Compile in a Database window')];
     return apps.map((app) => ({
-      label: app.table === 'python' ? `${app.name} (Python)` : app.name,
+      label: `${app.name}${app.table === 'python' ? ' (Python)' : ''}${userName() && !app.owner ? ' · shared' : ''}`,
       action: () => launchApp(viewport, app, languages[app.table]),
     }));
   };

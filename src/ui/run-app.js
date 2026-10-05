@@ -8,14 +8,16 @@
 //     Viewport and act as in a LaunchWindow (see ProgramRunner).
 //   - The program starts as soon as it has loaded, as if Go were pressed.
 //
-// The source is read from the database server (db-client.js): the record
-// with that name in the Basic table, else in the Python table. Its table
-// decides the language.
+// The source is read from the database server (db-client.js). ?run=abc is
+// the program abc in the shared space; ?run=peter/abc is abc in the user
+// peter's space. A Basic program is found before a Python one of the same
+// name, and the record's language decides how it runs. The screens the
+// program loads by name are its owner's (setSpace).
 
 import { Viewport } from './widgets/viewport.js';
 import { AppScreen } from './widgets/app-screen.js';
 import { ButtonBar } from './widgets/button-bar.js';
-import { SourceStore, TABLES, StoreError } from './db-client.js';
+import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { ProgramRunner } from './program-runner.js';
@@ -37,16 +39,40 @@ export function runParameter(g = globalThis) {
 }
 
 /**
- * Finds the record named name: in the first table (of RUN_TABLES order) that
- * has one, matching the name exactly, else ignoring case. Resolves to
- * { record, language } or null if no table has it. Rejects with a
- * StoreError if no table could be read.
+ * Splits a ?run= value "owner/name" into { owner, name }, or returns null if
+ * it does not start with a user name and a slash.
  */
-export async function findProgram(name, { stores } = {}) {
-  const tables = RUN_TABLES.map(([table, language]) => ({
-    language,
-    store: stores?.[table] ?? new SourceStore(TABLES[table]),
-  }));
+export function splitRunName(value) {
+  const slash = value.indexOf('/');
+  const owner = value.slice(0, Math.max(slash, 0));
+  const name = value.slice(slash + 1).trim();
+  return slash > 0 && name && USER_NAME_PATTERN.test(owner) ? { owner, name } : null;
+}
+
+/**
+ * Finds the program a ?run= value names: "owner/name" in that user's space,
+ * else (or failing that, for a shared program whose name has a slash) the
+ * whole value in the shared space. Resolves to { record, language, owner }
+ * (owner '' for shared) or null if there is none. Rejects with a StoreError
+ * if the database could not be read.
+ */
+export async function findProgram(value, { stores } = {}) {
+  const split = splitRunName(value);
+  const places = [...(split ? [split] : []), { owner: '', name: value }];
+  for (const { owner, name } of places) {
+    const found = await findInSpace(name, owner, stores);
+    if (found) return { ...found, owner };
+  }
+  return null;
+}
+
+// The record named name in owner's space: in the first table (of RUN_TABLES
+// order) that has one, matching the name exactly, else ignoring case.
+async function findInSpace(name, owner, stores) {
+  const tables = RUN_TABLES.map(([table, language]) => {
+    const store = stores?.[table] ?? new SourceStore(TABLES[table]);
+    return { language, store: store.inSpace ? store.inSpace(owner) : store };
+  });
   const results = await Promise.allSettled(tables.map((t) => t.store.list()));
   if (results.every((r) => r.status === 'rejected')) throw results[0].reason;
   const lower = name.toLowerCase();
@@ -91,6 +117,7 @@ export function startRuntime(name) {
       return page;
     }
     textPanel.text = '';
+    setSpace(found.owner);
     page.runner = new ProgramRunner({
       language: found.language,
       source: found.record.content ?? '',

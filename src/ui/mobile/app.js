@@ -67,7 +67,7 @@ export function startMobile() {
       const li = document.createElement('li');
       const a = document.createElement('a');
       a.className = 'cr-mobile-app';
-      a.href = runUrl(app.name);
+      a.href = runUrl(app.name, undefined, app.owner);
       a.append(app.name);
       const lang = document.createElement('small');
       lang.textContent = app.table === 'python' ? 'Python' : 'Basic';

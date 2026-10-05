@@ -3,6 +3,10 @@
 // their language; a store given a language reads and makes only the apps in
 // that language (the server's ?language= filter).
 //
+// Names belong to a user's space: a store given an owner reads and makes only
+// the records in that space (the server's ?owner= filter). The owner '' is
+// the shared space, the records that have no owner.
+//
 //   GET    /<resource>          list (records ordered by id; ?name= filters)
 //   GET    /<resource>/:id      one record
 //   POST   /<resource>          create   body: { <key>: { name, content } }
@@ -22,8 +26,8 @@ export const LOCAL_SERVER_URL = 'http://localhost:3000';
  * (Each language had a table of its own before the server merged them.)
  */
 export const TABLES = {
-  basic: { resource: 'apps', key: 'app', language: 'basic', title: 'Basic' },
-  python: { resource: 'apps', key: 'app', language: 'python', title: 'Python' },
+  basic: { resource: 'apps', key: 'app', language: 'basic', title: 'Basic', owner: spaceName },
+  python: { resource: 'apps', key: 'app', language: 'python', title: 'Python', owner: spaceName },
 };
 
 /** The servers Settings > Database offers: [name, label, url]. */
@@ -68,6 +72,53 @@ export function setServer(name) {
     { detail: { name, url: getServerUrl() } }));
 }
 
+/** What a user name may be: 2 to 30 letters, digits, - or _ (as on the server). */
+export const USER_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,29}$/i;
+const USER_KEY = 'crumb.user';
+let user = null;        // set by setUser() on this page
+let pageSpace = null;   // set by setSpace() on this page
+
+/**
+ * The user this browser works as (Settings > User), or '' for none: the one
+ * chosen on this page, else the one remembered from an earlier visit. There
+ * is no sign-in yet, so this is only a name.
+ */
+export function userName() {
+  if (user !== null) return user;
+  try {
+    const saved = globalThis.localStorage?.getItem(USER_KEY)?.trim() ?? '';
+    if (USER_NAME_PATTERN.test(saved)) return saved;
+  } catch { /* storage blocked */ }
+  return '';
+}
+
+/**
+ * Switches user ('' for none), remembers the choice for the next visit and
+ * announces it with a cr-userchange event on document.
+ */
+export function setUser(name) {
+  name = String(name ?? '').trim();
+  if (name && !USER_NAME_PATTERN.test(name)) {
+    throw new Error('a user name is 2 to 30 letters, digits, - or _, starting with a letter or digit');
+  }
+  user = name;
+  try {
+    if (name) globalThis.localStorage?.setItem(USER_KEY, name);
+    else globalThis.localStorage?.removeItem(USER_KEY);
+  } catch { /* not remembered */ }
+  globalThis.document?.dispatchEvent(new CustomEvent('cr-userchange', { detail: { name } }));
+}
+
+/**
+ * The space this page reads and saves in: the user's, or '' for the shared
+ * one. A ?run= page sets it to the space of the app it runs (setSpace), so
+ * the screens the app loads by name are its owner's, whoever is looking.
+ */
+export function spaceName() { return pageSpace ?? userName(); }
+
+/** Fixes this page's space to owner's ('' for shared); null follows the user again. */
+export function setSpace(owner) { pageSpace = owner == null ? null : String(owner).trim(); }
+
 function trimUrl(url) { return String(url).trim().replace(/\/+$/, ''); }
 
 /** An error from the server or the network, with a readable message. */
@@ -83,16 +134,20 @@ export class StoreError extends Error {
 export class SourceStore {
   /**
    * @param {{resource: string, key: string, language?: string,
+   *          owner?: string|(() => string),
    *          baseUrl?: string|(() => string), fetch?: typeof fetch}} options -
    *   language limits the store to the records in that language, and is set
-   *   on the records it creates. baseUrl may be a function, so a changed
-   *   server URL is picked up by stores that already exist.
+   *   on the records it creates. owner does the same for a user's space
+   *   ('' is the shared space); without it the store reads every space.
+   *   owner and baseUrl may be functions, so a changed user or server is
+   *   picked up by stores that already exist.
    */
-  constructor({ resource, key, language, baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  constructor({ resource, key, language, owner, baseUrl = getServerUrl, fetch: fetchFn } = {}) {
     if (!resource || !key) throw new TypeError('SourceStore needs a resource and a key');
     this.resource = resource;
     this.key = key;
     this.language = language ?? null;
+    this._owner = owner;
     this._baseUrl = baseUrl;
     this._fetch = fetchFn ?? ((...args) => globalThis.fetch(...args));
   }
@@ -101,7 +156,19 @@ export class SourceStore {
     return trimUrl(typeof this._baseUrl === 'function' ? this._baseUrl() : this._baseUrl);
   }
 
-  /** Every record (in the store's language, if it has one), ordered by id. */
+  /** The space the store works in: a user name, '' for shared, or null for every space. */
+  get space() {
+    const owner = typeof this._owner === 'function' ? this._owner() : this._owner;
+    return owner == null ? null : String(owner).trim();
+  }
+
+  /** A store like this one, working in owner's space ('' for shared). */
+  inSpace(owner) {
+    return new SourceStore({ resource: this.resource, key: this.key, language: this.language ?? undefined,
+      owner: String(owner ?? ''), baseUrl: this._baseUrl, fetch: this._fetch });
+  }
+
+  /** Every record (in the store's language and space, if it has them), ordered by id. */
   list() { return this._request('GET', this._query({})); }
 
   /** The records called name (the server's ?name= filter). */
@@ -114,6 +181,7 @@ export class SourceStore {
   create(fields) {
     const body = this._body(fields);
     if (this.language) body[this.key].language = this.language;
+    if (this.space) body[this.key].owner = this.space;
     return this._request('POST', '', body);
   }
 
@@ -123,9 +191,12 @@ export class SourceStore {
   /** Deletes a record. */
   async remove(id) { await this._request('DELETE', `/${encodeURIComponent(id)}`); }
 
-  // "?name=...&language=...", or "" with neither.
+  // "?name=...&language=...&owner=...", or "" with none. "owner=" with no
+  // name asks for the shared space.
   _query(filters) {
-    const all = { ...filters, ...(this.language ? { language: this.language } : {}) };
+    const space = this.space;
+    const all = { ...filters, ...(this.language ? { language: this.language } : {}),
+      ...(space === null ? {} : { owner: space }) };
     const parts = Object.entries(all).map(([k, v]) => `${k}=${encodeURIComponent(v)}`);
     return parts.length ? `?${parts.join('&')}` : '';
   }

@@ -802,9 +802,11 @@ works on any device, phone included.
 
   - The browser window (tab) is titled with the program name.
   - The source is read from the database server in use (Settings >
-    Database, or ?db=local): the record with that name in the Basic table,
-    else in the Python table, matching the name exactly, else ignoring
-    case. The table decides the language. The record's compiled_code, if
+    Database, or ?db=local). ?run=abc is the program abc in the shared
+    space; ?run=peter/abc is abc in the user peter's space, and the
+    screens it loads by name are peter's too. A Basic program is found
+    before a Python one, matching the name exactly, else ignoring case.
+    The record's language decides how it runs. The record's compiled_code, if
     it matches the content, is run without compiling, and the program runs
     at the record's priority.
   - The Viewport has no Navbar or windows: its content is an AppScreen that

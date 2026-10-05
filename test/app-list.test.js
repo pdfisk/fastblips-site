@@ -44,4 +44,5 @@ test('runUrl: this page with ?run=<name>, keeping only db=', () => {
   assert.equal(runUrl('json-explorer', 'https://fastblips.com/?ui=mobile#x'), 'https://fastblips.com/?run=json-explorer');
   assert.equal(runUrl('my app', 'https://fastblips.com/index.html?db=local&ui=mobile'),
     'https://fastblips.com/index.html?run=my+app&db=local');
+  assert.equal(runUrl('abc', 'https://fastblips.com/', 'peter'), 'https://fastblips.com/?run=peter%2Fabc');
 });
