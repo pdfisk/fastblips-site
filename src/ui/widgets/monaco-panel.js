@@ -7,7 +7,7 @@
 // plain TextPanel, and whatever was typed carries over into the editor.
 
 import { TextPanel } from './text-panel.js';
-import { themeValue } from '../theme.js';
+import { themeValue, defineMonacoThemes } from '../theme.js';
 import { codeFontFamily } from '../fonts.js';
 
 const MONACO_VERSION = '0.52.2';
@@ -40,6 +40,8 @@ export function loadMonaco() {
   monacoPromise.catch(() => { monacoPromise = null; });
   // Monaco's theme is global: one listener keeps every editor in step.
   monacoPromise.then((monaco) => {
+    defineMonacoThemes(monaco);   // before any editor is created with one
+    monaco.editor.setTheme(themeValue('monaco'));
     document.addEventListener('cr-themechange', () => monaco.editor.setTheme(themeValue('monaco')));
     // Font is a per-editor option: update every live editor, then have
     // Monaco re-measure character widths for the new font.

@@ -459,7 +459,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic, Smalltalk or Apple.
+    - Theme: Classic, Smalltalk, Apple, Steampunk or Pokemon.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -744,6 +744,9 @@ a colour; they write var(--cr-title-bg) and so on.
                  on hover
       light      the original flat look
       dark       a dark version of it
+      steampunk  dark walnut, mahogany title bars and brass buttons
+      pokemon    off-white with red title bars and buttons, bold black
+                 outlines, rounded corners and flat, hard shadows
     Values shared by every theme are defined once, and a theme overrides
     only those it changes. Besides colours there are shape variables:
     window padding, title weight and alignment, raised button and title-bar
@@ -752,8 +755,16 @@ a colour; they write var(--cr-title-bg) and so on.
     blurred menus and bars, the window corner radius (windows have slightly rounded
     corners and soft shadows; a maximized window is square) and how far a
     running console's output fades.
-  - Settings > Theme offers Classic, Smalltalk and Apple (MENU_THEMES). Light and
-    Dark remain available from code.
+  - Steampunk and Pokemon are FastBlips themes, defined in
+    src/ui/fastblips-themes.js as a small set of tokens (ui: colours, fonts,
+    radius, shadow; syntax: editor colours). Choosing one calls applyTheme(),
+    which writes the ui tokens on <html> as --fb-* variables, and theme.js
+    defines the --cr-* variables in terms of them (fbBridge), so the widgets
+    need no change. Each also has its own Monaco theme, built by
+    toMonacoTheme() and registered when Monaco loads. Another theme of this
+    kind is one more entry in that file's `themes`.
+  - Settings > Theme offers Classic, Smalltalk, Apple, Steampunk and Pokemon
+    (MENU_THEMES). Light and Dark remain available from code.
   - setTheme(name) switches theme by setting data-cr-theme on <html>, and
     remembers it in localStorage ('crumb.theme'), so the next visit starts
     with it. setTheme('auto') follows the operating system's light or dark

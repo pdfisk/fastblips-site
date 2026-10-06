@@ -13,7 +13,7 @@ const STYLE = `
 .cr-tab-strip.cr-tabs-top{top:0;border-bottom:1px solid var(--cr-buttonbar-border);align-items:flex-end}
 .cr-tab{box-sizing:border-box;height:${TAB_STRIP_HEIGHT - 3}px;padding:0 12px;border:1px solid transparent;
   background:transparent;color:var(--cr-text-muted);font:inherit;cursor:pointer;white-space:nowrap}
-.cr-tab:hover{background:var(--cr-button-hover)}
+.cr-tab:hover{background:var(--cr-button-hover);color:var(--cr-tab-hover-text)}
 .cr-tab.cr-tab-selected{background:var(--cr-input-bg);color:var(--cr-text);border-color:var(--cr-buttonbar-border)}
 .cr-tabs-bottom .cr-tab{border-radius:0 0 var(--cr-radius-button) var(--cr-radius-button);margin-top:-1px}
 .cr-tabs-bottom .cr-tab.cr-tab-selected{border-top-color:var(--cr-input-bg)}

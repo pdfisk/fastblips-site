@@ -9,16 +9,25 @@
 //   setTheme('classic')    the default: a Windows 2000-style desktop
 //   setTheme('smalltalk')  black and white, after Smalltalk-80
 //   setTheme('apple')      a present-day Mac desktop
+//   setTheme('steampunk')  dark walnut and brass (fastblips-themes.js)
+//   setTheme('pokemon')    red, white and bold outlines (fastblips-themes.js)
 //   setTheme('light')      the original flat look
 //   setTheme('dark')
 //   setTheme('auto')       light or dark, following the operating system
 //
-// Settings > Theme offers Classic, Smalltalk and Apple; the choice is remembered in
-// localStorage.
+// Settings > Theme offers Classic, Smalltalk, Apple, Steampunk and Pokemon; the
+// choice is remembered in localStorage.
+//
+// Steampunk and Pokemon are FastBlips themes: a small set of tokens defined in
+// fastblips-themes.js. Choosing one calls its applyTheme(), which writes the
+// tokens on <html> as --fb-* variables, and the --cr-* variables the widgets
+// use are then defined in terms of those (fbBridge below).
 //
 // A 'cr-themechange' event is dispatched on document whenever the theme in
 // effect changes, with detail {name, resolved} ('light' or 'dark'), so parts
 // that cannot use CSS variables (the Monaco editor) can follow it.
+
+import { themes as FB_THEMES, applyTheme, clearTheme, toMonacoTheme } from './fastblips-themes.js';
 
 /** Values shared by every theme: type, shape and sizes. */
 const BASE = {
@@ -58,6 +67,7 @@ const BASE = {
   'nav-item-radius': '0px',
   'nav-item-inset': '0px',     // space around a menu-bar item's highlight
   'nav-backdrop': 'none',          // e.g. a blur behind a translucent bar
+  'tab-hover-text': 'var(--cr-text-muted)',
   // Title-bar buttons: size, shape, colour per button, and order. A
   // negative order puts a button before the title (on the left).
   'tool-width': '22px',
@@ -435,11 +445,91 @@ export const THEMES = {
   },
 };
 
+// A FastBlips theme as --cr-* values: each widget variable in terms of the
+// theme's --fb-* tokens, which applyTheme() writes on <html>. Only the Monaco
+// theme's name differs between themes; the colours live in the tokens.
+const fb = (token) => `var(--fb-${token})`;
+const mix = (a, percent, b) => `color-mix(in srgb, ${a} ${percent}%, ${b})`;
+const FB_OUTLINE = `inset 0 0 0 ${fb('border-width')}`;
+
+function fbBridge(theme) {
+  return {
+    'font-ui': fb('font-ui'),
+    'font-mono': fb('font-mono'),
+    'radius-button': fb('radius'),
+    'radius-field': fb('radius'),
+    'window-radius': fb('radius'),
+    'desktop-bg': fb('bg'),
+    'text': fb('text'),
+    'text-muted': fb('text-muted'),
+    'text-faint': mix(fb('text-muted'), 70, fb('surface')),
+    'danger': fb('danger'),
+    'accent': fb('accent'),
+    'accent-text': fb('accent-text'),
+    'nav-bg': fb('title-bar'),
+    'nav-text': fb('title-text'),
+    'nav-hover': fb('accent-hover'),
+    'nav-hover-text': fb('accent-text'),
+    'nav-shadow': `0 ${fb('border-width')} 0 ${fb('border')}`,
+    'nav-item-radius': fb('radius'),
+    'window-bg': fb('panel'),
+    'window-border': fb('border'),
+    'window-shadow': fb('shadow'),
+    'window-shadow-inactive': fb('shadow'),
+    'title-bg': fb('title-bar'),
+    'title-text': fb('title-text'),
+    'title-bg-inactive': mix(fb('title-bar'), 25, fb('panel')),
+    'title-text-inactive': fb('text-muted'),
+    'title-font-weight': 'bold',
+    'title-hover': mix('currentColor', 22, 'transparent'),
+    'close-hover': fb('danger'),
+    'close-hover-text': fb('accent-text'),
+    'button-bg': fb('accent'),
+    'button-text': fb('accent-text'),
+    'button-shadow': `${FB_OUTLINE} ${fb('border')}`,
+    'button-active-shadow': `${FB_OUTLINE} ${fb('border-strong')}`,
+    'button-hover': fb('accent-hover'),
+    'tab-hover-text': fb('accent-text'),
+    'buttonbar-bg': fb('panel'),
+    'buttonbar-border': fb('border'),
+    'input-bg': fb('surface'),
+    'output-bg': fb('surface'),
+    'divider': fb('border'),
+    'list-selected': fb('selection'),
+    'list-selected-focus': fb('accent'),
+    'list-selected-focus-text': fb('accent-text'),
+    'field-border': fb('border'),
+    'field-disabled-bg': fb('panel'),
+    'header-bg': fb('panel'),
+    'header-text': fb('text'),
+    'header-info': fb('text-muted'),
+    'menu-bg': fb('surface'),
+    'menu-text': fb('text'),
+    'menu-border': fb('border'),
+    'menu-separator': fb('border'),
+    'menu-shadow': fb('shadow'),
+    'menu-radius': fb('radius'),
+    'menu-item-radius': `calc(${fb('radius')} / 2)`,
+    'menu-item-margin': '0 4px',
+    'status-bg': fb('panel'),
+    'status-border': fb('border'),
+    'status-task-bg': fb('surface'),
+    'status-task-border': fb('border'),
+    'board-selected': fb('highlight'),
+    'monaco': theme.id,
+  };
+}
+
+for (const theme of Object.values(FB_THEMES)) THEMES[theme.id] = fbBridge(theme);
+
 /** The theme a first visit starts with. */
 export const DEFAULT_THEME = 'classic';
 
 /** The themes offered in Settings > Theme, as [name, label]. */
-export const MENU_THEMES = [['classic', 'Classic'], ['smalltalk', 'Smalltalk'], ['apple', 'Apple']];
+export const MENU_THEMES = [
+  ['classic', 'Classic'], ['smalltalk', 'Smalltalk'], ['apple', 'Apple'],
+  ...Object.values(FB_THEMES).map((theme) => [theme.id, theme.label]),
+];
 
 const STORAGE_KEY = 'crumb.theme';
 
@@ -469,6 +559,7 @@ export function installTheme() {
   if (!document.documentElement.dataset.crTheme) {
     document.documentElement.dataset.crTheme = savedTheme() ?? DEFAULT_THEME;
   }
+  applyTokens(themeName());
   const media = window.matchMedia?.('(prefers-color-scheme: dark)');
   media?.addEventListener?.('change', () => { if (themeName() === 'auto') announce(); });
 }
@@ -485,12 +576,29 @@ export function resolvedTheme() {
   return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-/** Switches theme ('classic', 'smalltalk', 'light', 'dark' or 'auto') and
- *  remembers the choice for the next visit. */
+// Writes a FastBlips theme's --fb-* tokens on <html>, or removes them when
+// the theme is not one.
+function applyTokens(name) {
+  const root = document.documentElement;
+  if (FB_THEMES[name]) applyTheme(FB_THEMES[name], root);
+  else clearTheme(root);
+}
+
+/** Registers the FastBlips themes' editor colours with Monaco, under the
+ *  names themeValue('monaco') gives. Called once, when Monaco has loaded. */
+export function defineMonacoThemes(monaco) {
+  for (const theme of Object.values(FB_THEMES)) {
+    monaco.editor.defineTheme(theme.id, toMonacoTheme(theme));
+  }
+}
+
+/** Switches theme (a key of THEMES, or 'auto') and remembers the choice for
+ *  the next visit. */
 export function setTheme(name) {
   if (name !== 'auto' && !THEMES[name]) throw new Error(`unknown theme '${name}'`);
   installTheme();
   document.documentElement.dataset.crTheme = name;
+  applyTokens(name);
   try { window.localStorage.setItem(STORAGE_KEY, name); } catch { /* not remembered */ }
   announce();
 }
