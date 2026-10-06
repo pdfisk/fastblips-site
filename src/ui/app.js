@@ -5,7 +5,6 @@ import { Navbar } from './widgets/navbar.js';
 import { StatusBar } from './widgets/status-bar.js';
 import { scheduler } from './runtime.js';
 import { Menu } from './widgets/menu.js';
-import { Button } from './widgets/button.js';
 import { Spacer } from './widgets/spacer.js';
 import { Label } from './widgets/label.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
@@ -45,11 +44,7 @@ export function startDesktop() {
   const transcript = TranscriptWindow.instance;
 
   navbar.add(fileMenu(viewport));
-  navbar.add(databaseMenu(viewport));
-  navbar.add(new Button('Basic', () => new BasicConsoleWindow().open(viewport)));
-  navbar.add(new Button('Python', () => new PythonConsoleWindow().open(viewport)));
-  navbar.add(new Button('Process', () => SchedulerWindow.instance.open(viewport)));
-  navbar.add(new Button('Designer', () => new DesignerWindow().open(viewport)));
+  navbar.add(viewsMenu(viewport));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(applicationsMenu(viewport));
@@ -171,13 +166,22 @@ function changeUser() {
   try { setUser(name); } catch (e) { alert(e.message); }
 }
 
-// The Database menu, third on the Navbar, opens a browser for each table on
-// the database server (rails/server). There is one browser per table;
-// choosing it again brings it to the front.
-function databaseMenu(viewport) {
-  const menu = new Menu('Database');
-  menu.addItem('Basic', () => BasicDatabaseWindow.instance.open(viewport));
-  menu.addItem('Python', () => PythonDatabaseWindow.instance.open(viewport));
+// The Views menu, second on the Navbar, opens the tools: a new console for
+// either language, the browser for each table on the database server
+// (rails/server), the Process Browser and a new Designer. There is one
+// database browser per table and one Process Browser; choosing one again
+// brings it to the front.
+function viewsMenu(viewport) {
+  const menu = new Menu('Views');
+  menu.addItem('Basic Console', () => new BasicConsoleWindow().open(viewport));
+  menu.addItem('Python Console', () => new PythonConsoleWindow().open(viewport));
+  menu.addSeparator();
+  menu.addItem('Basic Database', () => BasicDatabaseWindow.instance.open(viewport));
+  menu.addItem('Python Database', () => PythonDatabaseWindow.instance.open(viewport));
+  menu.addSeparator();
+  menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
+  menu.addSeparator();
+  menu.addItem('Designer', () => new DesignerWindow().open(viewport));
   return menu;
 }
 

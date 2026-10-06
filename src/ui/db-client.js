@@ -22,7 +22,7 @@ export const REMOTE_SERVER_URL = 'https://fastblip-e2ba34b072c4.herokuapp.com';
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
 /**
- * The tables the Database menu offers: the apps table, one language each.
+ * The tables the Views menu offers: the apps table, one language each.
  * (Each language had a table of its own before the server merged them.)
  */
 export const TABLES = {

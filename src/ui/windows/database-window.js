@@ -2,7 +2,7 @@
 // server (rails/server) - the records listed on the left, the selected one
 // edited on the right. Records can be created, viewed, edited and deleted.
 // BasicDatabaseWindow and PythonDatabaseWindow choose the table; there is
-// one window of each, opened from the Database menu.
+// one window of each, opened from the Views menu.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { ListPanel } from '../widgets/list-panel.js';
