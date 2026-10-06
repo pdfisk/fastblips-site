@@ -33,6 +33,7 @@ Class hierarchy
           MobileLaunchWindow
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
+        SignInWindow (singleton)
       RecordPanel
       TextPanel
         MonacoPanel
@@ -429,7 +430,8 @@ last menu. At the right end is the time the page was built, e.g.
 "Built 2026-09-23 13:47:05 UTC". The
 StatusBar is docked at the bottom, and the TranscriptWindow is open.
 
-  - The File menu has New Basic and New Python; then Open..., Save and
+  - The File menu starts with Sign In, which opens the SignInWindow, and a
+    separator. It then has New Basic and New Python; then Open..., Save and
     Save As...; then Delete, with a separator between the groups.
     - New Basic and New Python open an empty console in that language.
     - Open... asks for a source file and opens it in a new console: .crumb
@@ -638,6 +640,23 @@ A Window showing the transcript: a log shared by every console.
   - Closing it only hides it: the instance and its text are kept, and the
     Windows menu reopens it. dispose() discards the instance, and the next
     use creates a new one.
+
+
+SignInWindow (singleton)
+------------------------
+A Window for choosing the user this browser works as (File > Sign In).
+
+  - There is only one; SignInWindow.instance creates it on first use. It
+    has a fixed size.
+  - Its content has a User name field, a line saying who is signed in now
+    and a line for errors.
+  - Its ButtonBar has Sign In, Sign Out and Cancel. Sign In (or Enter in
+    the field) sets the user (setUser in db-client.js) and closes the
+    window; a name that is not 2 to 30 letters, digits, - or _ is reported
+    and the window stays open. Sign Out goes back to the shared space.
+    Cancel (or Escape) closes the window.
+  - The server has no credentials yet, so signing in is only giving a name:
+    it is the same setting as Settings > User.
 
 
 SchedulerWindow (singleton)

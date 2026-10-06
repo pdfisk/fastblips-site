@@ -11,6 +11,7 @@ import { TranscriptWindow } from './windows/transcript-window.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
+import { SignInWindow } from './windows/sign-in-window.js';
 import { DesignerWindow } from './windows/designer-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
@@ -87,6 +88,7 @@ function schedulerSummary() {
 }
 
 // The File menu:
+//   Sign In      the Sign In window: the user this browser works as
 //   New Basic    a new, empty Basic console
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
@@ -105,6 +107,8 @@ function fileMenu(viewport) {
   };
   const hasConsole = () => frontConsole() !== null;
   const newConsole = (Cls) => () => new Cls({ text: '' }).open(viewport).input.focus();
+  menu.addItem('Sign In', () => SignInWindow.instance.open(viewport));
+  menu.addSeparator();
   menu.addItem('New Basic', newConsole(BasicConsoleWindow));
   menu.addItem('New Python', newConsole(PythonConsoleWindow));
   menu.addSeparator();
@@ -149,8 +153,8 @@ function settingsMenu() {
     checked: () => serverName() === name,
   })));
   // User: whose space the Database windows, the Designer and programs read
-  // and save in. Shared is the space of records with no owner. There is no
-  // sign-in yet, so this is only a name.
+  // and save in. Shared is the space of records with no owner. File > Sign In
+  // sets it too; there are no credentials yet, so this is only a name.
   menu.addSubmenu('User', () => [
     { label: 'Shared (no user)', action: () => setUser(''), checked: () => userName() === '' },
     ...(userName() ? [{ label: userName(), action() {}, checked: () => true }] : []),
