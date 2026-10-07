@@ -201,12 +201,15 @@ export class SourceStore {
     return parts.length ? `?${parts.join('&')}` : '';
   }
 
-  _body({ name, content, priority, compiled_code: compiledCode }) {
+  _body({ name, content, priority, compiled_code: compiledCode, description, script_ids: scriptIds }) {
     const record = {};
     if (name !== undefined) record.name = name;
     if (content !== undefined) record.content = content;
     if (priority !== undefined) record.priority = priority;
     if (compiledCode !== undefined) record.compiled_code = compiledCode;
+    // A project's fields (see projects.js).
+    if (description !== undefined) record.description = description;
+    if (scriptIds !== undefined) record.script_ids = scriptIds;
     return { [this.key]: record };
   }
 

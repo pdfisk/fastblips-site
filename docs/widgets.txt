@@ -28,6 +28,7 @@ Class hierarchy
           DatabaseWindow (abstract, one per table)
             BasicDatabaseWindow
             PythonDatabaseWindow
+          ProjectsWindow (singleton)
         LaunchWindow (abstract)
           DesktopLaunchWindow
           MobileLaunchWindow
@@ -35,6 +36,7 @@ Class hierarchy
         SchedulerWindow (singleton)
         SignInWindow (singleton)
       RecordPanel
+      ProjectPanel
       TextPanel
         MonacoPanel
       ListPanel
@@ -719,6 +721,53 @@ PythonDatabaseWindow.instance; closing it keeps its state.
 BasicDatabaseWindow edits the Basic programs in the scripts table (VB
 highlighting, opens a BasicConsoleWindow); PythonDatabaseWindow edits the
 Python ones (Python highlighting, opens a PythonConsoleWindow).
+
+
+ProjectsWindow (singleton)
+--------------------------
+An HSplitWindow for the projects on the database server (rails/server),
+opened with Views > Projects. A project is a named group of scripts in one
+space, with a description. The projects of the page's space (Settings >
+User; the shared space with no user) are listed on the left, by name
+ignoring case, each with the number of scripts in it; the selected one is
+edited in a ProjectPanel on the right.
+
+  - There is only one; ProjectsWindow.instance creates it on first use, and
+    closing it keeps its state.
+  - Its ButtonBar has New, Save, Delete and Refresh buttons and a status
+    line at the right end.
+  - The panel lists every script in the space, Basic and Python, with a
+    check mark on the ones in the project. A script is in at most one
+    project: one that is in another project says so ("in Games"), and
+    checking it moves it here when the project is saved.
+  - New starts an empty project, which Save creates on the server; Save on
+    an existing project updates its name, its description and its scripts
+    in one request. Enter in the name, Ctrl+Enter in the description, or
+    Ctrl+S also saves. A project needs a name, unique in its space; it may
+    have no scripts.
+  - Renaming a project keeps its scripts. Delete asks for confirmation,
+    then deletes the project; its scripts are kept, in no project.
+  - Selecting another project, starting a new one or closing the window
+    with unsaved changes asks before discarding them.
+  - The lists are reloaded each time the window opens, by Refresh, and when
+    the server (Settings > Database) or the user changes.
+  - Errors from the server or the network are shown in red in the status
+    line.
+
+The stores and the script list are in src/ui/projects.js, which needs no
+DOM.
+
+
+ProjectPanel
+------------
+A Panel for editing one project: a Name field and a caption along the top,
+a Description, and a check list of scripts filling the rest.
+
+  - name, description and caption properties; rows is the script list
+    ({ id, name, language, checked, note }) and checkedIds the ids of the
+    checked ones; enabled makes the fields editable or read-only.
+  - Fires change when the user edits a field or checks a script, and submit
+    on Enter in the name or Ctrl+Enter in the description.
 
 
 RecordPanel

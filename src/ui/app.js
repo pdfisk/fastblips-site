@@ -17,6 +17,7 @@ import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
+import { ProjectsWindow } from './windows/projects-window.js';
 import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
@@ -172,9 +173,9 @@ function changeUser() {
 
 // The Views menu, second on the Navbar, opens the tools: a new console for
 // either language, the browser for each table on the database server
-// (rails/server), the Process Browser and a new Designer. There is one
-// database browser per table and one Process Browser; choosing one again
-// brings it to the front.
+// (rails/server), Projects, the Process Browser and a new Designer. There is
+// one database browser per table, one Projects window and one Process
+// Browser; choosing one again brings it to the front.
 function viewsMenu(viewport) {
   const menu = new Menu('Views');
   menu.addItem('Basic Console', () => new BasicConsoleWindow().open(viewport));
@@ -182,6 +183,7 @@ function viewsMenu(viewport) {
   menu.addSeparator();
   menu.addItem('Basic Database', () => BasicDatabaseWindow.instance.open(viewport));
   menu.addItem('Python Database', () => PythonDatabaseWindow.instance.open(viewport));
+  menu.addItem('Projects', () => ProjectsWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
   menu.addSeparator();
