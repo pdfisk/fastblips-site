@@ -32,20 +32,20 @@ test('list, get, create, update and remove hit the Rails routes', async () => {
   assert.equal((await s.update(2, { name: 'c.bas' })).name, 'c.bas');
   assert.equal(await s.remove(2), undefined);
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), [
-    'GET http://db.test/apps?language=basic&owner=',
-    'GET http://db.test/apps/1',
-    'POST http://db.test/apps',
-    'PATCH http://db.test/apps/2',
-    'DELETE http://db.test/apps/2',
+    'GET http://db.test/scripts?language=basic&owner=',
+    'GET http://db.test/scripts/1',
+    'POST http://db.test/scripts',
+    'PATCH http://db.test/scripts/2',
+    'DELETE http://db.test/scripts/2',
   ]);
-  assert.deepEqual(fetch.calls[2].body, { app: { name: 'b.bas', content: '', language: 'basic' } });
-  assert.deepEqual(fetch.calls[3].body, { app: { name: 'c.bas' } });
+  assert.deepEqual(fetch.calls[2].body, { script: { name: 'b.bas', content: '', language: 'basic' } });
+  assert.deepEqual(fetch.calls[3].body, { script: { name: 'c.bas' } });
 });
 
 test('a language store finds by name within its language', async () => {
   const fetch = fakeFetch({ status: 200, body: [] });
   await new SourceStore({ ...TABLES.python, baseUrl: 'http://db.test', fetch }).findByName('a b');
-  assert.equal(fetch.calls[0].url, 'http://db.test/apps?name=a%20b&language=python&owner=');
+  assert.equal(fetch.calls[0].url, 'http://db.test/scripts?name=a%20b&language=python&owner=');
 });
 
 test('stores work in the user\'s space; a ?run= page fixes the space', async () => {
@@ -64,15 +64,15 @@ test('stores work in the user\'s space; a ?run= page fixes the space', async () 
     assert.equal(spaceName(), 'ann');
     await s.list();
   } finally { setUser(''); setSpace(null); }
-  await new SourceStore({ resource: 'apps', key: 'app', baseUrl: 'http://db.test', fetch }).list();
+  await new SourceStore({ resource: 'scripts', key: 'script', baseUrl: 'http://db.test', fetch }).list();
   assert.deepEqual(fetch.calls.map((c) => c.url), [
-    'http://db.test/apps?language=basic&owner=Peter',
-    'http://db.test/apps',
-    'http://db.test/apps?name=x&language=basic&owner=',
-    'http://db.test/apps?language=basic&owner=ann',
-    'http://db.test/apps',
+    'http://db.test/scripts?language=basic&owner=Peter',
+    'http://db.test/scripts',
+    'http://db.test/scripts?name=x&language=basic&owner=',
+    'http://db.test/scripts?language=basic&owner=ann',
+    'http://db.test/scripts',
   ]);
-  assert.deepEqual(fetch.calls[1].body, { app: { name: 'mine', language: 'basic', owner: 'Peter' } });
+  assert.deepEqual(fetch.calls[1].body, { script: { name: 'mine', language: 'basic', owner: 'Peter' } });
 });
 
 test('validation errors are reported readably', async () => {
@@ -90,7 +90,7 @@ test('not found and network failures', async () => {
 test('priority and compiled_code are sent in the record body', async () => {
   const fetch = fakeFetch({ status: 200, body: { id: 3, name: 'p.bas', priority: 5, compiled_code: '{}' } });
   await store(fetch).update(3, { name: 'p.bas', priority: 5, compiled_code: '{}' });
-  assert.deepEqual(fetch.calls[0].body, { app: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
+  assert.deepEqual(fetch.calls[0].body, { script: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
 });
 
 test('the viewports store: find by name, content sent as a JSON object', async () => {

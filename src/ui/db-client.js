@@ -1,6 +1,6 @@
 // SourceStore: a small client for the Rails API in rails/server, which
-// exposes JSON CRUD for its tables. Programs are in one table, apps, whatever
-// their language; a store given a language reads and makes only the apps in
+// exposes JSON CRUD for its tables. Programs are in one table, scripts, whatever
+// their language; a store given a language reads and makes only the scripts in
 // that language (the server's ?language= filter).
 //
 // Names belong to a user's space: a store given an owner reads and makes only
@@ -22,12 +22,12 @@ export const REMOTE_SERVER_URL = 'https://fastblip-e2ba34b072c4.herokuapp.com';
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
 /**
- * The tables the Views menu offers: the apps table, one language each.
+ * The tables the Views menu offers: the scripts table, one language each.
  * (Each language had a table of its own before the server merged them.)
  */
 export const TABLES = {
-  basic: { resource: 'apps', key: 'app', language: 'basic', title: 'Basic', owner: spaceName },
-  python: { resource: 'apps', key: 'app', language: 'python', title: 'Python', owner: spaceName },
+  basic: { resource: 'scripts', key: 'script', language: 'basic', title: 'Basic', owner: spaceName },
+  python: { resource: 'scripts', key: 'script', language: 'python', title: 'Python', owner: spaceName },
 };
 
 /** The servers Settings > Database offers: [name, label, url]. */
