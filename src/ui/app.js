@@ -12,6 +12,7 @@ import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { SignInWindow } from './windows/sign-in-window.js';
+import { RegisterWindow } from './windows/register-window.js';
 import { DesignerWindow } from './windows/designer-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
@@ -90,6 +91,7 @@ function schedulerSummary() {
 
 // The File menu:
 //   Sign In      the Sign In window: the user this browser works as
+//   Register...  the Register window: a new user on the database server
 //   New Basic    a new, empty Basic console
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
@@ -109,6 +111,7 @@ function fileMenu(viewport) {
   const hasConsole = () => frontConsole() !== null;
   const newConsole = (Cls) => () => new Cls({ text: '' }).open(viewport).input.focus();
   menu.addItem('Sign In', () => SignInWindow.instance.open(viewport));
+  menu.addItem('Register...', () => RegisterWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('New Basic', newConsole(BasicConsoleWindow));
   menu.addItem('New Python', newConsole(PythonConsoleWindow));

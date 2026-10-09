@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
@@ -108,4 +108,20 @@ test('the viewports store: find by name, content sent as a JSON object', async (
     'PATCH http://db.test/viewports/4',
   ]);
   assert.deepEqual(fetch.calls[1].body, { viewport: { content } });
+});
+
+test('registerUser posts the name and e-mail to /users', async () => {
+  const fetch = fakeFetch({ status: 201, body: { id: 7, name: 'ann', email: 'ann@x.org' } });
+  const user = await registerUser({ name: ' ann ', email: ' ann@x.org ' }, { baseUrl: 'http://db.test', fetch });
+  assert.equal(user.id, 7);
+  assert.equal(fetch.calls[0].method, 'POST');
+  assert.equal(fetch.calls[0].url, 'http://db.test/users');
+  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann', email: 'ann@x.org' } });
+});
+
+test('registerUser leaves out a blank e-mail and reports a taken name', async () => {
+  const fetch = fakeFetch({ status: 422, body: { errors: { name: ['has already been taken'] } } });
+  await assert.rejects(registerUser({ name: 'ann', email: '' }, { baseUrl: 'http://db.test', fetch }),
+    (e) => e instanceof StoreError && e.status === 422 && e.message === 'name has already been taken');
+  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann' } });
 });

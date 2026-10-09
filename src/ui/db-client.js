@@ -237,6 +237,25 @@ export class SourceStore {
   }
 }
 
+/** What an e-mail address must look like (as on the server). */
+export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+$/;
+
+/**
+ * Registers a user on the server (POST /users) and returns the new user,
+ * { id, name, email, created_at }. email is optional. Fails with a
+ * StoreError, e.g. "name has already been taken". It does not sign in: call
+ * setUser() for that.
+ * @param {{name: string, email?: string}} fields
+ * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
+ */
+export function registerUser({ name, email } = {}, { baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const user = { name: String(name ?? '').trim() };
+  const address = String(email ?? '').trim();
+  if (address) user.email = address;
+  const store = new SourceStore({ resource: 'users', key: 'user', baseUrl, fetch: fetchFn });
+  return store._request('POST', '', { user });
+}
+
 // Rails answers { errors: { name: ["can't be blank"] } } or { error: "..." }.
 function errorMessage(status, data) {
   if (data?.errors && typeof data.errors === 'object') {
