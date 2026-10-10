@@ -256,6 +256,24 @@ export function registerUser({ name, email } = {}, { baseUrl = getServerUrl, fet
   return store._request('POST', '', { user });
 }
 
+/**
+ * Looks a user up on the server (GET /users/:name): the registered user,
+ * { id, name }, with the name as registered, or null if nobody is registered
+ * under it. Other failures (the server cannot be reached, say) are thrown as
+ * StoreErrors.
+ * @param {string} name
+ * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
+ */
+export async function findUser(name, { baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const store = new SourceStore({ resource: 'users', key: 'user', baseUrl, fetch: fetchFn });
+  try {
+    return await store._request('GET', `/${encodeURIComponent(String(name ?? '').trim())}`);
+  } catch (e) {
+    if (e instanceof StoreError && e.status === 404) return null;
+    throw e;
+  }
+}
+
 // Rails answers { errors: { name: ["can't be blank"] } } or { error: "..." }.
 function errorMessage(status, data) {
   if (data?.errors && typeof data.errors === 'object') {

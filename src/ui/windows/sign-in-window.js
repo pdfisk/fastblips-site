@@ -1,12 +1,13 @@
 // SignInWindow: the singleton window for choosing the user this browser works
 // as (File > Sign In). The server has no credentials yet, so signing in is
-// only giving a name: it sets the user of db-client.js, whose space the
+// only giving a name, which must be a registered one (File > Register...): it sets the user of db-client.js, whose space the
 // Database windows, the Designer and programs then read and save in. Signing
 // out is the SignOutWindow (File > Sign Out, shown instead while signed in).
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
-import { userName, setUser, USER_NAME_PATTERN } from '../db-client.js';
+import { Toast } from '../toast.js';
+import { userName, setUser, findUser, USER_NAME_PATTERN } from '../db-client.js';
 
 const STYLE = `
 .cr-sign-in{box-sizing:border-box;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -61,10 +62,16 @@ export class SignInWindow extends Window {
     return instance;
   }
 
-  constructor() {
+  /**
+   * @param {{lookup?: typeof findUser}} options - lookup finds a registered
+   *   user by name (replaced in tests)
+   */
+  constructor({ lookup = findUser } = {}) {
     if (instance) throw new Error('SignInWindow is a singleton; use SignInWindow.instance');
     super({ title: 'Sign In', x: 120, y: 90, width: 320, height: 150, resizable: false });
     instance = this;
+    this.lookup = lookup;
+    this.busy = false;   // waiting for the server
     this.element.classList.add('cr-sign-in-window');
     this.panel = new SignInPanel();
     this.content = this.panel;
@@ -96,22 +103,50 @@ export class SignInWindow extends Window {
   }
 
   updateButtons() {
-    this.signInButton.enabled = this.name !== '';
+    this.signInButton.enabled = this.name !== '' && !this.busy;
     this.buttonBar.layout();
   }
 
-  /** Signs in as the name in the field and closes; a bad name is reported instead. */
-  signIn() {
+  /**
+   * Signs in as the name in the field and closes, if the server has a user
+   * registered under it. A bad name, an unregistered one or a server that
+   * cannot be reached is reported instead.
+   * @returns {Promise<boolean>} true if signed in
+   */
+  async signIn() {
     const name = this.name;
-    if (!name) return false;
-    if (!USER_NAME_PATTERN.test(name)) {
-      this.panel.error.textContent = 'A user name is 2 to 30 letters, digits, - or _';
-      this.panel.nameInput.focus();
-      return false;
+    if (!name || this.busy) return false;
+    if (!USER_NAME_PATTERN.test(name)) return this._fail('A user name is 2 to 30 letters, digits, - or _');
+    this.busy = true;
+    this.panel.error.textContent = '';
+    this.panel.status.textContent = 'Signing in...';
+    this.updateButtons();
+    let user;
+    try {
+      user = await this.lookup(name);
+    } catch (e) {
+      this.busy = false;
+      return this._fail(e?.message || 'Could not sign in');
     }
-    setUser(name);
+    this.busy = false;
+    if (!this.isOpen) return false;   // closed while the server was answering
+    if (!user) return this._fail(`There is no user called ${name}. Register first (File > Register...)`);
+    const viewport = this.parent;
+    const signedInAs = user.name ?? name;
+    setUser(signedInAs);
     this.close();
+    if (viewport) Toast.show(viewport, { kind: 'success', message: `Signed in as ${signedInAs}` });
     return true;
+  }
+
+  // Shows why signing in failed and gives the name field the focus back.
+  _fail(message) {
+    const user = userName();
+    this.panel.status.textContent = user ? `Signed in as ${user}` : 'Not signed in: working in the shared space';
+    this.panel.error.textContent = message;
+    this.updateButtons();
+    this.panel.nameInput.focus();
+    return false;
   }
 
   /** Opens the window showing the current user, with the name selected. */

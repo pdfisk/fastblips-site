@@ -2,17 +2,15 @@
 // database server (File > Register...). It asks for a user name and an
 // optional e-mail address, creates the user (POST /users) and signs in as
 // them. The server has no credentials yet, so registering only reserves the
-// name. How it went is shown in a NotificationWindow: a success message, which
-// clears after a few seconds and takes this window with it, or an error
-// message, which stays until it is dismissed.
+// name. How it went is shown to the user: success in a Toast, which pops out
+// as this window closes, or an error in a NotificationWindow, which stays
+// until it is dismissed.
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { NotificationWindow } from './notification-window.js';
+import { Toast } from '../toast.js';
 import { registerUser, setUser, USER_NAME_PATTERN, EMAIL_PATTERN, serverName } from '../db-client.js';
-
-/** How long the success notification stays up, in milliseconds. */
-export const SUCCESS_DURATION = 3000;
 
 const STYLE = `
 .cr-register{box-sizing:border-box;padding:12px 14px;display:grid;
@@ -69,18 +67,15 @@ export class RegisterWindow extends Window {
   }
 
   /**
-   * @param {{register?: typeof registerUser, successDuration?: number}} options -
-   *   register is the call that creates the user (replaced in tests);
-   *   successDuration is how long the success notification stays up
+   * @param {{register?: typeof registerUser}} options -
+   *   register is the call that creates the user (replaced in tests)
    */
-  constructor({ register = registerUser, successDuration = SUCCESS_DURATION } = {}) {
+  constructor({ register = registerUser } = {}) {
     if (instance) throw new Error('RegisterWindow is a singleton; use RegisterWindow.instance');
     super({ title: 'Register', x: 140, y: 110, width: 340, height: 170, resizable: false });
     instance = this;
     this.register = register;
-    this.successDuration = successDuration;
     this.busy = false;        // waiting for the server
-    this.registered = false;  // registered, and the success notification is up
     this.notification = null;   // the NotificationWindow showing, if any
     this.element.classList.add('cr-register-window');
     this.panel = new RegisterPanel();
@@ -105,10 +100,9 @@ export class RegisterWindow extends Window {
   get email() { return this.panel.emailInput.value.trim(); }
 
   updateButtons() {
-    const locked = this.busy || this.registered;
-    this.registerButton.enabled = !locked && this.name !== '';
-    this.panel.nameInput.disabled = locked;
-    this.panel.emailInput.disabled = locked;
+    this.registerButton.enabled = !this.busy && this.name !== '';
+    this.panel.nameInput.disabled = this.busy;
+    this.panel.emailInput.disabled = this.busy;
     this.buttonBar.layout();
   }
 
@@ -122,15 +116,14 @@ export class RegisterWindow extends Window {
   }
 
   /**
-   * Registers the user on the server and signs in as them. A success
-   * notification is shown; when it clears (after successDuration, or when it
-   * is dismissed) this window closes. A bad field or an error from the
+   * Registers the user on the server and signs in as them. A success toast
+   * is shown and this window closes. A bad field or an error from the
    * server (a name already taken, say) is shown in an error notification and
    * the window stays open.
    * @returns {Promise<boolean>} true if the user was registered
    */
   async submit() {
-    if (this.busy || this.registered || !this.name) return false;
+    if (this.busy || !this.name) return false;
     this._dismiss();
     const problem = this.validate();
     if (problem) return this._fail(problem);
@@ -149,24 +142,13 @@ export class RegisterWindow extends Window {
     }
     const name = user?.name ?? this.name;
     setUser(name);
-    this._succeed(`Registered as ${name}. You are now signed in.`);
+    // Closed while the server was answering: the user is registered all the
+    // same, so say so, but there is no window left to close.
+    const viewport = this.parent;
+    const wasOpen = this.isOpen;
+    if (wasOpen) this.close();
+    if (viewport) Toast.show(viewport, { kind: 'success', message: `Registered as ${name}. You are now signed in.` });
     return true;
-  }
-
-  // Shows the success notification. The fields stay locked until it clears,
-  // which closes this window too.
-  _succeed(message) {
-    if (!this.isOpen) return;   // closed while the server was answering
-    this.registered = true;
-    this.panel.note.textContent = '';
-    this.updateButtons();
-    const done = () => {
-      this.notification = null;
-      this.close();
-    };
-    this.notification = NotificationWindow.show(this.parent, {
-      kind: 'success', title: 'Registered', message, duration: this.successDuration, onClose: done,
-    }, this);
   }
 
   // Shows an error notification; the name field gets the focus back when it
@@ -196,7 +178,6 @@ export class RegisterWindow extends Window {
   close() {
     if (!super.close()) return false;
     this._dismiss();
-    this.registered = false;
     return true;
   }
 

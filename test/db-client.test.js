@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
@@ -124,4 +124,17 @@ test('registerUser leaves out a blank e-mail and reports a taken name', async ()
   await assert.rejects(registerUser({ name: 'ann', email: '' }, { baseUrl: 'http://db.test', fetch }),
     (e) => e instanceof StoreError && e.status === 422 && e.message === 'name has already been taken');
   assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann' } });
+});
+
+test('findUser gets the user by name, and answers null when nobody is registered', async () => {
+  const fetch = fakeFetch({ status: 200, body: { id: 7, name: 'Ann' } }, { status: 404, body: { error: 'nope' } });
+  assert.deepEqual(await findUser(' ann ', { baseUrl: 'http://db.test', fetch }), { id: 7, name: 'Ann' });
+  assert.equal(await findUser('bob', { baseUrl: 'http://db.test', fetch }), null);
+  assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`),
+    ['GET http://db.test/users/ann', 'GET http://db.test/users/bob']);
+});
+
+test('findUser still throws when the server fails', async () => {
+  const fetch = fakeFetch({ status: 500, body: { error: 'boom' } });
+  await assert.rejects(findUser('ann', { baseUrl: 'http://db.test', fetch }), (e) => e instanceof StoreError && e.status === 500);
 });

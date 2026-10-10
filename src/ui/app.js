@@ -21,6 +21,7 @@ import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.
 import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
 import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
+import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
@@ -161,6 +162,18 @@ function settingsMenu() {
     action: () => setServer(name),
     checked: () => serverName() === name,
   })));
+  // Toast Side and Toast Time: where toasts pop out from and how long they
+  // stay. Choosing one shows a sample toast.
+  menu.addSubmenu('Toast Side', () => TOAST_SIDES.map(([name, label]) => ({
+    label,
+    action: () => { setToastSide(name); sampleToast(); },
+    checked: () => toastSide() === name,
+  })));
+  menu.addSubmenu('Toast Time', () => TOAST_DURATIONS.map((ms) => ({
+    label: durationLabel(ms),
+    action: () => { setToastDuration(ms); sampleToast(); },
+    checked: () => toastDuration() === ms,
+  })));
   // User: whose space the Database windows, the Designer and programs read
   // and save in. Shared is the space of records with no owner. File > Sign In
   // sets it too; there are no credentials yet, so this is only a name.
@@ -171,6 +184,10 @@ function settingsMenu() {
     { label: 'Change User...', action: changeUser },
   ]);
   return menu;
+}
+
+function sampleToast() {
+  Toast.show(Viewport.instance, { message: 'This is where toasts appear.', kind: 'info' });
 }
 
 function changeUser() {

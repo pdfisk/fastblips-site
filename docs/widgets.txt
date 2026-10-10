@@ -37,6 +37,7 @@ Class hierarchy
         SignInWindow (singleton)
         RegisterWindow (singleton)
         NotificationWindow
+      Toast
       RecordPanel
       ProjectPanel
       TextPanel
@@ -676,14 +677,11 @@ A Window for registering a new user on the database server
     checks the fields, then creates the user (registerUser in db-client.js,
     POST /users) and signs in as them (setUser). Cancel (or Escape) closes
     the window.
-  - How it went is shown in a NotificationWindow over the window. On
-    success it says who was registered; it clears after SUCCESS_DURATION
-    (3 seconds; the successDuration option changes it) or when it is
-    dismissed, and the RegisterWindow closes with it. The fields are locked
-    meanwhile. A bad field or an error from the server, such as a name
-    already taken, is shown as an error, which stays until it is dismissed;
-    the RegisterWindow stays open and the User name field gets the focus
-    back.
+  - On success the RegisterWindow closes and a Toast says who was
+    registered. A bad field or an error from the server, such as a name
+    already taken, is shown in a NotificationWindow over the window, which
+    stays until it is dismissed; the RegisterWindow stays open and the User
+    name field gets the focus back.
   - Closing or reopening the window closes its notification.
   - The server has no credentials yet, so registering only reserves the
     name.
@@ -702,6 +700,25 @@ A small fixed-size Window that says how something went.
     never); and onClose, called once however it closes.
   - Its ButtonBar has OK, which has the focus when it opens. OK, Enter or
     Escape closes it. It has no minimize button.
+
+
+Toast (src/ui/toast.js)
+-----------------------
+A short message that pops out from one side of the Viewport, stays a few
+seconds and goes away by itself. It is not a Window: it takes no focus, has
+no buttons and never covers the menus. Clicking it dismisses it.
+
+  - Toast.show(viewport, options) makes one and opens it.
+  - Options: message; kind, 'success', 'error' or 'info' (the icon and
+    colour); side, 'top', 'bottom', 'left' or 'right'; duration, in
+    milliseconds. Side and duration default to the Settings below.
+  - Several toasts on one side stack, newest nearest the edge. Top toasts
+    sit under the Navbar and bottom ones above the StatusBar.
+  - Settings > Toast Side and Settings > Toast Time choose the default side
+    (top) and duration (3 seconds; 1, 2, 3, 5 or 10). Choosing one shows a
+    sample toast. The choice is remembered for the next visit
+    (toastSide()/setToastSide(), toastDuration()/setToastDuration()).
+  - SignInWindow and RegisterWindow show a success toast when they finish.
 
 
 SchedulerWindow (singleton)
