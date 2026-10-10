@@ -12,6 +12,7 @@ import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { SignInWindow } from './windows/sign-in-window.js';
+import { SignOutWindow } from './windows/sign-out-window.js';
 import { RegisterWindow } from './windows/register-window.js';
 import { DesignerWindow } from './windows/designer-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
@@ -91,6 +92,7 @@ function schedulerSummary() {
 
 // The File menu:
 //   Sign In      the Sign In window: the user this browser works as
+//                (Sign Out, the Sign Out window, while a user is signed in)
 //   Register...  the Register window: a new user on the database server
 //   New Basic    a new, empty Basic console
 //   New Python   a new, empty Python console
@@ -110,7 +112,10 @@ function fileMenu(viewport) {
   };
   const hasConsole = () => frontConsole() !== null;
   const newConsole = (Cls) => () => new Cls({ text: '' }).open(viewport).input.focus();
-  menu.addItem('Sign In', () => SignInWindow.instance.open(viewport));
+  menu.addItem(
+    () => (userName() ? 'Sign Out' : 'Sign In'),
+    () => (userName() ? SignOutWindow : SignInWindow).instance.open(viewport),
+  );
   menu.addItem('Register...', () => RegisterWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('New Basic', newConsole(BasicConsoleWindow));

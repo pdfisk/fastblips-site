@@ -81,7 +81,8 @@ export class Menu extends Widget {
 
   /**
    * Adds an item.
-   * @param {string} label
+   * @param {string | (() => string)} label - a function is called each time the
+   *   menu opens, for an item whose text changes
    * @param {() => void} action - run when the item is chosen
    * @param {{checked?: () => boolean, enabled?: () => boolean}} options -
    *   checked: a check mark shows whenever it returns true;
@@ -179,7 +180,7 @@ export class Menu extends Widget {
       li.setAttribute('role', 'menuitem');
     }
     const text = document.createElement('span');
-    text.textContent = item.label;
+    text.textContent = typeof item.label === 'function' ? item.label() : item.label;
     li.append(check, text);
     if (item.submenu) {
       const arrow = document.createElement('span');

@@ -36,6 +36,7 @@ Class hierarchy
         SchedulerWindow (singleton)
         SignInWindow (singleton)
         RegisterWindow (singleton)
+        NotificationWindow
       RecordPanel
       ProjectPanel
       TextPanel
@@ -669,15 +670,38 @@ A Window for registering a new user on the database server
 
   - There is only one; RegisterWindow.instance creates it on first use. It
     has a fixed size, and opens with empty fields.
-  - Its content has User name and E-mail fields (the e-mail is optional), a
-    note naming the server in use and a line for errors.
+  - Its content has User name and E-mail fields (the e-mail is optional) and
+    a note naming the server in use.
   - Its ButtonBar has Register and Cancel. Register (or Enter in a field)
     checks the fields, then creates the user (registerUser in db-client.js,
-    POST /users), signs in as them (setUser) and closes the window. A bad
-    field or an error from the server, such as a name already taken, is
-    shown and the window stays open. Cancel (or Escape) closes it.
+    POST /users) and signs in as them (setUser). Cancel (or Escape) closes
+    the window.
+  - How it went is shown in a NotificationWindow over the window. On
+    success it says who was registered; it clears after SUCCESS_DURATION
+    (3 seconds; the successDuration option changes it) or when it is
+    dismissed, and the RegisterWindow closes with it. The fields are locked
+    meanwhile. A bad field or an error from the server, such as a name
+    already taken, is shown as an error, which stays until it is dismissed;
+    the RegisterWindow stays open and the User name field gets the focus
+    back.
+  - Closing or reopening the window closes its notification.
   - The server has no credentials yet, so registering only reserves the
     name.
+
+
+NotificationWindow
+------------------
+A small fixed-size Window that says how something went.
+
+  - NotificationWindow.show(viewport, options, owner) makes one and opens
+    it centred over owner (a Window), or in the middle of the Viewport if
+    there is none.
+  - Options: message; kind, which is 'success', 'error' or 'info' and sets
+    the icon, the colour and the default title; title; duration, in
+    milliseconds, after which it closes by itself (0, the default, is
+    never); and onClose, called once however it closes.
+  - Its ButtonBar has OK, which has the focus when it opens. OK, Enter or
+    Escape closes it. It has no minimize button.
 
 
 SchedulerWindow (singleton)

@@ -1,8 +1,8 @@
 // SignInWindow: the singleton window for choosing the user this browser works
 // as (File > Sign In). The server has no credentials yet, so signing in is
 // only giving a name: it sets the user of db-client.js, whose space the
-// Database windows, the Designer and programs then read and save in. Sign Out
-// goes back to the shared space.
+// Database windows, the Designer and programs then read and save in. Signing
+// out is the SignOutWindow (File > Sign Out, shown instead while signed in).
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
@@ -18,7 +18,7 @@ const STYLE = `
 .cr-sign-in-error{color:var(--cr-danger);font-size:var(--cr-font-size-small);min-height:1.2em}
 `;
 
-function installStyle() {
+export function installStyle() {
   if (document.getElementById('cr-sign-in-style')) return;
   const style = document.createElement('style');
   style.id = 'cr-sign-in-style';
@@ -69,7 +69,6 @@ export class SignInWindow extends Window {
     this.panel = new SignInPanel();
     this.content = this.panel;
     this.signInButton = this.buttonBar.addButton('Sign In', () => this.signIn());
-    this.signOutButton = this.buttonBar.addButton('Sign Out', () => this.signOut());
     this.buttonBar.addButton('Cancel', () => this.close());
 
     const input = this.panel.nameInput;
@@ -98,7 +97,6 @@ export class SignInWindow extends Window {
 
   updateButtons() {
     this.signInButton.enabled = this.name !== '';
-    this.signOutButton.enabled = userName() !== '';
     this.buttonBar.layout();
   }
 
@@ -114,12 +112,6 @@ export class SignInWindow extends Window {
     setUser(name);
     this.close();
     return true;
-  }
-
-  /** Goes back to the shared space (no user); the window stays open. */
-  signOut() {
-    setUser('');
-    this.panel.nameInput.focus();
   }
 
   /** Opens the window showing the current user, with the name selected. */
