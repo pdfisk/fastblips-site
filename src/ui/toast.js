@@ -97,7 +97,6 @@ const STYLE = `
   background:var(--cr-accent, #2a6);color:var(--cr-accent-text, #fff)}
 .cr-toast-error .cr-toast-icon{background:var(--cr-danger, #c33);color:#fff}
 .cr-toast-message{min-width:0;overflow-wrap:anywhere}
-@media (prefers-reduced-motion:reduce){.cr-toast,.cr-toast.cr-toast-shown,.cr-toast.cr-toast-closing{transition:none}}
 `;
 
 function installStyle() {

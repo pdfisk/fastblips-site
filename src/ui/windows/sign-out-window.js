@@ -5,6 +5,7 @@
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { userName, setUser } from '../db-client.js';
+import { Toast } from '../toast.js';
 import { installStyle } from './sign-in-window.js';
 
 /** The body: who is signed in now. */
@@ -54,10 +55,13 @@ export class SignOutWindow extends Window {
     this.buttonBar.layout();
   }
 
-  /** Goes back to the shared space (no user) and closes. */
+  /** Goes back to the shared space (no user), closes and shows a toast. */
   signOut() {
+    const viewport = this.parent;
+    const name = userName();
     setUser('');
     this.close();
+    if (viewport && name) Toast.show(viewport, { kind: 'success', message: `Signed out ${name}` });
   }
 
   open(viewport) {

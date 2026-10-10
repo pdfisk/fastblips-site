@@ -718,7 +718,8 @@ no buttons and never covers the menus. Clicking it dismisses it.
     (top) and duration (3 seconds; 1, 2, 3, 5 or 10). Choosing one shows a
     sample toast. The choice is remembered for the next visit
     (toastSide()/setToastSide(), toastDuration()/setToastDuration()).
-  - SignInWindow and RegisterWindow show a success toast when they finish.
+  - SignInWindow, SignOutWindow and RegisterWindow show a success toast when
+    they finish.
 
 
 SchedulerWindow (singleton)
