@@ -80,6 +80,7 @@ export class StatusBar extends HPanel {
     this.layout();
   }
 
+
   dispose() {
     super.dispose();
     instance = null;

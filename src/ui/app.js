@@ -54,6 +54,7 @@ export function startDesktop() {
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(applicationsMenu(viewport));
   navbar.add(new Spacer());
+  navbar.add(signInLabel());
   navbar.add(buildLabel());
   viewport.navbar = navbar;
   viewport.statusBar = statusBar(viewport);
@@ -132,12 +133,30 @@ function fileMenu(viewport) {
   return menu;
 }
 
+// The sign-in status, in the Navbar just left of the build timestamp. Kept
+// current as the user changes (File > Sign In, Sign Out, Register, Settings > User).
+function signInLabel() {
+  const label = new Label('');
+  label.element.classList.add('cr-nav-user');
+  label.element.style.color = 'var(--cr-nav-text)';
+  label.element.style.paddingRight = '0';
+  label.element.style.width = '50ch';
+  label.element.style.justifyContent = 'flex-end';
+  label.element.style.textAlign = 'right';
+  label.preferredWidth = () => Math.ceil(label.element.getBoundingClientRect().width);
+  const show = () => { label.text = userName() ? `Signed in as ${userName()}` : 'Not signed in'; };
+  show();
+  document.addEventListener('cr-userchange', show);
+  return label;
+}
+
 // The build timestamp, at the right end of the Navbar (empty when unbundled).
 function buildLabel() {
   const label = new Label(BUILD_STAMP ? `Built ${BUILD_STAMP}` : '');
   label.element.classList.add('cr-build-stamp');
   label.element.style.color = 'var(--cr-nav-text)';
   label.element.style.opacity = '0.7';
+  label.element.style.paddingLeft = '10px';   // gap after the sign-in status
   label.element.style.paddingRight = '12px';
   return label;
 }
