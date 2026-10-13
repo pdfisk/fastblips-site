@@ -49,7 +49,7 @@ export function startDesktop() {
   const transcript = TranscriptWindow.instance;
 
   navbar.add(fileMenu(viewport));
-  navbar.add(viewsMenu(viewport));
+  navbar.add(viewsMenu(viewport, transcript));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(applicationsMenu(viewport));
@@ -215,19 +215,22 @@ function changeUser() {
   try { setUser(name); } catch (e) { alert(e.message); }
 }
 
-// The Views menu, second on the Navbar, opens the tools: a new console for
+// The Views menu, second on the Navbar, opens the tools: the Transcript, a new console for
 // either language, the browser for each table on the database server
 // (rails/server), Projects, the Process Browser and a new Designer. There is
 // one database browser per table, one Projects window and one Process
 // Browser; choosing one again brings it to the front.
-function viewsMenu(viewport) {
+function viewsMenu(viewport, transcript) {
   const menu = new Menu('Views');
+  menu.addItem('Transcript', () => transcript.open(viewport));
+  menu.addSeparator();
   menu.addItem('Basic Console', () => new BasicConsoleWindow().open(viewport));
   menu.addItem('Python Console', () => new PythonConsoleWindow().open(viewport));
   menu.addSeparator();
+  menu.addItem('Projects Database', () => ProjectsWindow.instance.open(viewport));
+  menu.addSeparator();
   menu.addItem('Basic Database', () => BasicDatabaseWindow.instance.open(viewport));
   menu.addItem('Python Database', () => PythonDatabaseWindow.instance.open(viewport));
-  menu.addItem('Projects', () => ProjectsWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
   menu.addSeparator();

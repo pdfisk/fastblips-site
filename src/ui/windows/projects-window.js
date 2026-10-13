@@ -1,6 +1,6 @@
 // ProjectsWindow: the singleton window for the projects on the database
 // server (rails/server) - the projects of the page's space listed on the
-// left, the selected one edited on the right: its name, its description and
+// left (only those with an owner), the selected one edited on the right: its name, its description and
 // which of the space's scripts are in it. Projects can be created, edited
 // and deleted. Opened from the Views menu.
 
@@ -104,7 +104,7 @@ export class ProjectsWindow extends HSplitWindow {
     try {
       const [projects, scripts] = await Promise.all([this.store.list(), this.scriptStore.list()]);
       if (token !== this._refreshToken) return;   // a later refresh won
-      this.projects = byName(projects);
+      this.projects = byName(projects).filter((p) => String(p.owner ?? '').trim() !== '');   // not ownerless (shared) ones
       this.scripts = scripts ?? [];
       this._suppressSelect = true;
       this.listPanel.items = this.projects.map((p) => ({ value: p.id, label: rowLabel(p) }));
