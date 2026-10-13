@@ -3,7 +3,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SourceStore, setUser, setSpace } from '../src/ui/db-client.js';
-import { PROJECTS, SCRIPTS, byName, scriptRows, sameIds } from '../src/ui/projects.js';
+import {
+  PROJECTS, SCRIPTS, byName, projectScript, scriptLabel, availableScripts, moved, sameList,
+} from '../src/ui/projects.js';
 
 function fakeFetch(...responses) {
   const calls = [];
@@ -16,7 +18,7 @@ function fakeFetch(...responses) {
   return fn;
 }
 
-test('the project and script stores read the page\'s space, in every language', async () => {
+test('the project store reads the page\'s space, the script store every space', async () => {
   setUser('Peter');
   const fetch = fakeFetch({ status: 200, body: [] }, { status: 200, body: [] }, { status: 200, body: [] });
   await new SourceStore({ ...PROJECTS, baseUrl: 'http://db.test', fetch }).list();
@@ -26,7 +28,7 @@ test('the project and script stores read the page\'s space, in every language', 
   setSpace(null);
   assert.deepEqual(fetch.calls.map((c) => c.url), [
     'http://db.test/projects?owner=Peter',
-    'http://db.test/scripts?owner=Peter',
+    'http://db.test/scripts',
     'http://db.test/projects?owner=',
   ]);
 });
@@ -52,31 +54,48 @@ test('byName: by name ignoring case, then by id', () => {
   assert.deepEqual(byName(null), []);
 });
 
-test('scriptRows: every script in the space, checked when in the project', () => {
-  const scripts = [
-    { id: 1, name: 'snake', language: 'basic', project_name: 'Games' },
-    { id: 2, name: 'Pong', language: 'python', project_name: 'Games' },
-    { id: 3, name: 'notes', language: 'basic', project_name: null },
-    { id: 4, name: 'chart', language: 'python', project_name: 'Reports' },
-  ];
-  const project = { id: 7, name: 'Games', scripts: [{ id: 1, name: 'snake', language: 'basic' }, { id: 2 }] };
-  assert.deepEqual(scriptRows(scripts, project), [
-    { id: 4, name: 'chart', language: 'Python', checked: false, note: 'in Reports' },
-    { id: 3, name: 'notes', language: 'Basic', checked: false, note: '' },
-    { id: 2, name: 'Pong', language: 'Python', checked: true, note: '' },
-    { id: 1, name: 'snake', language: 'Basic', checked: true, note: '' },
-  ]);
-  // A new project has no scripts yet; ones in other projects say so.
-  const fresh = scriptRows(scripts, { id: null, name: '', scripts: [] });
-  assert.deepEqual(fresh.map((r) => r.checked), [false, false, false, false]);
-  assert.deepEqual(fresh.map((r) => r.note), ['in Reports', '', 'in Games', 'in Games']);
-  assert.deepEqual(scriptRows([], project), []);
+test('projectScript: language by title, owner and shared always there', () => {
+  assert.deepEqual(projectScript({ id: 1, name: 'snake', language: 'basic', owner: 'ann', shared: true, content: 'x' }),
+    { id: 1, name: 'snake', language: 'Basic', owner: 'ann', shared: true });
+  assert.deepEqual(projectScript({ id: 2, language: 'python', owner: null }),
+    { id: 2, name: '', language: 'Python', owner: '', shared: false });
 });
 
-test('sameIds ignores order and repeats', () => {
-  assert.equal(sameIds([1, 2, 3], [3, 1, 2]), true);
-  assert.equal(sameIds([], []), true);
-  assert.equal(sameIds([1, 2], [1]), false);
-  assert.equal(sameIds([1, 1, 2], [2, 1]), true);
-  assert.equal(sameIds([1, 2], [1, 3]), false);
+test('scriptLabel shows the owner of other users\' scripts only', () => {
+  const mine = { name: 'snake', language: 'Basic', owner: 'Peter' };
+  assert.equal(scriptLabel(mine, 'peter'), 'snake  Basic');
+  assert.equal(scriptLabel({ ...mine, owner: 'ann' }, 'peter'), 'snake  Basic  \u00b7 ann');
+  assert.equal(scriptLabel({ ...mine, owner: '' }, ''), 'snake  Basic');
+});
+
+test('availableScripts: the space\'s own, shared by others and the shared space, not already in', () => {
+  const scripts = [
+    { id: 1, name: 'snake', language: 'basic', owner: 'peter', shared: false },
+    { id: 2, name: 'Pong', language: 'python', owner: 'ann', shared: true },
+    { id: 3, name: 'secret', language: 'basic', owner: 'ann', shared: false },
+    { id: 4, name: 'common', language: 'python', owner: null, shared: false },
+    { id: 5, name: 'chart', language: 'python', owner: 'Peter', shared: false },
+  ];
+  assert.deepEqual(availableScripts(scripts, [], 'peter').map((s) => s.id), [5, 4, 2, 1]);
+  assert.deepEqual(availableScripts(scripts, [5, 2], 'peter').map((s) => s.id), [4, 1]);
+  // The shared space has the shared scripts and those of no one.
+  assert.deepEqual(availableScripts(scripts, [], '').map((s) => s.id), [4, 2]);
+  assert.deepEqual(availableScripts(null, [], 'peter'), []);
+});
+
+test('moved: one place up or down, never out of the list, without changing the original', () => {
+  const list = ['a', 'b', 'c'];
+  assert.deepEqual(moved(list, 1, -1), ['b', 'a', 'c']);
+  assert.deepEqual(moved(list, 1, 1), ['a', 'c', 'b']);
+  assert.deepEqual(moved(list, 0, -1), ['a', 'b', 'c']);
+  assert.deepEqual(moved(list, 2, 1), ['a', 'b', 'c']);
+  assert.deepEqual(moved(list, -1, 1), ['a', 'b', 'c']);
+  assert.deepEqual(list, ['a', 'b', 'c']);
+});
+
+test('sameList: same ids in the same order', () => {
+  assert.equal(sameList([1, 2, 3], [1, 2, 3]), true);
+  assert.equal(sameList([], []), true);
+  assert.equal(sameList([1, 2, 3], [3, 1, 2]), false);
+  assert.equal(sameList([1, 2], [1]), false);
 });

@@ -29,6 +29,7 @@ Class hierarchy
             BasicDatabaseWindow
             PythonDatabaseWindow
           ProjectsWindow (singleton)
+        ScriptPickerWindow
         LaunchWindow (abstract)
           DesktopLaunchWindow
           MobileLaunchWindow
@@ -51,6 +52,7 @@ Class hierarchy
     Button
     Label
     Spacer
+    Separator
 
 
 Widget (abstract)
@@ -795,40 +797,71 @@ edited in a ProjectPanel on the right.
 
   - There is only one; ProjectsWindow.instance creates it on first use, and
     closing it keeps its state.
-  - Its ButtonBar has New, Save, Delete and Refresh buttons and a status
-    line at the right end.
-  - The panel lists every script in the space, Basic and Python, with a
-    check mark on the ones in the project. A script is in at most one
-    project: one that is in another project says so ("in Games"), and
-    checking it moves it here when the project is saved.
+  - Its ButtonBar has two pulldown Menus - Projects (New, Save, Delete,
+    Refresh) and Scripts (Add, Remove, Up, Down) - then a Separator, a
+    Launch menu and a status line at the right end. A menu item is greyed
+    out when it cannot be used.
+  - Launch > Desktop or Mobile, as in a console, opens a DesktopLaunchWindow
+    or MobileLaunchWindow titled with the project's name that runs all the
+    scripts in the list, in order: Go (also automatic when it opens) clears
+    the screen once and starts the scripts one after the other on the shared
+    scheduler, so they run side by side, printing to the same text panel and
+    putting their widgets on the same screen. The list as shown is run,
+    saved or not, from the scripts last loaded (Refresh to reload); a script
+    with load errors is reported in the StatusBar and the rest still start.
+    The items are greyed out while the project has no scripts.
+  - The panel lists the scripts in the project, Basic and Python, in order.
+    Add opens a ScriptPickerWindow with the user's own scripts, the ones
+    other users have shared and the ones in the shared space, without those
+    already in the project; the one picked goes at the end of the list and is
+    selected. Remove takes the selected script out of the project (the
+    script is kept), and Up and Down move it one place. A script can be in
+    any number of projects. Add needs a project being edited; the others a
+    selected script, and Up and Down room to move.
   - New starts an empty project, which Save creates on the server; Save on
     an existing project updates its name, its description and its scripts
-    in one request. Enter in the name, Ctrl+Enter in the description, or
+    in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
     Ctrl+S also saves. A project needs a name, unique in its space; it may
     have no scripts.
   - Renaming a project keeps its scripts. Delete asks for confirmation,
-    then deletes the project; its scripts are kept, in no project.
+    then deletes the project; its scripts are kept.
   - Selecting another project, starting a new one or closing the window
-    with unsaved changes asks before discarding them.
+    with unsaved changes (including added, removed or moved scripts) asks before discarding them.
   - The lists are reloaded each time the window opens, by Refresh, and when
     the server (Settings > Database) or the user changes.
   - Errors from the server or the network are shown in red in the status
     line.
 
-The stores and the script list are in src/ui/projects.js, which needs no
+The stores and the script lists are in src/ui/projects.js, which needs no
 DOM.
 
 
 ProjectPanel
 ------------
 A Panel for editing one project: a Name field and a caption along the top,
-a Description, and a check list of scripts filling the rest.
+a Description, and a TabPanel filling the rest with three pages: Scripts
+(the list of the project's scripts), Strings and Images (empty for now).
 
-  - name, description and caption properties; rows is the script list
-    ({ id, name, language, checked, note }) and checkedIds the ids of the
-    checked ones; enabled makes the fields editable or read-only.
-  - Fires change when the user edits a field or checks a script, and submit
-    on Enter in the name or Ctrl+Enter in the description.
+  - name, description and caption properties; scripts is the list, in
+    order ({ id, name, language, owner, shared }) and ids their ids; space
+    is the project's space, so that scripts of other users show their owner;
+    enabled makes the fields editable or read-only.
+  - One script can be selected in the Scripts page, by click or the arrow keys: selectedIndex,
+    selectedScript and selectIndex(i). addScript(script), removeSelected()
+    and moveSelected(-1 or 1) change the list.
+  - Fires change when the user edits a field or the list changes,
+    scriptselect when the selection changes, and submit on Enter in the name
+    or Ctrl+Enter in the description.
+
+
+ScriptPickerWindow
+------------------
+A small Window for choosing one script to add to a project. It is given the
+scripts to list ({ id, name, language, owner }), the project's space and an
+onPick function; the owner is shown after the name of another user's script.
+
+  - Its ButtonBar has Add and Cancel. Double-click or Enter on a script also
+    adds it, Escape cancels; onPick(script) is called after it closes.
 
 
 RecordPanel
@@ -847,6 +880,12 @@ Label
 A Widget showing one line of text (text property). tone = 'error' shows it
 in red. Used for the status line of a DatabaseWindow's ButtonBar.
 
+
+Separator
+---------
+A thin vertical line between the widgets of an HPanel, used to divide the
+buttons of a ButtonBar into groups. It is 7 pixels wide, with the line in the
+middle, and as tall as the panel.
 
 Spacer
 ------
@@ -932,6 +971,15 @@ Runs one program for the Go and Reset buttons, in LaunchWindows and on the
     ends.
   - stop() stops the program; reset() stops it and clears the output and
     the widgets.
+  - start() starts the source without clearing anything first (go() is
+    reset() then start()).
+  - ProgramSetRunner({ programs, screen }) runs several programs on one
+    screen, for a project's Launch: programs is a list (or a function
+    returning one) of { name, language, source, compiled, priority }. go()
+    clears the screen once and starts every program in order, so they run
+    side by side; stop() and reset() act on all of them; processes lists the
+    Processes started and process the last. A LaunchWindow given `programs`
+    uses one in place of the ProgramRunner.
 
 
 The ?run= page

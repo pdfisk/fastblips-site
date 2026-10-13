@@ -50,6 +50,16 @@ export class ProgramRunner {
    */
   go() {
     this.reset();
+    return this.start();
+  }
+
+  /**
+   * Starts the source without clearing the output or the widgets first
+   * (go() does both, then this). Returns the Process, or null if there were
+   * load errors.
+   */
+  start() {
+    this.stop();
     if (!this.language) return null;
     const name = this.name;
     const { process, errorCount } = this.language.spawn(this.source, {
@@ -92,6 +102,60 @@ export class ProgramRunner {
     if (process.state === 'failed') bar.show(`${name}: stopped with an error`, 'error');
     else if (process.state === 'killed') bar.show(`${name}: stopped`);
     else bar.show(`${name}: finished in ${process.vm.steps} steps`);
+  }
+}
+
+/**
+ * ProgramSetRunner: runs several programs together on one screen - a
+ * project's scripts - with the same go/stop/reset interface as a
+ * ProgramRunner. Go clears the screen once, then starts the programs in
+ * order on the shared scheduler, so they run side by side, printing to the
+ * same text panel and putting their widgets on the same screen.
+ */
+export class ProgramSetRunner {
+  /**
+   * @param {object} options
+   * @param {object[]|(() => object[])} options.programs - one
+   *   { name, language, source, compiled, priority } per program, in order;
+   *   see ProgramRunner for what they mean
+   * @param {import('./widgets/app-screen.js').AppScreen} options.screen
+   */
+  constructor({ programs = [], screen } = {}) {
+    this._programs = programs;
+    this.screen = screen;
+    this.output = screen.textPanel;
+    this.runners = [];
+  }
+
+  get programs() { return typeof this._programs === 'function' ? this._programs() : this._programs; }
+
+  /** The Processes started, in order (none for a program with load errors). */
+  get processes() { return this.runners.map((r) => r.process).filter(Boolean); }
+
+  /** The last Process started, or null. */
+  get process() { return this.processes.at(-1) ?? null; }
+
+  /**
+   * Stops any previous run, clears the output and the widgets, and starts
+   * every program in order. Returns the Processes started.
+   */
+  go() {
+    this.reset();
+    this.runners = this.programs.map((p) => new ProgramRunner({ ...p, screen: this.screen }));
+    for (const runner of this.runners) runner.start();
+    return this.processes;
+  }
+
+  /** Stops the programs that are running. */
+  stop() {
+    for (const runner of this.runners) runner.stop();
+  }
+
+  /** Stops the programs, clears the output and removes their widgets. */
+  reset() {
+    this.stop();
+    this.output.text = '';
+    this.screen.clearWidgets();
   }
 }
 

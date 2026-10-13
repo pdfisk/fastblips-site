@@ -38,6 +38,8 @@ import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './win
 import { RecordPanel } from './widgets/record-panel.js';
 import { ProjectsWindow } from './windows/projects-window.js';
 import { ProjectPanel } from './widgets/project-panel.js';
+import { Separator } from './widgets/separator.js';
+import { ScriptPickerWindow } from './windows/script-picker-window.js';
 import { TabPanel } from './widgets/tab-panel.js';
 import { OutputPanel } from './widgets/output-panel.js';
 import { BoardPanel } from './widgets/board-panel.js';
@@ -55,13 +57,13 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer,
+  Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
-  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel,
+  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram,
   ProgramRunner, AppScreen, ProgramWidgetHost, DesignerWindow, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,

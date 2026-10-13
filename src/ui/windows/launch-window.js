@@ -5,7 +5,7 @@
 
 import { Window } from './window.js';
 import { AppScreen } from '../widgets/app-screen.js';
-import { ProgramRunner } from '../program-runner.js';
+import { ProgramRunner, ProgramSetRunner } from '../program-runner.js';
 
 // Every launch window, of either kind, cascades from the same point.
 let opened = 0;
@@ -22,9 +22,12 @@ export class LaunchWindow extends Window {
    *   Without a console (an app from the Applications menu), `language`
    *   (BasicConsoleWindow or PythonConsoleWindow), `compiled` (the record's
    *   compiled code) and `priority` say how to run the source; give a `title`.
+   *   `programs` instead runs several together, in order (a project's
+   *   scripts): [{ name, language, source, compiled, priority }]; give a
+   *   `title`.
    */
   constructor({
-    source = '', console = null, language = null, compiled = null, priority,
+    source = '', console = null, language = null, compiled = null, priority, programs = null,
     autoStart = true, ...options
   } = {}) {
     if (new.target === LaunchWindow) {
@@ -48,7 +51,7 @@ export class LaunchWindow extends Window {
     this.screen.element.classList.add('cr-launch-screen');
     this.textPanel = this.screen.textPanel;
     this.content = this.screen;
-    this.runner = new ProgramRunner({
+    this.runner = programs ? new ProgramSetRunner({ programs, screen: this.screen }) : new ProgramRunner({
       language: this.language,
       source: this.source,
       screen: this.screen,
