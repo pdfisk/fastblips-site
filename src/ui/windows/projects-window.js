@@ -2,8 +2,8 @@
 // server (rails/server) - the projects of the page's space listed on the
 // left (only those with an owner), the selected one edited on the right:
 // its name, its description and its scripts, in order. Add puts a script in
-// it, chosen from the user's own and those others have shared; Remove takes
-// the selected one out; Up and Down move it. Projects can be created, edited
+// it, chosen from the user's own and those others have shared; Edit opens the
+// selected one in an edit window; Remove takes it out; Up and Down move it. Projects can be created, edited
 // and deleted. Opened from the Views menu.
 
 import { HSplitWindow } from './hsplit-window.js';
@@ -14,6 +14,7 @@ import { Label } from '../widgets/label.js';
 import { Menu } from '../widgets/menu.js';
 import { Separator } from '../widgets/separator.js';
 import { ScriptPickerWindow } from './script-picker-window.js';
+import { ScriptEditWindow } from './script-edit-window.js';
 import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
 import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
@@ -51,6 +52,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.projects = [];    // the projects in the space, by name
     this.scripts = [];     // the scripts in every space, to choose from
     this.picker = null;    // the open ScriptPickerWindow, if any
+    this.editors = new Map();   // the open ScriptEditWindows, by script id
     this.current = null;   // the project being edited; id null for a new one
     this._refreshToken = 0;
     this._suppressSelect = false;
@@ -68,10 +70,14 @@ export class ProjectsWindow extends HSplitWindow {
     projectsMenu.addItem('New', () => this.newProject());
     projectsMenu.addItem('Save', () => this.save(), { enabled: () => editing() && (this.dirty || this.current.id == null) });
     projectsMenu.addItem('Delete', () => this.deleteProject(), { enabled: editing });
-    projectsMenu.addItem('Refresh', () => this.refresh());
+    projectsMenu.addItem('Refresh', () => { if (this._confirmDiscard()) this.refresh({ clear: true }); });
     const scriptsMenu = new Menu('Scripts');
+    const selected = () => { console.log('**SELECT**', editing(), at(), this.projectPanel.selectedIndex); return editing() && at() >= 0 };
+    scriptsMenu.addItem('Edit', () => this.editScript(), { enabled: selected });
+    scriptsMenu.addSeparator();
     scriptsMenu.addItem('Add', () => this.addScript(), { enabled: editing });
-    scriptsMenu.addItem('Remove', () => this.removeScript(), { enabled: () => editing() && at() >= 0 });
+    scriptsMenu.addItem('Remove', () => this.removeScript(), { enabled: selected });
+    scriptsMenu.addSeparator();
     scriptsMenu.addItem('Up', () => this.moveScript(-1), { enabled: () => editing() && at() > 0 });
     scriptsMenu.addItem('Down', () => this.moveScript(1),
       { enabled: () => editing() && at() >= 0 && at() < this.projectPanel.ids.length - 1 });
@@ -87,7 +93,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.buttonBar.add(new Spacer());
     this.status = this.buttonBar.add(new Label());
 
-    this.listPanel.element.addEventListener('select', (e) => this._onSelect(e.detail.item));
+    this.listPanel.element.addEventListener('select', (e) => this._onSelect(e.detail.index, e.detail.item));
     this.projectPanel.element.addEventListener('change', () => this.updateButtons());
     this.projectPanel.element.addEventListener('scriptselect', () => this.updateButtons());
     this.projectPanel.element.addEventListener('submit', () => this.save());
@@ -125,15 +131,17 @@ export class ProjectsWindow extends HSplitWindow {
   close() {
     if (!this._confirmDiscard()) return false;
     this.picker?.close();
+    for (const editor of this.editors.values()) editor.close();
     return super.close();
   }
 
   /**
    * Reloads the projects and the scripts from the server. The
    * project being edited is shown as it now is, unless it has unsaved
-   * changes, which are kept.
+   * changes, which are kept. With `clear`, no project is left selected
+   * (the Refresh command, which first asks about unsaved changes).
    */
-  async refresh() {
+  async refresh({ clear = false } = {}) {
     const token = ++this._refreshToken;
     this.setStatus('Loading…');
     try {
@@ -145,6 +153,7 @@ export class ProjectsWindow extends HSplitWindow {
       this.listPanel.items = this.projects.map((p) => ({ value: p.id, label: rowLabel(p) }));
       this._suppressSelect = false;
 
+      if (clear) { this._showProject(null); this._selectId(null); }   // Refresh starts with no project selected
       const dirty = this.dirty;
       const fresh = this.current?.id == null ? null : this.projects.find((p) => p.id === this.current.id);
       if (this.current?.id != null && !dirty) {
@@ -191,6 +200,27 @@ export class ProjectsWindow extends HSplitWindow {
     picker.element.addEventListener('close', () => { if (this.picker === picker) this.picker = null; });
     this.picker = picker;
     picker.open(this.parent);
+  }
+
+  /** Opens the selected script in an edit window (one per script). */
+  editScript() {
+    console.log('editScript');
+    const script = this.projectPanel.selectedScript;
+    if (!script) return null;
+    const open = this.editors.get(script.id);
+    if (open) return open.open(this.parent);
+    const language = this.scripts.find((s) => s.id === script.id)?.language
+      ?? String(script.language).toLowerCase();
+    const editor = new ScriptEditWindow({
+      store: this.scriptStore,
+      id: script.id,
+      name: script.name,
+      language,
+      onSave: (saved) => { this.setStatus(`Saved script "${saved.name}"`); this.refresh(); },
+    });
+    editor.element.addEventListener('close', () => { if (this.editors.get(script.id) === editor) this.editors.delete(script.id); });
+    this.editors.set(script.id, editor);
+    return editor.open(this.parent);
   }
 
   /** Takes the selected script out of the project (the script itself is kept). */
@@ -299,14 +329,15 @@ export class ProjectsWindow extends HSplitWindow {
     this.buttonBar.layout();
   }
 
-  _onSelect(item) {
+  _onSelect(index, item) {
     if (this._suppressSelect || !item) return;
-    const previous = this.current?.id ?? null;
+     const previous = this.current?.id ?? null;
     if (item.value === previous) return;
     if (!this._confirmDiscard()) { this._selectId(previous); return; }
     const project = this.projects.find((p) => p.id === item.value) ?? null;
     this._showProject(project);
-    if (project) this.setStatus(`#${project.id} ${project.name}`);
+    this.projectPanel.selectIndex(index);
+   if (project) this.setStatus(`#${project.id} ${project.name}`);
   }
 
   _showProject(project) {

@@ -128,8 +128,10 @@ export class ProjectPanel extends Panel {
     });
     this.list.addEventListener('keydown', (e) => {
       const n = this._scripts.length;
-      const next = { ArrowDown: Math.min(n - 1, this.selectedIndex + 1), ArrowUp: Math.max(0, this.selectedIndex - 1),
-        Home: 0, End: n - 1 }[e.key];
+      const next = {
+        ArrowDown: Math.min(n - 1, this.selectedIndex + 1), ArrowUp: Math.max(0, this.selectedIndex - 1),
+        Home: 0, End: n - 1
+      }[e.key];
       if (n === 0 || next === undefined) return;
       e.preventDefault();
       this.selectIndex(next);

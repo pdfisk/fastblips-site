@@ -39,6 +39,7 @@ import { RecordPanel } from './widgets/record-panel.js';
 import { ProjectsWindow } from './windows/projects-window.js';
 import { ProjectPanel } from './widgets/project-panel.js';
 import { Separator } from './widgets/separator.js';
+import { ScriptEditWindow } from './windows/script-edit-window.js';
 import { ScriptPickerWindow } from './windows/script-picker-window.js';
 import { TabPanel } from './widgets/tab-panel.js';
 import { OutputPanel } from './widgets/output-panel.js';
@@ -63,7 +64,7 @@ const ui = {
   TranscriptWindow, SchedulerWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
-  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow,
+  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram,
   ProgramRunner, AppScreen, ProgramWidgetHost, DesignerWindow, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
