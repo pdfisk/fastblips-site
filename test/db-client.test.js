@@ -138,3 +138,12 @@ test('findUser still throws when the server fails', async () => {
   const fetch = fakeFetch({ status: 500, body: { error: 'boom' } });
   await assert.rejects(findUser('ann', { baseUrl: 'http://db.test', fetch }), (e) => e instanceof StoreError && e.status === 500);
 });
+
+test('a project is saved with its shared flag', async () => {
+  const fetch = fakeFetch({ status: 201, body: { id: 1 } }, { status: 200, body: { id: 1 } });
+  const s = new SourceStore({ resource: 'projects', key: 'project', baseUrl: 'http://db.test/', fetch });
+  await s.create({ name: 'p', shared: true, script_ids: [] });
+  await s.update(1, { shared: 0 });
+  assert.deepEqual(fetch.calls[0].body, { project: { name: 'p', shared: true, script_ids: [] } });
+  assert.deepEqual(fetch.calls[1].body, { project: { shared: false } });   // a boolean, always
+});

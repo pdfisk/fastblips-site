@@ -26,18 +26,21 @@ import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, s
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
-import { runParameter, startRuntime } from './run-app.js';
+import { runParameter, projectParameter, startRuntime, startProjectRuntime } from './run-app.js';
 import { ApplicationsWindow } from './windows/applications-window.js';
 
 /**
  * Starts the UI the page calls for: with ?run=<program name>, that program
- * from the database as a full-page app (on any device); otherwise the mobile
+ * from the database as a full-page app (on any device), and with
+ * ?project=<owner>/<name> every script of that project, together; otherwise the mobile
  * landing page on a phone, else the full UI. ?ui=mobile or ?ui=desktop
  * overrides the device detection.
  */
 export function start() {
   const program = runParameter();
   if (program) return startRuntime(program);
+  const project = projectParameter();
+  if (project) return startProjectRuntime(project);
   return isMobileDevice() ? startMobile() : startDesktop();
 }
 
@@ -217,7 +220,8 @@ function changeUser() {
 
 // The Views menu, second on the Navbar, opens the tools: the Transcript, a new console for
 // either language, the browser for each table on the database server
-// (rails/server), Projects, the Process Browser and a new Designer. There is
+// (rails/server), the Process Browser, a new Designer and, last after a separator,
+// Projects. There is
 // one database browser per table, one Projects window and one Process
 // Browser; choosing one again brings it to the front.
 function viewsMenu(viewport, transcript) {
@@ -227,14 +231,13 @@ function viewsMenu(viewport, transcript) {
   menu.addItem('Basic Console', () => new BasicConsoleWindow().open(viewport));
   menu.addItem('Python Console', () => new PythonConsoleWindow().open(viewport));
   menu.addSeparator();
-  menu.addItem('Projects Database', () => ProjectsWindow.instance.open(viewport));
-  menu.addSeparator();
   menu.addItem('Basic Database', () => BasicDatabaseWindow.instance.open(viewport));
   menu.addItem('Python Database', () => PythonDatabaseWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
-  menu.addSeparator();
   menu.addItem('Designer', () => new DesignerWindow().open(viewport));
+  menu.addSeparator();
+  menu.addItem('Projects Database', () => ProjectsWindow.instance.open(viewport));
   return menu;
 }
 

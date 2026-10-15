@@ -7,7 +7,8 @@
 // also read again when the database server or the user changes.
 
 import { Window } from './window.js';
-import { DesktopLaunchWindow } from './launch-window.js';
+import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
+import { Menu } from '../widgets/menu.js';
 import { GridPanel } from '../widgets/grid-panel.js';
 import { listApps } from '../app-list.js';
 import { RUN_TABLES } from '../run-app.js';
@@ -61,7 +62,9 @@ export class ApplicationsWindow extends Window {
       emptyText: 'Loading...',
     });
     this.content = this.grid;
-    this.launchButton = this.buttonBar.addButton('Launch', () => this.launch());
+    // As in a console: Launch > Desktop, Mobile or Web.
+    this.launchMenu = this.buttonBar.add(new Menu('Launch'));
+    addLaunchItems(this.launchMenu, (target) => this.launch(target), () => this.selectedApp !== null);
     this.refreshButton = this.buttonBar.addButton('Refresh', () => this.refresh());
     this.grid.element.addEventListener('select', () => this.updateButtons());
     this.grid.element.addEventListener('dblclick', (e) => { if (e.target.closest('td')) this.launch(); });
@@ -104,12 +107,19 @@ export class ApplicationsWindow extends Window {
     this.updateButtons();
   }
 
-  /** Runs the selected app in a new Desktop launch window; null if none is selected. */
-  launch() {
+  /**
+   * Launches the selected app (the Launch menu): in a new Desktop launch
+   * window ('desktop', the default) or Mobile one ('mobile'), run from its
+   * compiled code, or as a full page in a new browser tab ('web'). Returns
+   * the window (for 'web', the address opened); null if none is selected.
+   */
+  launch(target = 'desktop') {
     const app = this.selectedApp;
     if (!app || !this.parent) return null;
+    if (target === 'web') return launchWeb(app.name, app.owner);
     const { record } = app;
-    return new DesktopLaunchWindow({
+    const Cls = target === 'mobile' ? MobileLaunchWindow : DesktopLaunchWindow;
+    return new Cls({
       title: app.name,
       source: record.content ?? '',
       language: this._languages[app.table],
@@ -119,7 +129,6 @@ export class ApplicationsWindow extends Window {
   }
 
   updateButtons() {
-    this.launchButton.enabled = this.selectedApp !== null;
     this.buttonBar.layout();
   }
 

@@ -8,6 +8,9 @@
 //     Viewport and act as in a LaunchWindow (see ProgramRunner).
 //   - The program starts as soon as it has loaded, as if Go were pressed.
 //
+// ?project=<owner>/<name> runs a project the same way: every script of that
+// user's project, in order, together on the one screen (startProjectRuntime).
+//
 // The source is read from the database server (db-client.js). ?run=abc is
 // the program abc in the shared space; ?run=peter/abc is abc in the user
 // peter's space. A Basic program is found before a Python one of the same
@@ -20,7 +23,8 @@ import { ButtonBar } from './widgets/button-bar.js';
 import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
 import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
-import { ProgramRunner } from './program-runner.js';
+import { ProgramRunner, ProgramSetRunner } from './program-runner.js';
+import { PROJECTS, SCRIPTS } from './projects.js';
 
 /** The tables searched for the program, in order, and their languages. */
 export const RUN_TABLES = [
@@ -88,13 +92,65 @@ async function findInSpace(name, owner, stores) {
   return null;
 }
 
+/** The project name in a ?project= query parameter, or null. */
+export function projectParameter(g = globalThis) {
+  try {
+    const name = new URLSearchParams(g.location?.search ?? '').get('project')?.trim();
+    return name || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Builds the page for the program called name and loads it. Returns
- * { viewport, screen, textPanel, buttonBar, goButton, resetButton, runner, ready },
- * where ready resolves once the program is loaded and started (runner is
- * set then).
+ * Finds the project a ?project= value names: "owner/name" in that user's
+ * space, else (or failing that) the whole value in the shared space. Resolves
+ * to { record, owner, programs } or null if there is none: programs is one
+ * { name, language, source, compiled, priority } per script of the project,
+ * in order (a script that no longer exists is left out; missing counts them).
+ * Rejects with a StoreError if the database could not be read.
+ * @param {string} value
+ * @param {{stores?: {projects: object, scripts: object}}} [options] - stores
+ *   to read (tests); by default the database server in use
  */
-export function startRuntime(name) {
+export async function findProject(value, { stores } = {}) {
+  const split = splitRunName(value);
+  const places = [...(split ? [split] : []), { owner: '', name: value }];
+  const projects = stores?.projects ?? new SourceStore(PROJECTS);
+  for (const { owner, name } of places) {
+    const store = projects.inSpace ? projects.inSpace(owner) : projects;
+    const records = (await store.list()) ?? [];
+    const lower = name.toLowerCase();
+    const record = records.find((r) => r.name === name)
+      ?? records.find((r) => String(r.name ?? '').toLowerCase() === lower);
+    if (!record) continue;
+    const scripts = (await (stores?.scripts ?? new SourceStore(SCRIPTS)).list()) ?? [];
+    const byId = new Map(scripts.map((s) => [s.id, s]));
+    const languages = Object.fromEntries(RUN_TABLES);
+    const programs = [];
+    let missing = 0;
+    for (const { id } of record.scripts ?? []) {
+      const script = byId.get(id);
+      const language = languages[script?.language];
+      if (!script || !language) { missing += 1; continue; }
+      programs.push({
+        name: script.name,
+        language,
+        source: script.content ?? '',
+        compiled: script.compiled_code ?? null,
+        priority: script.priority ?? undefined,
+      });
+    }
+    return { record, owner, programs, missing };
+  }
+  return null;
+}
+
+// Builds the full-page app: an AppScreen filling the Viewport with Go and
+// Reset buttons along the bottom. load() resolves to null (nothing found) or
+// { owner, runner(screen) }, which makes the runner for the screen; the
+// runner is started as soon as it is made.
+function startPage(name, load, notFound) {
   document.title = name;
   const viewport = Viewport.instance.mount(document.body);
   viewport.element.classList.add('cr-run-page');
@@ -111,23 +167,14 @@ export function startRuntime(name) {
   viewport.content = screen;
   viewport.statusBar = buttonBar;
 
-  page.ready = findProgram(name).then((found) => {
+  page.ready = load().then((found) => {
     if (!found) {
-      textPanel.text = `There is no program named "${name}" in the database.\n`;
+      textPanel.text = notFound;
       return page;
     }
     textPanel.text = '';
     setSpace(found.owner);
-    page.runner = new ProgramRunner({
-      language: found.language,
-      source: found.record.content ?? '',
-      // Compiled code saved with the record (the Database window's Compile
-      // button) runs without compiling, while it matches the source.
-      compiled: found.record.compiled_code ?? null,
-      priority: found.record.priority ?? undefined,
-      screen,
-      name,
-    });
+    page.runner = found.runner(screen);
     page.goButton.enabled = true;
     page.resetButton.enabled = true;
     page.runner.go();
@@ -138,4 +185,44 @@ export function startRuntime(name) {
     return page;
   });
   return page;
+}
+
+/**
+ * Builds the page for the program called name and loads it. Returns
+ * { viewport, screen, textPanel, buttonBar, goButton, resetButton, runner, ready },
+ * where ready resolves once the program is loaded and started (runner is
+ * set then).
+ */
+export function startRuntime(name) {
+  return startPage(name, async () => {
+    const found = await findProgram(name);
+    if (!found) return null;
+    return {
+      owner: found.owner,
+      runner: (screen) => new ProgramRunner({
+        language: found.language,
+        source: found.record.content ?? '',
+        // Compiled code saved with the record (the Database window's Compile
+        // button) runs without compiling, while it matches the source.
+        compiled: found.record.compiled_code ?? null,
+        priority: found.record.priority ?? undefined,
+        screen,
+        name,
+      }),
+    };
+  }, `There is no program named "${name}" in the database.\n`);
+}
+
+/**
+ * Builds the page for the project called name (a ?project= value) and loads
+ * it: every script of the project, run together on the one screen. Returns
+ * what startRuntime does.
+ */
+export function startProjectRuntime(name) {
+  return startPage(name, async () => {
+    const found = await findProject(name);
+    if (!found) return null;
+    if (found.programs.length === 0) throw new Error('the project has no scripts to run');
+    return { owner: found.owner, runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }) };
+  }, `There is no project named "${name}" in the database.\n`);
 }

@@ -49,11 +49,23 @@ export async function listApps({ stores } = {}) {
  * a db= choice of server and dropping anything else.
  */
 export function runUrl(name, href = globalThis.location?.href ?? 'http://localhost/', owner = '') {
+  return pageUrl('run', name, href, owner);
+}
+
+/**
+ * The address that runs the project called name as a full page: this page
+ * with ?project=<owner>/<name>, as runUrl does for an app.
+ */
+export function projectUrl(name, href = globalThis.location?.href ?? 'http://localhost/', owner = '') {
+  return pageUrl('project', name, href, owner);
+}
+
+function pageUrl(param, name, href, owner) {
   const url = new URL(href);
   const db = url.searchParams.get('db');
   url.search = '';
   url.hash = '';
-  url.searchParams.set('run', owner ? `${owner}/${name}` : name);
+  url.searchParams.set(param, owner ? `${owner}/${name}` : name);
   if (db) url.searchParams.set('db', db);
   return url.href;
 }

@@ -15,7 +15,7 @@ import { Menu } from '../widgets/menu.js';
 import { Separator } from '../widgets/separator.js';
 import { ScriptPickerWindow } from './script-picker-window.js';
 import { ScriptEditWindow } from './script-edit-window.js';
-import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
+import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
 import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
 import { projectStore, scriptStore, byName, projectScript, availableScripts, sameList } from '../projects.js';
@@ -84,12 +84,11 @@ export class ProjectsWindow extends HSplitWindow {
     this.projectsMenu = this.buttonBar.add(projectsMenu);
     this.scriptsMenu = this.buttonBar.add(scriptsMenu);
     this.buttonBar.add(new Separator());
-    // As in a console: Launch opens the project's scripts, run together, in
-    // a Desktop or Mobile launch window.
+    // As in a console: Launch runs the project's scripts together, in a
+    // Desktop or Mobile launch window or, for the saved project, as a web page.
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
-    const launchable = () => this.projectPanel.ids.length > 0;
-    this.launchMenu.addItem('Desktop', () => this.launch('desktop'), { enabled: launchable });
-    this.launchMenu.addItem('Mobile', () => this.launch('mobile'), { enabled: launchable });
+    addLaunchItems(this.launchMenu, (target) => this.launch(target),
+      (target) => (target === 'web' ? this.savedIds.length > 0 && this.current?.id != null : this.projectPanel.ids.length > 0));
     this.buttonBar.add(new Spacer());
     this.status = this.buttonBar.add(new Label());
 
@@ -117,6 +116,7 @@ export class ProjectsWindow extends HSplitWindow {
     if (!this.current) return false;
     return this.projectPanel.name !== (this.current.name ?? '')
       || this.projectPanel.description !== (this.current.description ?? '')
+      || this.projectPanel.shared !== Boolean(this.current.shared)
       || !sameList(this.projectPanel.ids, this.savedIds);
   }
 
@@ -174,7 +174,7 @@ export class ProjectsWindow extends HSplitWindow {
   newProject() {
     if (!this._confirmDiscard()) return;
     this._selectId(null);
-    this._showProject({ id: null, name: '', description: '', scripts: [] });
+    this._showProject({ id: null, name: '', description: '', shared: false, scripts: [] });
     this.projectPanel.focusName();
     this.setStatus('New project — Save to create it');
   }
@@ -236,8 +236,19 @@ export class ProjectsWindow extends HSplitWindow {
    * DesktopLaunchWindow) that runs every script of the project in the list,
    * in order, on one screen - the list as it is in the window, saved or not.
    * Scripts not among those last loaded (Refresh) are skipped and reported.
+   * 'web' instead opens the project as it was last saved as a full page in a
+   * new browser tab (?project=), and returns the address; a project that has
+   * not been saved has none (null, with a message in the status line).
    */
   launch(target) {
+    if (target === 'web') {
+      const name = this.current?.id == null ? '' : String(this.current.name ?? '').trim();
+      if (!name || this.savedIds.length === 0) {
+        this.setStatus('Save the project first: Web runs the saved project', 'error');
+        return null;
+      }
+      return launchWeb(name, this.current.owner ?? this.space, { project: true });
+    }
     const records = new Map(this.scripts.map((s) => [s.id, s]));
     const programs = [];
     let missing = 0;
@@ -279,7 +290,10 @@ export class ProjectsWindow extends HSplitWindow {
       this.projectPanel.focusName();
       return null;
     }
-    const fields = { name, description: this.projectPanel.description, script_ids: this.projectPanel.ids };
+    const fields = {
+      name, description: this.projectPanel.description, shared: this.projectPanel.shared,
+      script_ids: this.projectPanel.ids,
+    };
     this.setStatus('Saving…');
     try {
       const saved = this.current.id == null
@@ -288,6 +302,7 @@ export class ProjectsWindow extends HSplitWindow {
       this.current = { ...saved };   // no longer dirty, so refresh shows it as saved
       this.projectPanel.name = saved.name ?? '';
       this.projectPanel.description = saved.description ?? '';
+      this.projectPanel.shared = Boolean(saved.shared);
       this.projectPanel.scripts = (saved.scripts ?? []).map(projectScript);
       await this.refresh();
       this._selectId(saved.id);
@@ -344,6 +359,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.current = project ? { ...project } : null;
     this.projectPanel.name = project?.name ?? '';
     this.projectPanel.description = project?.description ?? '';
+    this.projectPanel.shared = Boolean(project?.shared);
     this.projectPanel.space = this.space;
     this.projectPanel.scripts = project ? (project.scripts ?? []).map(projectScript) : [];
     this.projectPanel.enabled = Boolean(project);

@@ -8,7 +8,7 @@ import { TextPanel } from '../widgets/text-panel.js';
 import { OutputPanel } from '../widgets/output-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
 import { Menu } from '../widgets/menu.js';
-import { DesktopLaunchWindow, MobileLaunchWindow } from './launch-window.js';
+import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
 import { describeOrigin } from '../program-runner.js';
 import { scheduler } from '../runtime.js';
@@ -79,6 +79,8 @@ export class ConsoleWindow extends HSplitWindow {
     // The script's name when it did not come from a file (e.g. a database
     // record opened in a console).
     this.recordName = options.scriptName ?? null;
+    // The user whose space that record is in ('' for the shared space).
+    this.recordOwner = options.scriptOwner ?? '';
     // Compiled code for the source, when it came with some (a database
     // record's compiled_code). Run uses it while the source still matches it;
     // once the source is edited it is compiled instead (program-loader.js).
@@ -107,8 +109,7 @@ export class ConsoleWindow extends HSplitWindow {
         { checked: () => this.priority === level });
     }
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
-    this.launchMenu.addItem('Desktop', () => this.launch('desktop'));
-    this.launchMenu.addItem('Mobile', () => this.launch('mobile'));
+    addLaunchItems(this.launchMenu, (target) => this.launch(target));
 
     // Ctrl+Enter in the source runs the code.
     this.input.element.addEventListener('submit', () => this.run());
@@ -163,10 +164,23 @@ export class ConsoleWindow extends HSplitWindow {
   }
 
   /**
-   * Opens a LaunchWindow for the source (the Launch menu): a
-   * MobileLaunchWindow for 'mobile', otherwise a DesktopLaunchWindow.
+   * Launches the program (the Launch menu). 'mobile' opens a
+   * MobileLaunchWindow and 'desktop' (the default) a DesktopLaunchWindow, each
+   * with a copy of the source. 'web' opens the app saved in the database
+   * under this console's script name as a full page in a new browser tab; it
+   * needs a script that came from the database (Open in Console), and it
+   * runs the saved version, not edits made here. Returns the new window, or
+   * for 'web' the address opened (null, with a message on the StatusBar, if
+   * the console has no database script).
    */
   launch(target) {
+    if (target === 'web') {
+      if (!this.recordName) {
+        StatusBar.instance.show(`${this.title}: Web runs a program saved in the database: open one with Open in Console`, 'error');
+        return null;
+      }
+      return launchWeb(this.recordName, this.recordOwner);
+    }
     const Cls = target === 'mobile' ? MobileLaunchWindow : DesktopLaunchWindow;
     const win = new Cls({ source: this.input.text, console: this });
     return win.open(this.parent);

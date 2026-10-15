@@ -6,6 +6,36 @@
 import { Window } from './window.js';
 import { AppScreen } from '../widgets/app-screen.js';
 import { ProgramRunner, ProgramSetRunner } from '../program-runner.js';
+import { runUrl, projectUrl } from '../app-list.js';
+
+/**
+ * Fills a Launch menu with the standard items: Desktop, Mobile, a separator
+ * and Web. Choosing one calls launch('desktop'), launch('mobile') or
+ * launch('web'); enabled, if given, is called with 'desktop', 'mobile' or
+ * 'web' and says whether that item can be chosen (greyed out if not).
+ * Used by the Launch menus of the console windows, the Applications window
+ * and the Projects window.
+ */
+export function addLaunchItems(menu, launch, enabled) {
+  const item = (label, target) => menu.addItem(label, () => launch(target),
+    enabled ? { enabled: () => enabled(target) } : {});
+  item('Desktop', 'desktop');
+  item('Mobile', 'mobile');
+  menu.addSeparator();
+  item('Web', 'web');
+}
+
+/**
+ * Opens the app called name (in the space of owner, '' for shared) as a
+ * full-page app in a new browser tab: this page with ?run=<name>, or for a
+ * project (project: true) ?project=<owner>/<name>. Returns the address
+ * opened.
+ */
+export function launchWeb(name, owner = '', { project = false } = {}) {
+  const url = (project ? projectUrl : runUrl)(name, undefined, owner);
+  window.open(url, '_blank', 'noopener');
+  return url;
+}
 
 // Every launch window, of either kind, cascades from the same point.
 let opened = 0;

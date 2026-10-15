@@ -1,5 +1,5 @@
-// ProjectPanel: the editor for one project - a Name field and a caption
-// along the top, a Description, and below them a tabbed container: Scripts,
+// ProjectPanel: the editor for one project - a Name field, a Shared check box
+// and a caption along the top, a Description, and below them a tabbed container: Scripts,
 // the ordered list of the scripts in the project, one of which can be
 // selected, then Strings and Images (see docs/widgets.txt). Used by
 // ProjectsWindow.
@@ -19,6 +19,8 @@ const STYLE = `
   background:var(--cr-input-bg);color:var(--cr-text);font:var(--cr-font-size) var(--cr-font-code)}
 .cr-project-name{flex:1;min-width:60px;height:22px}
 .cr-project-name:disabled,.cr-project-description:disabled{background:var(--cr-field-disabled-bg)}
+.cr-project-shared{display:flex;align-items:center;gap:4px;white-space:nowrap}
+.cr-project-shared input{margin:0}
 .cr-project-info{color:var(--cr-header-info);font-size:var(--cr-font-size-small);white-space:nowrap}
 .cr-project-section{flex:none;display:flex;flex-direction:column;gap:4px;padding:8px 8px 0}
 .cr-project-heading{display:flex;align-items:baseline;gap:8px}
@@ -76,7 +78,13 @@ export class ProjectPanel extends Panel {
     nameLabel.htmlFor = this.nameInput.id = uid('cr-project-name');
     this.info = document.createElement('span');
     this.info.className = 'cr-project-info';
-    header.append(nameLabel, this.nameInput, this.info);
+    const sharedLabel = document.createElement('label');
+    sharedLabel.className = 'cr-project-shared';
+    this.sharedInput = document.createElement('input');
+    this.sharedInput.type = 'checkbox';
+    this.sharedInput.className = 'cr-project-shared-input';
+    sharedLabel.append(this.sharedInput, 'Shared');
+    header.append(nameLabel, this.nameInput, sharedLabel, this.info);
 
     const about = document.createElement('div');
     about.className = 'cr-project-section';
@@ -122,6 +130,7 @@ export class ProjectPanel extends Panel {
     const changed = () => this.element.dispatchEvent(new CustomEvent('change'));
     this.nameInput.addEventListener('input', changed);
     this.descriptionInput.addEventListener('input', changed);
+    this.sharedInput.addEventListener('change', (e) => { e.stopPropagation(); changed(); });
     this.list.addEventListener('mousedown', (e) => {
       const row = e.target.closest('li[data-index]');
       if (row) this.selectIndex(Number(row.dataset.index));
@@ -154,6 +163,10 @@ export class ProjectPanel extends Panel {
 
   get description() { return this.descriptionInput.value; }
   set description(value) { this.descriptionInput.value = value ?? ''; }
+
+  /** True when the Shared box is checked: the owner has shared the project. */
+  get shared() { return this.sharedInput.checked; }
+  set shared(value) { this.sharedInput.checked = Boolean(value); }
 
   /** Caption shown to the right of the name, e.g. '#3 · updated 10:42'. */
   set caption(text) { this.info.textContent = text; }
@@ -234,6 +247,7 @@ export class ProjectPanel extends Panel {
     this._enabled = Boolean(value);
     this.nameInput.disabled = !this._enabled;
     this.descriptionInput.disabled = !this._enabled;
+    this.sharedInput.disabled = !this._enabled;
     this.list.setAttribute('aria-disabled', String(!this._enabled));
   }
 

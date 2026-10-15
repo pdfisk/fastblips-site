@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { listApps, isCompiled, runUrl } from '../src/ui/app-list.js';
+import { listApps, isCompiled, runUrl, projectUrl } from '../src/ui/app-list.js';
 import { StoreError } from '../src/ui/db-client.js';
 
 const store = (records) => ({ list: async () => records });
@@ -45,4 +45,11 @@ test('runUrl: this page with ?run=<name>, keeping only db=', () => {
   assert.equal(runUrl('my app', 'https://fastblips.com/index.html?db=local&ui=mobile'),
     'https://fastblips.com/index.html?run=my+app&db=local');
   assert.equal(runUrl('abc', 'https://fastblips.com/', 'peter'), 'https://fastblips.com/?run=peter%2Fabc');
+});
+
+test('projectUrl: this page with ?project=<owner>/<name>, keeping only db=', () => {
+  assert.equal(projectUrl('Demo', 'https://fastblips.com/?ui=mobile#x', 'peter'),
+    'https://fastblips.com/?project=peter%2FDemo');
+  assert.equal(projectUrl('Demo', 'https://fastblips.com/?db=local', 'peter'),
+    'https://fastblips.com/?project=peter%2FDemo&db=local');
 });

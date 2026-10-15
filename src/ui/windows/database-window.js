@@ -234,6 +234,7 @@ export class DatabaseWindow extends HSplitWindow {
     return new Console({
       text: this.recordPanel.content,
       scriptName,
+      scriptOwner: this.current.owner ?? '',
       compiled: this.current.compiled_code ?? null,
       priority: this.priority,
     }).open(this.parent);

@@ -555,10 +555,17 @@ language consoles below. Any number of consoles can be open at once.
     Launch use it instead of compiling for as long as the source still
     matches it; see "Compiled code" below.
   - After Priority comes a Launch menu (console.launchMenu), placed like
-    the other buttons, with Desktop and Mobile items. They call
-    launch('desktop') and launch('mobile'), which open a new
-    DesktopLaunchWindow or MobileLaunchWindow with a copy of the console's
-    source.
+    the other buttons, with Desktop, Mobile, a separator and Web. They call
+    launch('desktop'), launch('mobile') and launch('web'). The first two
+    open a new DesktopLaunchWindow or MobileLaunchWindow with a copy of the
+    console's source. Web opens the app saved in the database under the
+    console's script name as a full page (the ?run= page) in a
+    new browser tab; it runs the saved version, not edits made in the
+    console, and needs a script that came from the database (console.
+    recordName and recordOwner, set when a record is opened in a console):
+    otherwise the StatusBar says so. addLaunchItems(menu, launch) in
+    launch-window.js builds these items, and launchWeb(name, owner) opens
+    the page.
   - A subclass sets its language by overriding the static titlePrefix
     (e.g. 'Basic Console') and defaultText (the starting source), and the
     run() and stop() methods. In ConsoleWindow itself both do nothing.
@@ -762,9 +769,12 @@ A Window listing the compiled apps, so they can be launched.
     update (a time for today, else a date). Click a column header to sort
     by it, and again to reverse; Updated sorts by time. Drag the right edge
     of a header to resize a column.
-  - Launch (also double-click or Enter on a row) runs the selected app in a
-    new DesktopLaunchWindow, from its compiled code. It is greyed out until
-    a row is selected.
+  - Its Launch menu is the same as a console's: Desktop, Mobile, a
+    separator and Web. Desktop (also double-click or Enter on a row) and
+    Mobile run the selected app from its compiled code in a new
+    DesktopLaunchWindow or MobileLaunchWindow; Web opens it as a full page
+    in a new browser tab. The items are greyed out until a row is
+    selected.
   - The list is read from the database each time the window is opened, by
     Refresh, and when the database server or the user changes. A failed
     read, or no compiled apps, shows a note in place of the rows.
@@ -847,6 +857,12 @@ edited in a ProjectPanel on the right.
     Refresh) and Scripts (Add, Remove, Up, Down) - then a Separator, a
     Launch menu and a status line at the right end. A menu item is greyed
     out when it cannot be used.
+  - Launch is the same menu as in a console: Desktop, Mobile, a separator
+    and Web. Web opens the project as it was last saved as a full page in
+    a new browser tab, at ?project=<owner>/<name> (the page runs every
+    script of the project, in order, together on one screen, as Desktop
+    does); it is greyed out for a project that is new or has no saved
+    scripts.
   - Launch > Desktop or Mobile, as in a console, opens a DesktopLaunchWindow
     or MobileLaunchWindow titled with the project's name that runs all the
     scripts in the list, in order: Go (also automatic when it opens) clears
@@ -865,10 +881,13 @@ edited in a ProjectPanel on the right.
     any number of projects. Add needs a project being edited; the others a
     selected script, and Up and Down room to move.
   - New starts an empty project, which Save creates on the server; Save on
-    an existing project updates its name, its description and its scripts
-    in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
+    an existing project updates its name, its description, whether it is
+    shared and its scripts in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
     Ctrl+S also saves. A project needs a name, unique in its space; it may
     have no scripts.
+  - The Shared check box beside the name is the project's shared flag (the
+    projects table's boolean "shared", false for a new project): checking
+    or clearing it is an unsaved change until Save.
   - Renaming a project keeps its scripts. Delete asks for confirmation,
     then deletes the project; its scripts are kept.
   - Selecting another project, starting a new one or closing the window
@@ -884,11 +903,12 @@ DOM.
 
 ProjectPanel
 ------------
-A Panel for editing one project: a Name field and a caption along the top,
-a Description, and a TabPanel filling the rest with three pages: Scripts
+A Panel for editing one project: a Name field, a Shared check box and a
+caption along the top, a Description, and a TabPanel filling the rest with three pages: Scripts
 (the list of the project's scripts), Strings and Images (empty for now).
 
-  - name, description and caption properties; scripts is the list, in
+  - name, description, shared (true when the Shared box is checked) and
+    caption properties; scripts is the list, in
     order ({ id, name, language, owner, shared }) and ids their ids; space
     is the project's space, so that scripts of other users show their owner;
     enabled makes the fields editable or read-only.
@@ -1052,6 +1072,14 @@ works on any device, phone included.
   - While the program loads, the text panel says so and the buttons are
     disabled. If there is no such program, or the server cannot be reached,
     the text panel says so and the buttons stay disabled.
+  - ?project=<owner>/<name> (startProjectRuntime(name)) runs a project the
+    same way: the page is the same, but it starts every script of that
+    user's project, in the project's order, together on the one screen (a
+    ProgramSetRunner), each at its own priority and from its own compiled
+    code. A name with no owner is looked for in the shared space. A script
+    that has been deleted is skipped; if there is no such project, or it
+    has no scripts, the text panel says so. The Launch > Web item of the
+    Projects window opens it.
 
 
 Compiled code
