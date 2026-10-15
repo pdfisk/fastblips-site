@@ -1,24 +1,41 @@
 // ApplicationsWindow: the singleton window, opened by the Navbar's
-// Applications button, that lists the compiled apps (programs in the Basic
-// and Python tables saved with their compiled code, by name) so they can be
-// launched. Choosing an app and pressing Launch (or double-clicking it, or
-// pressing Enter) runs it in a new Desktop launch window. The list is read
+// Applications button, that shows the compiled apps (programs in the Basic
+// and Python tables saved with their compiled code) in a grid with the
+// columns Name, Owner and Updated, so they can be launched. Choosing an app and pressing Launch (or double-clicking it, or
+// pressing Enter) runs it in a new Desktop launch window. The grid is read
 // from the database each time the window is opened, and by Refresh; it is
 // also read again when the database server or the user changes.
 
 import { Window } from './window.js';
 import { DesktopLaunchWindow } from './launch-window.js';
-import { ListPanel } from '../widgets/list-panel.js';
+import { GridPanel } from '../widgets/grid-panel.js';
 import { listApps } from '../app-list.js';
 import { RUN_TABLES } from '../run-app.js';
-import { userName } from '../db-client.js';
 
 let instance = null;
 
-/** The list row text for an app: its name, then (Python) or · shared. */
-export function appLabel(app, user = userName()) {
-  return `${app.name}${app.table === 'python' ? ' (Python)' : ''}${user && !app.owner ? ' · shared' : ''}`;
+/** The Name cell for an app: its name, then (Python) for a MiniPy program. */
+export function appLabel(app) {
+  return `${app.name}${app.table === 'python' ? ' (Python)' : ''}`;
 }
+
+/** The Owner cell: the user whose space the app is in, or (shared). */
+export function appOwner(app) {
+  return app.owner || '(shared)';
+}
+
+/** The Updated cell: a time for today, else a date; empty if never recorded. */
+export function appUpdated(app) {
+  const iso = app.record?.updated_at;
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toDateString() === new Date().toDateString()
+    ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+const appKey = (app) => `${app.table}/${app.owner}/${app.name}`;
 
 export class ApplicationsWindow extends Window {
   /** The single ApplicationsWindow, created on first use. */
@@ -39,13 +56,16 @@ export class ApplicationsWindow extends Window {
     this._loading = null;
     this._stale = true;
 
-    this.list = new ListPanel({ emptyText: 'Loading...' });
-    this.content = this.list;
+    this.grid = new GridPanel({
+      columns: [{ label: 'Name' }, { label: 'Owner', width: '110px' }, { label: 'Updated', width: '110px' }],
+      emptyText: 'Loading...',
+    });
+    this.content = this.grid;
     this.launchButton = this.buttonBar.addButton('Launch', () => this.launch());
     this.refreshButton = this.buttonBar.addButton('Refresh', () => this.refresh());
-    this.list.element.addEventListener('select', () => this.updateButtons());
-    this.list.element.addEventListener('dblclick', () => this.launch());
-    this.list.list.addEventListener('keydown', (e) => {
+    this.grid.element.addEventListener('select', () => this.updateButtons());
+    this.grid.element.addEventListener('dblclick', (e) => { if (e.target.closest('td')) this.launch(); });
+    this.grid.grid.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); this.launch(); }
     });
     this._forget = () => { this._stale = true; if (this.isOpen) this.refresh(); };
@@ -56,14 +76,14 @@ export class ApplicationsWindow extends Window {
 
   /** The app whose row is selected, or null. */
   get selectedApp() {
-    const index = this.list.selectedIndex;
-    return index < 0 ? null : this.apps[index] ?? null;
+    const key = this.grid.selectedRow?.value;
+    return key === undefined ? null : this.apps.find((app) => appKey(app) === key) ?? null;
   }
 
   /**
    * Reads the apps again and shows them, keeping the selection if the app is
    * still there. Resolves once the list is up to date (a failed read shows
-   * its reason in the list instead).
+   * its reason in the grid instead).
    */
   refresh() {
     this._stale = false;
@@ -75,9 +95,12 @@ export class ApplicationsWindow extends Window {
   }
 
   _show(emptyText) {
-    const key = (app) => `${app.table}/${app.owner}/${app.name}`;
-    this.list.emptyText = emptyText;
-    this.list.items = this.apps.map((app) => ({ label: appLabel(app), value: key(app) }));
+    this.grid.emptyText = emptyText;
+    this.grid.rows = this.apps.map((app) => ({
+      value: appKey(app),
+      cells: [appLabel(app), appOwner(app), appUpdated(app)],
+      sort: [appLabel(app), appOwner(app), app.record?.updated_at ?? ''],   // Updated sorts by time, not text
+    }));
     this.updateButtons();
   }
 
@@ -104,7 +127,7 @@ export class ApplicationsWindow extends Window {
   open(viewport) {
     super.open(viewport);
     this.refresh();
-    this.list.list.focus();
+    this.grid.grid.focus();
     return this;
   }
 

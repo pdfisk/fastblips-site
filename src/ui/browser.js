@@ -31,6 +31,7 @@ import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
 import { MonacoPanel } from './widgets/monaco-panel.js';
 import { ListPanel } from './widgets/list-panel.js';
+import { GridPanel } from './widgets/grid-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { ApplicationsWindow } from './windows/applications-window.js';
 import { scheduler } from './runtime.js';
@@ -60,7 +61,7 @@ import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
   Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
-  SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel,
+  SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, ApplicationsWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,

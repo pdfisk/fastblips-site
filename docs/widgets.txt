@@ -44,6 +44,7 @@ Class hierarchy
       TextPanel
         MonacoPanel
       ListPanel
+      GridPanel
       TabPanel
       OutputPanel
       BoardPanel
@@ -210,6 +211,26 @@ language }), e.g. language 'vb' for VB.NET.
     submit events work the same with or without the editor.
   - ready is a promise that resolves once the editor is up (to the editor,
     or null if Monaco could not be loaded).
+
+
+GridPanel
+---------
+A Panel that is filled by a single table: a header row of column names and
+one row per record. Like ListPanel, it tracks the selected row by value and
+fires a select event; the keyboard moves the selection.
+
+  - new GridPanel({columns: [{label, width?}], rows, emptyText}).
+  - Rows are {value, cells, sort?} objects: cells are the text shown, and
+    sort (optional) is what the column is sorted by instead of the text.
+    rows (get and set) keeps the selected row through a refresh.
+  - Clicking a column header sorts by that column; clicking it again
+    reverses the order. The header stays in view as the rows scroll.
+  - Dragging the right edge of a header resizes that column (at least 40px).
+    The first drag fixes every column at its current width; any space left
+    over stays empty at the right, and if the columns are wider than the
+    panel it scrolls sideways. columnWidths gets the widths in pixels and
+    setColumnWidth(index, width) sets one.
+  - No other children can be added.
 
 
 ListPanel
@@ -733,10 +754,14 @@ A Window listing the compiled apps, so they can be launched.
   - Its title is "Applications", matching the Navbar button that opens it.
   - There is only one; ApplicationsWindow.instance creates it on first use,
     and constructing a second one throws.
-  - Its content is a ListPanel with one row per compiled app: a program in
-    the Basic or Python table saved with its compiled code (the Database
-    window's Compile button), by name, with "(Python)" after a Python one
-    and "· shared" after one in the shared space when a user is signed in.
+  - Its content is a GridPanel with one row per compiled app (a program in
+    the Basic or Python table saved with its compiled code, from the
+    Database window's Compile button) and the columns Name, Owner and
+    Updated. Name has "(Python)" after a MiniPy program; Owner is the user
+    whose space the app is in, or "(shared)"; Updated is the record's last
+    update (a time for today, else a date). Click a column header to sort
+    by it, and again to reverse; Updated sorts by time. Drag the right edge
+    of a header to resize a column.
   - Launch (also double-click or Enter on a row) runs the selected app in a
     new DesktopLaunchWindow, from its compiled code. It is greyed out until
     a row is selected.
