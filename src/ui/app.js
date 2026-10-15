@@ -5,6 +5,7 @@ import { Navbar } from './widgets/navbar.js';
 import { StatusBar } from './widgets/status-bar.js';
 import { scheduler } from './runtime.js';
 import { Menu } from './widgets/menu.js';
+import { Button } from './widgets/button.js';
 import { Spacer } from './widgets/spacer.js';
 import { Label } from './widgets/label.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
@@ -25,9 +26,8 @@ import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, s
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
-import { runParameter, startRuntime, RUN_TABLES } from './run-app.js';
-import { listApps } from './app-list.js';
-import { DesktopLaunchWindow } from './windows/launch-window.js';
+import { runParameter, startRuntime } from './run-app.js';
+import { ApplicationsWindow } from './windows/applications-window.js';
 
 /**
  * Starts the UI the page calls for: with ?run=<program name>, that program
@@ -52,7 +52,7 @@ export function startDesktop() {
   navbar.add(viewsMenu(viewport, transcript));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
-  navbar.add(applicationsMenu(viewport));
+  navbar.add(applicationsButton(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
   navbar.add(buildLabel());
@@ -269,54 +269,11 @@ function windowsMenu(viewport, transcript) {
   return menu;
 }
 
-// The Applications menu, after Windows, lists the compiled apps: programs in
-// the Basic and Python tables saved with their compiled code (the Database
-// window's Compile button), by name. Choosing one runs it in a Desktop launch
-// window, from its compiled code. The list is read from the database each
-// time the menu opens: the last list shows at once, and the menu is redrawn
-// when the new one arrives.
-function applicationsMenu(viewport) {
-  const menu = new Menu('Applications');
-  const languages = Object.fromEntries(RUN_TABLES);
-  let apps = null;          // the last list read, or null before the first
-  let error = null;         // why the last read failed, or null
-  let loading = null;       // the read in progress
-  let redrawing = false;
-
-  const refresh = () => {
-    loading ??= listApps().then((list) => { apps = list; error = null; }, (err) => { error = err; })
-      .finally(() => {
-        loading = null;
-        if (!menu.isOpen) return;
-        redrawing = true;
-        try { menu.open(); } finally { redrawing = false; }
-      });
-  };
-  const forget = () => { apps = null; error = null; };
-  document.addEventListener('cr-dbserverchange', forget);
-  document.addEventListener('cr-userchange', forget);
-
-  const note = (label) => ({ label, action() {}, enabled: () => false });
-  menu.itemsProvider = () => {
-    if (!redrawing) refresh();
-    if (apps === null) return [note(error ? `Cannot read the database: ${error.message}` : 'Loading...')];
-    if (apps.length === 0) return [note('No compiled apps: use Compile in a Database window')];
-    return apps.map((app) => ({
-      label: `${app.name}${app.table === 'python' ? ' (Python)' : ''}${userName() && !app.owner ? ' · shared' : ''}`,
-      action: () => launchApp(viewport, app, languages[app.table]),
-    }));
-  };
-  return menu;
-}
-
-/** Runs a compiled app in a new Desktop launch window. */
-function launchApp(viewport, app, language) {
-  const { record } = app;
-  new DesktopLaunchWindow({
-    title: app.name,
-    source: record.content ?? '',
-    language,
-    compiled: record.compiled_code,
-    priority: record.priority ?? undefined,
-  }).open(viewport);
+// The Applications button, after Windows, opens the Applications window: the
+// compiled apps (programs in the Basic and Python tables saved with their
+// compiled code, by name), from which one is launched in a Desktop launch
+// window. There is one Applications window; choosing the button again
+// brings it to the front.
+function applicationsButton(viewport) {
+  return new Button('Applications', () => ApplicationsWindow.instance.open(viewport));
 }

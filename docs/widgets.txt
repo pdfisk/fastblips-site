@@ -481,6 +481,8 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     hidden) and brings it to the front.
   - The TranscriptWindow is always listed, so choosing it reopens it after
     it has been closed.
+  - The Applications button, after Windows, opens the ApplicationsWindow
+    (or brings it to the front).
 
 
 Button
@@ -722,6 +724,25 @@ no buttons and never covers the menus. Clicking it dismisses it.
     (toastSide()/setToastSide(), toastDuration()/setToastDuration()).
   - SignInWindow, SignOutWindow and RegisterWindow show a success toast when
     they finish.
+
+
+ApplicationsWindow (singleton)
+------------------------------
+A Window listing the compiled apps, so they can be launched.
+
+  - Its title is "Applications", matching the Navbar button that opens it.
+  - There is only one; ApplicationsWindow.instance creates it on first use,
+    and constructing a second one throws.
+  - Its content is a ListPanel with one row per compiled app: a program in
+    the Basic or Python table saved with its compiled code (the Database
+    window's Compile button), by name, with "(Python)" after a Python one
+    and "· shared" after one in the shared space when a user is signed in.
+  - Launch (also double-click or Enter on a row) runs the selected app in a
+    new DesktopLaunchWindow, from its compiled code. It is greyed out until
+    a row is selected.
+  - The list is read from the database each time the window is opened, by
+    Refresh, and when the database server or the user changes. A failed
+    read, or no compiled apps, shows a note in place of the rows.
 
 
 SchedulerWindow (singleton)

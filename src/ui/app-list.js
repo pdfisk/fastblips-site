@@ -1,7 +1,7 @@
 // The compiled apps: Basic and Python programs whose compiled code has been
 // saved (the Database window's Compile button), in the user's space and in
 // the shared one. The desktop's
-// Applications menu and the mobile app list show them. No DOM is needed, so
+// Applications window and the mobile app list show them. No DOM is needed, so
 // this also runs (and is tested) under Node.
 
 import { SourceStore, TABLES } from './db-client.js';

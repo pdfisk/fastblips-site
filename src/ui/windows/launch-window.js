@@ -19,7 +19,7 @@ export class LaunchWindow extends Window {
    *   and `console` (the ConsoleWindow it was launched from). The title
    *   is the name of the console's script. `autoStart` (default true)
    *   runs the program as soon as the window is first opened.
-   *   Without a console (an app from the Applications menu), `language`
+   *   Without a console (an app from the Applications window), `language`
    *   (BasicConsoleWindow or PythonConsoleWindow), `compiled` (the record's
    *   compiled code) and `priority` say how to run the source; give a `title`.
    *   `programs` instead runs several together, in order (a project's
