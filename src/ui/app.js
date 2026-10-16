@@ -237,7 +237,7 @@ function viewsMenu(viewport, transcript) {
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
   menu.addItem('Designer', () => new DesignerWindow().open(viewport));
   menu.addSeparator();
-  menu.addItem('Projects Database', () => ProjectsWindow.instance.open(viewport));
+  menu.addItem('My Projects', () => ProjectsWindow.instance.open(viewport));
   return menu;
 }
 

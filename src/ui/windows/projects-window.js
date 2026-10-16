@@ -40,7 +40,7 @@ export class ProjectsWindow extends HSplitWindow {
    */
   constructor({ store, scripts, ...options } = {}) {
     super({
-      title: 'Projects',
+      title: 'My Projects',
       x: 170, y: 110, width: 700, height: 440,
       minWidth: 440, minHeight: 280, position: 0.3,
       ...options,

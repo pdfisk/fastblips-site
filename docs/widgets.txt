@@ -845,7 +845,7 @@ Python ones (Python highlighting, opens a PythonConsoleWindow).
 ProjectsWindow (singleton)
 --------------------------
 An HSplitWindow for the projects on the database server (rails/server),
-opened with Views > Projects Database. A project is a named group of scripts in one
+opened with Views > My Projects. A project is a named group of scripts in one
 space, with a description. The projects of the page's space (Settings >
 User; the shared space with no user) are listed on the left, by name
 ignoring case, each with the number of scripts in it; the selected one is
