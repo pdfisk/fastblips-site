@@ -1,11 +1,11 @@
 // The mobile UI, shown on a phone when the address names no app (no ?run=):
-// the list of compiled apps, each a link that runs it full-page, and a link
+// the list of shared projects, each a link that runs it full-page, and a link
 // to the full playground. It uses plain DOM rather than the desktop widgets
 // (Viewport, Window, ...), which are built for a mouse and a large screen.
 
 import { installTheme } from '../theme.js';
 import { BUILD_STAMP } from '../build-info.js';
-import { listApps, runUrl, projectUrl } from '../app-list.js';
+import { projectUrl } from '../app-list.js';
 import { listSharedProjects } from '../projects.js';
 
 const STYLE = `
@@ -27,7 +27,6 @@ const STYLE = `
   border:1px solid transparent;font-weight:600}
 .cr-mobile-app:active{background:var(--cr-button-hover);box-shadow:var(--cr-button-active-shadow)}
 .cr-mobile-app small{font-weight:400;color:var(--cr-text-muted)}
-.cr-mobile h2{margin:16px 0 8px;font-size:18px;text-align:center}
 .cr-mobile-status{color:var(--cr-text-muted);text-align:center}
 .cr-mobile-full{display:block;margin-top:16px;text-align:center;color:var(--cr-text-muted);font-size:14px}
 .cr-mobile-footer{font-size:13px;color:var(--cr-window-bg);opacity:.85}
@@ -52,10 +51,7 @@ export function startMobile() {
     <section class="cr-mobile-card">
       <h1>FastBlips</h1>
       <p class="cr-mobile-tagline">Apps made with Basic and Python</p>
-      <p class="cr-mobile-status">Loading apps...</p>
-      <ul class="cr-mobile-apps" aria-label="Apps"></ul>
-      <h2 class="cr-mobile-heading" hidden>Shared projects</h2>
-      <p class="cr-mobile-status cr-mobile-projects-status" hidden></p>
+      <p class="cr-mobile-status">Loading projects...</p>
       <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Shared projects"></ul>
       <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>
     </section>
@@ -65,33 +61,10 @@ export function startMobile() {
   document.body.appendChild(root);
 
   const status = root.querySelector('.cr-mobile-status');
-  const list = root.querySelector('.cr-mobile-apps');
-  const ready = listApps().then((apps) => {
-    status.textContent = apps.length ? 'Tap an app to run it.' : 'There are no apps yet.';
-    list.replaceChildren(...apps.map((app) => {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.className = 'cr-mobile-app';
-      a.href = runUrl(app.name, undefined, app.owner);
-      a.append(app.name);
-      const lang = document.createElement('small');
-      lang.textContent = app.table === 'python' ? 'Python' : 'Basic';
-      a.append(lang);
-      li.append(a);
-      return li;
-    }));
-  }, (err) => {
-    status.textContent = `Could not read the app list: ${err?.message ?? err}`;
-  });
-
-  // The projects anyone has shared, each a link that runs the project full-page.
-  const heading = root.querySelector('.cr-mobile-heading');
-  const projectsStatus = root.querySelector('.cr-mobile-projects-status');
   const projectList = root.querySelector('.cr-mobile-projects');
-  const projectsReady = listSharedProjects().then((projects) => {
-    heading.hidden = false;
-    projectsStatus.hidden = projects.length > 0;
-    projectsStatus.textContent = 'There are no shared projects yet.';
+  // The projects anyone has shared, each a link that runs the project full-page.
+  const ready = listSharedProjects().then((projects) => {
+    status.textContent = projects.length ? 'Tap a project to run it.' : 'There are no shared projects yet.';
     projectList.replaceChildren(...projects.map((project) => {
       const li = document.createElement('li');
       const a = document.createElement('a');
@@ -105,9 +78,7 @@ export function startMobile() {
       return li;
     }));
   }, (err) => {
-    heading.hidden = false;
-    projectsStatus.hidden = false;
-    projectsStatus.textContent = `Could not read the shared projects: ${err?.message ?? err}`;
+    status.textContent = `Could not read the shared projects: ${err?.message ?? err}`;
   });
-  return { root, ready: Promise.all([ready, projectsReady]).then(() => undefined) };
+  return { root, ready };
 }
