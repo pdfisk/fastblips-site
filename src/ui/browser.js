@@ -33,7 +33,7 @@ import { MonacoPanel } from './widgets/monaco-panel.js';
 import { ListPanel } from './widgets/list-panel.js';
 import { GridPanel } from './widgets/grid-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
-import { ApplicationsWindow } from './windows/applications-window.js';
+import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
 import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
@@ -63,7 +63,7 @@ const ui = {
   Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
-  TranscriptWindow, SchedulerWindow, ApplicationsWindow, RecordPanel, Label,
+  TranscriptWindow, SchedulerWindow, CommunityProjectsWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,

@@ -27,7 +27,7 @@ import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
 import { runParameter, projectParameter, startRuntime, startProjectRuntime } from './run-app.js';
-import { ApplicationsWindow } from './windows/applications-window.js';
+import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 
 /**
  * Starts the UI the page calls for: with ?run=<program name>, that program
@@ -55,7 +55,7 @@ export function startDesktop() {
   navbar.add(viewsMenu(viewport, transcript));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
-  navbar.add(applicationsButton(viewport));
+  navbar.add(communityProjectsButton(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
   navbar.add(buildLabel());
@@ -272,11 +272,10 @@ function windowsMenu(viewport, transcript) {
   return menu;
 }
 
-// The Applications button, after Windows, opens the Applications window: the
-// compiled apps (programs in the Basic and Python tables saved with their
-// compiled code, by name), from which one is launched in a Desktop launch
-// window. There is one Applications window; choosing the button again
-// brings it to the front.
-function applicationsButton(viewport) {
-  return new Button('Applications', () => ApplicationsWindow.instance.open(viewport));
+// The Community Projects button, after Windows, opens the Community Projects
+// window: the projects that have been shared, whoever owns them, from which
+// one is launched in a Desktop launch window. There is one Community Projects
+// window; choosing the button again brings it to the front.
+function communityProjectsButton(viewport) {
+  return new Button('Community Projects', () => CommunityProjectsWindow.instance.open(viewport));
 }

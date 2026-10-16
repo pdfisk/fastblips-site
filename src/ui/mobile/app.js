@@ -5,7 +5,8 @@
 
 import { installTheme } from '../theme.js';
 import { BUILD_STAMP } from '../build-info.js';
-import { listApps, runUrl } from '../app-list.js';
+import { listApps, runUrl, projectUrl } from '../app-list.js';
+import { listSharedProjects } from '../projects.js';
 
 const STYLE = `
 .cr-mobile{box-sizing:border-box;min-height:100vh;min-height:100dvh;margin:0;
@@ -26,6 +27,7 @@ const STYLE = `
   border:1px solid transparent;font-weight:600}
 .cr-mobile-app:active{background:var(--cr-button-hover);box-shadow:var(--cr-button-active-shadow)}
 .cr-mobile-app small{font-weight:400;color:var(--cr-text-muted)}
+.cr-mobile h2{margin:16px 0 8px;font-size:18px;text-align:center}
 .cr-mobile-status{color:var(--cr-text-muted);text-align:center}
 .cr-mobile-full{display:block;margin-top:16px;text-align:center;color:var(--cr-text-muted);font-size:14px}
 .cr-mobile-footer{font-size:13px;color:var(--cr-window-bg);opacity:.85}
@@ -52,6 +54,9 @@ export function startMobile() {
       <p class="cr-mobile-tagline">Apps made with Basic and Python</p>
       <p class="cr-mobile-status">Loading apps...</p>
       <ul class="cr-mobile-apps" aria-label="Apps"></ul>
+      <h2 class="cr-mobile-heading" hidden>Shared projects</h2>
+      <p class="cr-mobile-status cr-mobile-projects-status" hidden></p>
+      <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Shared projects"></ul>
       <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>
     </section>
     <footer class="cr-mobile-footer"></footer>`;
@@ -78,5 +83,31 @@ export function startMobile() {
   }, (err) => {
     status.textContent = `Could not read the app list: ${err?.message ?? err}`;
   });
-  return { root, ready };
+
+  // The projects anyone has shared, each a link that runs the project full-page.
+  const heading = root.querySelector('.cr-mobile-heading');
+  const projectsStatus = root.querySelector('.cr-mobile-projects-status');
+  const projectList = root.querySelector('.cr-mobile-projects');
+  const projectsReady = listSharedProjects().then((projects) => {
+    heading.hidden = false;
+    projectsStatus.hidden = projects.length > 0;
+    projectsStatus.textContent = 'There are no shared projects yet.';
+    projectList.replaceChildren(...projects.map((project) => {
+      const li = document.createElement('li');
+      const a = document.createElement('a');
+      a.className = 'cr-mobile-app';
+      a.href = projectUrl(project.name, undefined, project.owner);
+      a.append(project.name);
+      const owner = document.createElement('small');
+      owner.textContent = project.owner || '(shared)';
+      a.append(owner);
+      li.append(a);
+      return li;
+    }));
+  }, (err) => {
+    heading.hidden = false;
+    projectsStatus.hidden = false;
+    projectsStatus.textContent = `Could not read the shared projects: ${err?.message ?? err}`;
+  });
+  return { root, ready: Promise.all([ready, projectsReady]).then(() => undefined) };
 }

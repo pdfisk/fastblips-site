@@ -1,4 +1,4 @@
-// src/ui/app-list.js: the compiled apps shown by the Applications menu and
+// src/ui/app-list.js: the compiled apps shown by the Community Projects window and
 // the mobile app list, read from fake stores in place of the server.
 
 import { test } from 'node:test';

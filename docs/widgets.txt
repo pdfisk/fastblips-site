@@ -502,7 +502,752 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     hidden) and brings it to the front.
   - The TranscriptWindow is always listed, so choosing it reopens it after
     it has been closed.
-  - The Applications button, after Windows, opens the ApplicationsWindow
+  - The Community Projects button, after Windows, opens the CommunityProjectsWindow
+    (or brings it to the front).
+
+
+Button
+------
+A clickable, labelled Widget.
+
+  - new Button(label, action); clicking it runs action().
+  - label and enabled properties.
+  - Used on the Navbar and in ButtonBars.
+
+
+ButtonBar
+---------
+A row of Buttons along the bottom of a Window. ButtonBar is a subclass of
+HPanel.
+
+  - Is 30px high and spans the full width of the Window.
+  - addButton(label, action) creates a Button, adds it and returns it.
+  - Buttons are left-aligned, in the order they were added.
+
+
+HSplitWindow
+------------
+A Window whose content is an HSplitPanel.
+
+  - left and right properties get or set the two sides of the split.
+  - Accepts the usual Window options plus left, right and position (the
+    fraction of the width given to the left side).
+
+
+ConsoleWindow
+-------------
+An HSplitWindow for editing and running code: the shared base of the
+language consoles below. Any number of consoles can be open at once.
+
+  - The left side is an editable TextPanel holding the source; the right
+    side is an OutputPanel (console.outputPanel) with Text, Board and
+    Canvas tabs. console.output is its Text page, which programs print to.
+  - Its ButtonBar has, from the left, Run (runs the source), Clear Output
+    (empties every page of the OutputPanel) and Clear Input (empties the
+    source) buttons. Ctrl+Enter in the source also runs it.
+  - After Clear Input comes a Priority menu (console.priorityMenu) with items 1 to 5; the
+    chosen one is checked and kept in console.priority (default 3). The
+    console's programs run at that priority on the Scheduler (1 highest,
+    5 lowest), and choosing one also changes the priority of the program
+    running now (setPriority(level)).
+  - console.compiled is compiled code that came with the source (a
+    record's compiled_code, when opened from a DatabaseWindow). Run and
+    Launch use it instead of compiling for as long as the source still
+    matches it; see "Compiled code" below.
+  - After Priority comes a Launch menu (console.launchMenu), placed like
+    the other buttons, with Desktop, Mobile, a separator and Web. They call
+    launch('desktop'), launch('mobile') and launch('web'). The first two
+    open a new DesktopLaunchWindow or MobileLaunchWindow with a copy of the
+    console's source. Web opens the app saved in the database under the
+    console's script name as a full page (the ?run= page) in a
+    new browser tab; it runs the saved version, not edits made in the
+    console, and needs a script that came from the database (console.
+    recordName and recordOwner, set when a record is opened in a console):
+    otherwise the StatusBar says so. addLaunchItems(menu, launch) in
+    launch-window.js builds these items, and launchWeb(name, owner) opens
+    the page.
+  - A subclass sets its language by overriding the static titlePrefix
+    (e.g. 'Basic Console') and defaultText (the starting source), and the
+    run() and stop() methods. In ConsoleWindow itself both do nothing.
+  - The static spawn(source, { name, output, onExit }) compiles source in
+    the console's language and spawns it on the shared Scheduler, printing
+    to output (a TextPanel); load errors are written to output instead. It
+    returns { process, errorCount } and does not start the scheduler. run()
+    and LaunchWindow's Go both use it. In ConsoleWindow it spawns nothing.
+  - createInput(text) makes the source pane: a TextPanel unless a subclass
+    overrides it (e.g. with a MonacoPanel).
+  - Each subclass numbers its own windows: the first is titled with the
+    prefix alone, then '<prefix> 2', ... Every new console, of any kind,
+    opens slightly below and to the right of the previous one.
+  - Closing a console calls stop().
+
+
+BasicConsoleWindow
+------------------
+A ConsoleWindow that runs Crumb code, titled Basic Console, Basic Console 2, ...
+
+  - The source pane is a MonacoPanel with VB.NET highlighting.
+  - While its program runs, the console's output pane is dimmed a little
+    (running is true); it returns to normal when the program ends.
+  - Run compiles the source and starts it on the Scheduler shared by all
+    consoles (src/ui/runtime.js), so programs run in the background, take
+    turns, and a Sleep never freezes the page. Output appears as it is
+    printed. Running again, or closing the console, stops its previous
+    program.
+  - Load and runtime errors are shown in the output, in the section 11
+    diagnostic format.
+  - Lines written by the Transcript built-in are appended to the
+    TranscriptWindow rather than to the console's output.
+
+
+PythonConsoleWindow
+-------------------
+A ConsoleWindow for Python code, titled Python Console, Python Console 2, ...
+
+  - Starts with print("Hello, world") as its source.
+ 
+
+LaunchWindow (abstract)
+-----------------------
+A Window that runs a console's program as an app. Launch windows are
+opened from a console's Launch menu; any number can be open at once.
+
+  - new DesktopLaunchWindow({ source, console }) or
+    new MobileLaunchWindow({ source, console }): source is the program and
+    console the ConsoleWindow it came from (kept as window.source and
+    window.console). The source is a copy taken at launch: editing the
+    console afterwards does not change it. The console's class
+    (window.language) runs it, so Go still works after the console closes.
+  - Titled with the name of the script loaded in the console that launched
+    it (console.scriptName): the console's file name, e.g. fizzbuzz.crumb;
+    for a console opened from a DatabaseWindow, the record's name; otherwise
+    the console's title (e.g. Basic Console 2).
+  - Each new launch window opens slightly below and to the right of the
+    previous one.
+  - The content (window.screen) is the app's screen, an AppScreen: a
+    TextPanel (window.textPanel) that fills all of it, which the program
+    prints to, with the program's widgets (New Button, ...) over it. The
+    same in DesktopLaunchWindow and MobileLaunchWindow.
+  - Its ButtonBar has Go and Reset buttons (window.goButton and
+    window.resetButton), which call go() and reset().
+  - The program starts by itself the first time the window is opened, once
+    it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
+    its phone screen first), as if Go were pressed. Restoring the window
+    after minimizing or hiding it does not run it again. Pass
+    autoStart: false to the constructor to wait for Go instead.
+  - go(), stop() and reset() are done by a ProgramRunner (window.runner),
+    shared with the ?run= page.
+  - go() stops any previous run, clears the text panel and removes the
+    program's widgets, and runs the source
+    on the Scheduler shared with the consoles, in the launching console's
+    language (ConsoleWindow.spawn). Output, and load and runtime errors,
+    appear in the text panel; the StatusBar reports when it starts and ends.
+  - reset() stops the program, clears the text panel and removes the
+    program's widgets.
+  - Closing a launch window stops its program.
+
+DesktopLaunchWindow
+  - An ordinary window, 640 x 440 to start, that can be moved, resized,
+    minimized and maximized.
+
+MobileLaunchWindow
+  - Preset to the size of a phone: the content area is exactly
+    MobileLaunchWindow.screenSize, 360 x 640 CSS pixels, whatever the
+    theme's title bar and borders (it is re-fitted when the theme changes).
+  - It cannot be resized or maximized (resizable is false), but can be
+    moved and minimized.
+  - When opened it moves up, if need be, so it does not reach below the
+    StatusBar.
+  - Its text output is 2px larger than the theme's font size, and its
+    colour is the theme's text colour mixed 25% towards black.
+
+
+TranscriptWindow (singleton)
+----------------------------
+A Window showing the transcript: a log shared by every console.
+
+  - There is only one; TranscriptWindow.instance creates it on first use,
+    and constructing a second one throws.
+  - Its content is a TextPanel (transcriptWindow.textPanel). Each call to
+    the Transcript built-in from a BasicConsoleWindow appends one line to it and
+    scrolls it into view.
+  - Its ButtonBar has a Clear button, which empties the transcript
+    (transcriptWindow.clear()).
+  - Open at startup and always listed in the Windows menu (see Startup).
+  - Closing it only hides it: the instance and its text are kept, and the
+    Windows menu reopens it. dispose() discards the instance, and the next
+    use creates a new one.
+
+
+SignInWindow (singleton)
+------------------------
+A Window for choosing the user this browser works as (File > Sign In).
+
+  - There is only one; SignInWindow.instance creates it on first use. It
+    has a fixed size.
+  - Its content has a User name field, a line saying who is signed in now
+    and a line for errors.
+  - Its ButtonBar has Sign In, Sign Out and Cancel. Sign In (or Enter in
+    the field) sets the user (setUser in db-client.js) and closes the
+    window; a name that is not 2 to 30 letters, digits, - or _ is reported
+    and the window stays open. Sign Out goes back to the shared space.
+    Cancel (or Escape) closes the window.
+  - The server has no credentials yet, so signing in is only giving a name:
+    it is the same setting as Settings > User.
+
+
+RegisterWindow (singleton)
+--------------------------
+A Window for registering a new user on the database server
+(File > Register...).
+
+  - There is only one; RegisterWindow.instance creates it on first use. It
+    has a fixed size, and opens with empty fields.
+  - Its content has User name and E-mail fields (the e-mail is optional) and
+    a note naming the server in use.
+  - Its ButtonBar has Register and Cancel. Register (or Enter in a field)
+    checks the fields, then creates the user (registerUser in db-client.js,
+    POST /users) and signs in as them (setUser). Cancel (or Escape) closes
+    the window.
+  - On success the RegisterWindow closes and a Toast says who was
+    registered. A bad field or an error from the server, such as a name
+    already taken, is shown in a NotificationWindow over the window, which
+    stays until it is dismissed; the RegisterWindow stays open and the User
+    name field gets the focus back.
+  - Closing or reopening the window closes its notification.
+  - The server has no credentials yet, so registering only reserves the
+    name.
+
+
+NotificationWindow
+------------------
+A small fixed-size Window that says how something went.
+
+  - NotificationWindow.show(viewport, options, owner) makes one and opens
+    it centred over owner (a Window), or in the middle of the Viewport if
+    there is none.
+  - Options: message; kind, which is 'success', 'error' or 'info' and sets
+    the icon, the colour and the default title; title; duration, in
+    milliseconds, after which it closes by itself (0, the default, is
+    never); and onClose, called once however it closes.
+  - Its ButtonBar has OK, which has the focus when it opens. OK, Enter or
+    Escape closes it. It has no minimize button.
+
+
+Toast (src/ui/toast.js)
+-----------------------
+A short message that pops out from one side of the Viewport, stays a few
+seconds and goes away by itself. It is not a Window: it takes no focus, has
+no buttons and never covers the menus. Clicking it dismisses it.
+
+  - Toast.show(viewport, options) makes one and opens it.
+  - Options: message; kind, 'success', 'error' or 'info' (the icon and
+    colour); side, 'top', 'bottom', 'left' or 'right'; duration, in
+    milliseconds. Side and duration default to the Settings below.
+  - Several toasts on one side stack, newest nearest the edge. Top toasts
+    sit under the Navbar and bottom ones above the StatusBar.
+  - Settings > Toast Side and Settings > Toast Time choose the default side
+    (top) and duration (3 seconds; 1, 2, 3, 5 or 10). Choosing one shows a
+    sample toast. The choice is remembered for the next visit
+    (toastSide()/setToastSide(), toastDuration()/setToastDuration()).
+  - SignInWindow, SignOutWindow and RegisterWindow show a success toast when
+    they finish.
+
+
+CommunityProjectsWindow (singleton)
+-----------------------------------
+A Window listing every shared project, so they can be launched.
+
+  - Its title is "Community Projects", matching the Navbar button that opens it.
+  - There is only one; CommunityProjectsWindow.instance creates it on first use,
+    and constructing a second one throws.
+  - Its content is a GridPanel with one row per project that has been shared
+    (the Shared box of the project in My Projects), whoever owns it, and the
+    columns Name, Owner, Scripts and Updated. Owner is the user whose space the
+    project is in, or "(shared)"; Scripts is how many scripts it has; Updated is
+    the record's last update (a time for today, else a date). Click a column
+    header to sort by it, and again to reverse. Drag the right edge of a header
+    to resize a column.
+  - Its Launch menu is the same as a console's: Desktop, Mobile, a
+    separator and Web. Desktop (also double-click or Enter on a row) and
+    Mobile run the selected project, as it was last saved, in a new
+    DesktopLaunchWindow or MobileLaunchWindow; Web opens it as a full page
+    in a new browser tab. The items are greyed out until a row is
+    selected.
+  - The list is read from the database each time the window is opened, by
+    Refresh, and when the database server or the user changes. A failed
+    read, or no shared projects, shows a note in place of the rows.
+
+
+SchedulerWindow (singleton)
+        SignInWindow (singleton)
+        RegisterWindow (singleton)
+        NotificationWindow
+      Toast
+      RecordPanel
+      ProjectPanel
+      TextPanel
+        MonacoPanel
+      ListPanel
+      GridPanel
+      TabPanel
+      OutputPanel
+      BoardPanel
+      CanvasPanel
+    Menu
+    Button
+    Label
+    Spacer
+    Separator
+
+
+Widget (abstract)
+-----------------
+The abstract base class of every UI element. Widget is never instantiated
+directly; only its concrete subclasses are.
+
+  - Owns a DOM element and knows its parent widget (null for the Viewport).
+  - Has a position and size, set by its parent during layout.
+  - Can be shown or hidden; a hidden widget takes no space.
+  - Provides layout() to size and position itself, and dispose() to remove
+    itself and release any event listeners.
+  - id is a name to find the widget by ('' by default; not the element's
+    DOM id). childWidgets lists the widgets directly inside it (a Panel's
+    children; a Window adds its ButtonBar), and descendants() walks all of
+    them, depth first.
+  - findById(id) returns the first widget inside this one with that id, or
+    null. findByClass(cls) returns every widget inside it of a class: a
+    constructor (subclasses match too), or a program class name such as
+    'Button' (matched against programClass, which program widgets carry;
+    class names cannot be matched by constructor name because the bundle
+    is minified).
+
+
+Viewport (singleton)
+--------------------
+The outermost container. It fills the whole browser window and is the root
+of the widget tree.
+
+  - Exactly one instance exists; obtain it with Viewport.instance. Calling
+    the constructor a second time is an error.
+  - Holds an optional Navbar docked at the top, an optional StatusBar docked
+    at the bottom, and one content widget that fills the space between.
+  - Hosts Windows, which float above the content area. The Viewport keeps
+    their stacking order and brings a window to the front when it is
+    clicked.
+  - content is the widget filling the space between the Navbar and the
+    StatusBar (or null); Windows float above it. Any widget with a height
+    can be docked as the StatusBar (the ?run= page docks a ButtonBar).
+  - Listens for browser resize events and lays out the whole tree again.
+  - windows returns the open Windows, back to front.
+  - visibleWindows and minimizedWindows return the Windows that are
+    showing, and those that are minimized.
+  - arrangeWindows() cascades the showing Windows diagonally from the top
+    left, each sized to 35% of the Viewport's width and height and offset
+    30px from the one behind it, front-most last and on top; minimizeAll(),
+    restoreAll() (un-minimize and un-maximize) and closeAll() act on every
+    Window. The playground's Windows menu offers all four above its list
+    of windows.
+
+
+Panel (abstract)
+----------------
+A widget that contains other widgets. Panel is never instantiated directly;
+subclasses decide how the children are arranged.
+
+  - add(child), remove(child), and a read-only children list.
+  - Adding a child sets the child's parent; a widget can belong to only one
+    panel at a time.
+  - Subclasses implement layout() to place their children, then ask each
+    child to lay itself out.
+  - Optional padding around the children and spacing between them.
+
+
+HPanel and VPanel
+-----------------
+(src/ui/widgets/hpanel.js, vpanel.js)
+Panels that arrange their children in a single row or column.
+
+  - HPanel places children left to right; VPanel places them top to bottom.
+  - Each child has either a fixed size or a flex weight along the main axis.
+    Fixed-size children are placed first, and the remaining space is shared
+    among flex children in proportion to their weights.
+  - On the cross axis, children stretch to fill the panel by default.
+  - Nesting HPanels and VPanels builds grid-like layouts.
+
+
+HSplitPanel and VSplitPanel
+---------------------------
+(src/ui/widgets/hsplit-panel.js, vsplit-panel.js)
+Panels with exactly two children separated by a divider the user can drag.
+Both share an abstract SplitPanel base.
+
+  - HSplitPanel places its children side by side with a vertical divider;
+    VSplitPanel stacks them with a horizontal divider.
+  - The divider position is stored as a fraction (0.0 to 1.0) so the split
+    keeps its proportions when the panel is resized.
+  - Each side can have a minimum size; the divider cannot be dragged past
+    it.
+  - Fires a change event when the divider moves, so the position can be
+    saved and restored.
+  - Double-clicking the divider may reset it to its default position.
+
+
+Window
+------
+A top-level panel that floats above the Viewport's content.
+
+  - Has a title bar showing a title and minimize, maximize and close
+    buttons, and a content area that holds a single child widget.
+  - Moved by dragging the title bar; it is kept within the Viewport so the
+    title bar can always be reached.
+  - Resized by dragging its edges or corners, down to a minimum size.
+  - close() removes the window from the Viewport. A close event is fired
+    first, and a handler may cancel it (for example, to confirm unsaved
+    changes).
+  - Clicking anywhere in a window brings it to the front; isFront tells
+    whether it is the front-most window.
+  - The front-most window that is showing is the active window: it has
+    the stronger title bar and shadow, and the others are drawn inactive.
+    isActive tells whether a window is the active one.
+  - minimize() hides the window; open() restores it. In the playground each
+    minimized window gets a button on the StatusBar, and the Windows menu
+    restores it too. minimized tells whether it is minimized.
+  - maximize() makes the window fill the Viewport between the Navbar and
+    the StatusBar, and keeps it fitted when the browser is resized; restore()
+    puts it back where it was. toggleMaximize() switches between the two, and
+    double-clicking the title bar calls it. A maximized window cannot be
+    moved or resized; maximized tells whether it is maximized.
+  - Minimizing, restoring, maximizing and un-maximizing fire a windowstate
+    event that bubbles up to the Viewport.
+  - Has a ButtonBar (window.buttonBar) along its bottom edge, 30px high,
+    below the content area. Subclasses add their buttons to it.
+  - The resizable option (true by default) can be set to false for a window
+    of fixed size: it has no resize edges and no maximize button, and
+    cannot be maximized (double-clicking the title bar does nothing).
+    arrangeWindows() moves such a window without resizing it.
+
+
+TextPanel
+---------
+A Panel that contains a single text area filling its entire area.
+
+  - The text area is created by the panel and always sized to match it; no
+    other children can be added.
+  - Exposes the text through a text property (get and set), and fires a
+    change event when the user edits it.
+  - Can be made read-only, e.g. for program output.
+  - focus() moves the keyboard focus into the text.
+  - Ctrl+Enter (Cmd+Enter on a Mac) fires a submit event.
+
+
+MonacoPanel
+-----------
+A TextPanel whose text is edited in a Monaco editor (the editor behind VS
+Code), highlighted for a Monaco language id: new MonacoPanel({ text,
+language }), e.g. language 'vb' for VB.NET.
+
+  - Monaco is loaded from cdn.jsdelivr.net the first time a MonacoPanel is
+    created, and shared by every later one. Until it arrives the panel works
+    as a plain TextPanel; the text typed meanwhile carries over into the
+    editor. If it cannot be loaded (e.g. offline), the panel stays a plain
+    TextPanel.
+  - The text and readOnly properties, focus(), append() and the change and
+    submit events work the same with or without the editor.
+  - ready is a promise that resolves once the editor is up (to the editor,
+    or null if Monaco could not be loaded).
+
+
+GridPanel
+---------
+A Panel that is filled by a single table: a header row of column names and
+one row per record. Like ListPanel, it tracks the selected row by value and
+fires a select event; the keyboard moves the selection.
+
+  - new GridPanel({columns: [{label, width?}], rows, emptyText}).
+  - Rows are {value, cells, sort?} objects: cells are the text shown, and
+    sort (optional) is what the column is sorted by instead of the text.
+    rows (get and set) keeps the selected row through a refresh.
+  - Clicking a column header sorts by that column; clicking it again
+    reverses the order. The header stays in view as the rows scroll.
+  - Dragging the right edge of a header resizes that column (at least 40px).
+    The first drag fixes every column at its current width; any space left
+    over stays empty at the right, and if the columns are wider than the
+    panel it scrolls sideways. columnWidths gets the widths in pixels and
+    setColumnWidth(index, width) sets one.
+  - No other children can be added.
+
+
+ListPanel
+---------
+A Panel that is filled by a single List element.
+
+  - The List is created by the panel and always sized to match it; no other
+    children can be added.
+  - Items are added, removed or replaced through the panel, and the List
+    scrolls when they do not fit.
+  - Tracks the selected item and fires a select event when the user picks
+    one (by click or keyboard).
+  - Items are {label, value} objects: items (get and set), addItem(item),
+    removeItem(index) and replaceItem(index, item). The selection follows
+    the item's value, so replacing all the items keeps the same row
+    selected. selectedIndex, selectedItem and select(index) give access to
+    it; Up, Down, Home and End move it.
+  - An optional emptyText is shown when there are no items.
+
+
+TabPanel
+--------
+A Panel showing one of several pages at a time, chosen by a row of tab
+labels.
+
+  - new TabPanel({ tabPosition }): the labels run along the 'top' (the
+    default) or the 'bottom' edge, in a 24px strip; the page showing fills
+    the rest.
+  - addTab(label, widget) adds a page and returns the widget. Pages are
+    added only this way; add() is an error. The first page added is
+    selected.
+  - Clicking a label shows its page and hides the others. select(index or
+    label) does the same from code, and fires a select event with detail
+    {index, label, widget}.
+  - labels, selectedIndex, selectedLabel and selectedWidget describe the
+    tabs and the page showing. remove(widget) removes a page and its tab.
+
+
+OutputPanel
+-----------
+The output side of a ConsoleWindow: a TabPanel with its labels along the
+bottom and three pages.
+
+  - Text: a TextPanel (outputPanel.textPanel) that programs print to. It is
+    selected at first. It is writeable: the user can type in it and edit
+    what was printed; programs print at its end.
+  - Board: a BoardPanel (outputPanel.boardPanel).
+  - Canvas: a CanvasPanel (outputPanel.canvasPanel).
+  - selectedTab is the label of the page showing; selectTab(label) shows
+    another.
+  - clear() empties all three pages. No other children can be added.
+
+
+BoardPanel
+----------
+The Board page of an OutputPanel: a Panel divided into equally sized
+rectangular cells, for board games such as checkers, chess and tic-tac-toe.
+new BoardPanel({ rows, columns, checkered, squareCells }); a board is 8 by 8
+and checkered unless told otherwise.
+
+  - Rows and columns are numbered from 0: row 0 is the top row and column 0
+    the left column. A row or column that is not on the board is a
+    RangeError.
+  - rows and columns give the size; setSize(rows, columns) changes it (1 to
+    100 each) and empties the board.
+  - The cells fill the panel, so they are rectangles of the panel's shape.
+    Set squareCells to keep them square; the board is then centred.
+  - checkered colours the cells alternately light and dark, the top-left
+    cell light. A board that is not checkered (tic-tac-toe) is all light.
+    The colours come from the theme (board-light, board-dark, board-line,
+    board-text, board-selected).
+  - Each cell holds a short text - a piece, such as "X" or a chess glyph -
+    centred in it and sized to the cell: setText(row, column, text) and
+    getText(row, column). "" is an empty cell.
+  - A cell can have colours of its own, e.g. to show the legal moves:
+    setBackground(row, column, color) and setColor(row, column, color) for
+    its text, with getBackground and getColor. "" restores the board's.
+  - select(row, column) frames one cell as selected and clearSelection()
+    none; selected is { row, column } or null. Both fire a select event
+    (detail { row, column }, or null).
+  - Clicking a cell fires a cellclick event with detail { row, column,
+    text }. A click does not select the cell; the listener decides.
+  - clear() empties every cell's text and colours and the selection, and
+    keeps the size. No widgets can be added.
+  - Programs reach a BoardPanel as their Board (New Board() / Board()); see
+    "The Board and the Canvas" under Program widgets.
+
+
+CanvasPanel
+-----------
+The Canvas page of an OutputPanel: a Panel that shows a drawing - 2D and
+simple 3D graphics, for showing data and for games.
+new CanvasPanel({ width, height }).
+
+  - The drawing has a size of its own, in units: 400 by 300 unless told
+    otherwise (width, height; setSize(width, height), 1 to 4000 each,
+    erases it). (0, 0) is the top left, x goes right and y down. The
+    drawing is scaled to fit the panel, keeping its shape and centred, so
+    coordinates mean the same at any window size. It is kept at two pixels
+    to the unit, so it stays sharp when shown larger.
+  - Settings: background (what clear() fills with; white), color (what is
+    drawn next; black), lineWidth (1) and fontSize (14), in units. Colours
+    are any CSS colour. They are not themed: a drawing looks the same in
+    every theme.
+  - 2D shapes are painted as they are drawn and stay until clear():
+    point(x, y); line(x1, y1, x2, y2); rect and fillRect(x, y, width,
+    height); circle and fillCircle(x, y, radius); triangle and fillTriangle
+    (three points); polygon and fillPolygon(points), each point [x, y];
+    text(x, y, text), with (x, y) its top left.
+  - 3D shapes: line3d, triangle3d and fillTriangle3d (points x, y, z),
+    box3d and fillBox3d(x, y, z, width, height, depth), centred on (x, y,
+    z). x is to the right, y up and z toward the viewer. They are kept in a
+    list (at most 20000; clear() empties it) and drawn over the 2D drawing,
+    farthest first, each time the drawing is shown. Solid ones are shaded by
+    how they face a fixed light. A shape that reaches behind the camera is
+    not drawn. This is drawing with the 2D canvas, not WebGL: shapes that
+    pass through each other are not cut where they cross.
+  - The camera: setCamera(x, y, z) puts it somewhere (it starts at 4, 3, 6);
+    lookAt(x, y, z) is the point it looks at (the origin); orbit(angle,
+    height, distance) puts it on a circle round that point, angle in
+    degrees. Because the shapes are kept, moving the camera and showing
+    the drawing again gives the new view without drawing them again.
+  - autoUpdate (true at first): each change is shown by itself, at the
+    browser's next frame. A game turns it off and calls update() when each
+    picture is complete, so a half-drawn picture is never seen.
+  - Input: a click fires a canvasclick event with detail { x, y }, in
+    units, and gives the canvas the keyboard; a key going down fires
+    canvaskey with detail { key }. isKeyDown(key) says whether a key is
+    held; mouseX and mouseY are where the mouse last was. Keys are named
+    in lower case, without "Arrow": "a", "left", "space", "enter"
+    (isKeyDown takes any case).
+  - reset() puts everything back as new. No widgets can be added.
+  - Programs reach a CanvasPanel as their Canvas (New Canvas() /
+    Canvas()); see "The Board and the Canvas" under Program widgets.
+
+
+Navbar (singleton)
+------------------
+The navigation strip docked along the top of the Viewport. Navbar is a
+subclass of HPanel, so its contents are laid out left to right using the
+same fixed-size and flex rules.
+
+  - Exactly one instance exists; obtain it with Navbar.instance. Calling
+    the constructor a second time is an error.
+  - Added to the Viewport (viewport.navbar = Navbar.instance), which docks
+    it at the top of the page.
+  - Is 35px high and spans the full width of the Viewport. Windows cannot
+    be dragged above it.
+  - Its children are a title or logo on the left and the navigation items,
+    typically Menus; a flex spacer can push items to the right-hand end.
+  - Each item has a label and an action; the active item is highlighted.
+  - Items that do not fit may collapse into an overflow menu on narrow
+    screens.
+
+
+StatusBar (singleton)
+---------------------
+The status strip docked along the bottom of the Viewport. StatusBar is a
+subclass of HPanel.
+
+  - Exactly one instance exists; obtain it with StatusBar.instance. Calling
+    the constructor a second time is an error.
+  - Added to the Viewport (viewport.statusBar = StatusBar.instance), which
+    docks it at the bottom of the page.
+  - Is 24px high and spans the full width of the Viewport. Windows cannot
+    be dragged below it.
+  - A message Label on the left (message, or show(text, tone) where tone
+    'error' shows it in red) and an info Label on the right (info).
+  - setTasks([{label, title, action}]) shows a row of buttons between the
+    message and the info; the playground uses it for minimized windows.
+  - In the playground the consoles report on the message (running, finished,
+    stopped, load errors) and the info shows a live summary of the
+    scheduler's processes.
+
+
+Menu
+----
+A pulldown menu: a labelled button that opens a list of items when clicked.
+Menu is a Widget, not a Panel; its items are not widgets.
+
+  - addItem(label, action, { checked, enabled }) adds an item. Choosing the
+    item closes the menu and runs action(). If enabled is given, it is
+    called each time the menu opens and the item is greyed out and cannot be
+    chosen while it returns false.
+  - addSubmenu(label, items) adds an item with an arrow that opens a
+    submenu beside it (to the right, or to the left if there is no room)
+    when pointed at or clicked. items is a function called each time the
+    submenu opens, returning items in the itemsProvider shape. Only one
+    submenu is open at a time, and choosing an item in it closes the menu.
+  - addSeparator() adds a dividing line; an itemsProvider can return
+    {separator: true} for the same.
+  - If checked is given, it is a function called each time the menu opens;
+    a check mark is shown next to the item while it returns true.
+  - Only one menu is open at a time. Clicking outside the menu or pressing
+    Escape closes it.
+  - The list is drawn above all Windows, and kept inside the browser window:
+    it opens below the menu's button, or above it when there is no room
+    below (as for a menu in a Window's ButtonBar).
+  - In a ButtonBar a Menu is drawn like the Buttons beside it, with a small
+    down arrow after its label.
+  - Setting itemsProvider to a function makes the menu dynamic: the function
+    is called each time the menu opens and returns the items to show, in the
+    same {label, action, checked, enabled} shape. "(none)" is shown for an
+    empty list.
+
+
+Startup
+-------
+Crumb.ui.start() picks the UI for the device (isMobileDevice() in
+src/ui/device.js): on a phone it calls startMobile(), otherwise
+startDesktop(). A ?ui=mobile or ?ui=desktop page parameter overrides the
+detection. A phone is a browser that reports itself as mobile, a mobile
+user agent, or a touch screen whose short side is under 600px; tablets get
+the full UI.
+
+The mobile UI (src/ui/mobile/app.js) is, for now, a single landing page
+with the name, a short description, a link to the full version
+(?ui=desktop) and the build time. It uses plain DOM and the theme
+variables, not the desktop widgets.
+
+When the full UI starts, the Navbar is docked at the top of the Viewport
+with, from left to right, a File menu, a Database menu, Basic, Python,
+Process and Designer buttons, a Settings menu, and a Windows menu, which is always the
+last menu. At the right end is the time the page was built, e.g.
+"Built 2026-09-23 13:47:05 UTC". The
+StatusBar is docked at the bottom, and the TranscriptWindow is open.
+
+  - The File menu starts with Sign In, which opens the SignInWindow, and
+    Register..., which opens the RegisterWindow, then a separator. It then has New Basic and New Python; then Open..., Save and
+    Save As...; then Delete, with a separator between the groups.
+    - New Basic and New Python open an empty console in that language.
+    - Open... asks for a source file and opens it in a new console: .crumb
+      and .bas files in a BasicConsoleWindow, .py files in a
+      PythonConsoleWindow. The console's title shows the file name.
+    - Save writes the front-most console's source back to its file; for a
+      console with no file yet it does what Save As... does.
+    - Save As... asks where to save the front-most console's source.
+    - Save and Save As... are greyed out unless the front-most showing
+      window is a console.
+    - Delete asks for confirmation, then deletes the front-most console's
+      file. The source stays in the console, which no longer has a file.
+      It is greyed out unless that file was opened or saved through the
+      File System Access API (Chrome, Edge), since other browsers give a
+      page no way to delete files.
+    - Where the browser has the File System Access API (Chrome, Edge), Save
+      writes the file in place. Elsewhere Open uses a file chooser and Save
+      downloads the file.
+  - The Database menu has Basic and Python items, which open the
+    BasicDatabaseWindow and PythonDatabaseWindow (or bring them to the
+    front).
+  - The Basic button opens a new BasicConsoleWindow.
+  - The Python button opens a new PythonConsoleWindow.
+  - The Process button opens the SchedulerWindow (or brings it to the
+    front).
+  - The Designer button opens a new DesignerWindow (the GUI designer).
+  - The Settings menu has three items that open submenus, each with a check
+    mark on the choice in use. Choosing one takes effect at once and is
+    remembered for the next visit.
+    - Theme: Classic, Smalltalk, Apple, Steampunk or Pokemon.
+    - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
+      source, output and lists, and in the Monaco editor. The font is
+      fetched from Google Fonts when first chosen; until it arrives, or if
+      the page is offline, the theme's own monospace font is used.
+    - Database: Remote (https://fastblip-e2ba34b072c4.herokuapp.com, the
+      default) or Local (http://localhost:3000). Open Database windows
+      reload from the new server.
+  - The Windows menu lists every open window by title, front-most first,
+    with a check mark on the front-most one. Choosing a window shows it (if
+    hidden) and brings it to the front.
+  - The TranscriptWindow is always listed, so choosing it reopens it after
+    it has been closed.
+  - The Community Projects button, after Windows, opens the CommunityProjectsWindow
     (or brings it to the front).
 
 

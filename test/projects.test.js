@@ -99,3 +99,16 @@ test('sameList: same ids in the same order', () => {
   assert.equal(sameList([1, 2, 3], [3, 1, 2]), false);
   assert.equal(sameList([1, 2], [1]), false);
 });
+
+import { listSharedProjects } from '../src/ui/projects.js';
+
+test('listSharedProjects: only shared projects that have scripts, by name', async () => {
+  const store = { list: async () => [
+    { id: 1, name: 'zed', shared: true, scripts: [{ id: 1 }] },
+    { id: 2, name: 'private', shared: false, scripts: [{ id: 1 }] },
+    { id: 3, name: 'empty', shared: true, scripts: [] },
+    { id: 4, name: 'Alpha', shared: true, scripts: [{ id: 2 }] },
+  ] };
+  const names = (await listSharedProjects({ store })).map((p) => p.name);
+  assert.deepEqual(names, ['Alpha', 'zed']);
+});

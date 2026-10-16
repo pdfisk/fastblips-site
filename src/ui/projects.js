@@ -77,3 +77,19 @@ export function moved(items, index, delta) {
 export function sameList(a, b) {
   return a.length === b.length && a.every((id, i) => id === b[i]);
 }
+
+/** Every project in every space, as a store (no owner: it reads all spaces). */
+export const allProjectStore = () => new SourceStore({ resource: 'projects', key: 'project' });
+
+/** The shared projects among records, by name. */
+export function sharedProjects(records) {
+  return byName((records ?? []).filter((p) => p?.shared === true && String(p.name ?? '').trim() !== ''));
+}
+
+/**
+ * The projects anyone has shared and that have scripts to run, by name.
+ * @param {{store?: SourceStore}} [options] - the store to read (tests); by default every space
+ */
+export async function listSharedProjects({ store } = {}) {
+  return sharedProjects(await (store ?? allProjectStore()).list()).filter((p) => (p.scripts ?? []).length > 0);
+}
