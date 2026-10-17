@@ -196,6 +196,7 @@ label.setWidth(100)
 | `ListPanel` | `New ListPanel()` | A list the user picks a row from |
 | `Canvas` | `New Canvas()` | The program's canvas: a surface for 2D and 3D drawing, for showing data and for games. A **singleton**, like the `Board` |
 | `Board` | `New Board()` | The program's board: a grid of equal cells that hold text, for board games. A **singleton**, like the `Viewport`, but not a widget in it |
+| `Physics` | `New Physics()` | The program's physics world: shapes that fall, bounce, spin and push each other. A **singleton**, like the `Canvas`; only a console has one (the Physics tab of its output) |
 
 `New` with any other name, or the wrong number of arguments, is a load error. Text
 arguments are converted as by `Str`.
@@ -234,6 +235,7 @@ size must be 0 or more.
 | `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
 | `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
 | `Canvas` | see **The Canvas** below |
+| `Physics` | see **The Physics** below |
 | `Board` | `setSize(rows, columns)` `getRows()` `getColumns()` `setText(row, column, t)` `getText(row, column)` `setBackground(row, column, c)` `getBackground(row, column)` `setColor(row, column, c)` `getColor(row, column)` `setCheckered(b)` `isCheckered()` `setSquareCells(b)` `isSquareCells()` `select(row, column)` `clearSelection()` `getSelectedRow()` `getSelectedColumn()` `clear()` `onClick(sub)`; it has none of the methods every widget has |
 
 Methods that set something return `Nothing`. A method that returns a widget (`getChild`,
@@ -420,6 +422,51 @@ While True
   Sleep(20.5)                ' milliseconds
 End While
 ```
+
+**The Physics.** `New Physics()` is the program's physics world: shapes that fall under
+gravity, bounce, spin and push each other. It can be made in a console, whose output has a
+Physics tab that shows it; a launch window or page has no Physics, and `New Physics()`
+there is a runtime error that says so. It has none of the methods every widget has.
+
+The world is 400 units wide and 300 high until `setSize(width, height)`, with (0, 0) at
+the top left, x to the right and y down, and is scaled to fit wherever it is shown. Its
+four sides are solid walls (`setWalls(False)` takes them away). Each shape you add returns
+its **id**, a whole number from 1 that the other methods take; a side of the world is
+id 0. Angles are in degrees (0 is as the shape was made, and a positive angle turns it
+clockwise on the screen); speeds are in units per second; colours are any CSS colour.
+
+| | Methods |
+|---|---|
+| World | `setSize(w, h)` `getWidth()` `getHeight()` `setBackground(c)` `setGravity(gx, gy)` (the pull along x and y; `0, 900` is the default) `setWalls(b)` `setPaused(b)` `isPaused()` `clear()` `getCount()` |
+| Shapes | `addCircle(x, y, r)` `addBall(x, y, r)` (a circle drawn as a shaded sphere, and bouncier) `addRect(x, y, w, h)` `addEllipse(x, y, rx, ry)` `addPolygon(x, y, r, sides)` (3 to 12 sides, one corner up: 3 is a triangle) — each at its centre, returning the id — and `removeBody(id)` |
+| Look | `setColor(id, c)` `setLabel(id, t)` (text drawn on the shape) |
+| Properties | `setFixed(id, b)` (a fixed shape never moves: platforms, bumpers) `setBounce(id, n)` (0 to 1: the share of its speed it keeps in a bounce) `setFriction(id, n)` (0 to 2) |
+| Moving | `setPosition(id, x, y)` `setVelocity(id, vx, vy)` `setAngle(id, degrees)` `setSpin(id, degrees_per_second)` `applyImpulse(id, ix, iy)` (a push: a heavier shape moves less) |
+| Reading | `getX(id)` `getY(id)` `getAngle(id)` `getVx(id)` `getVy(id)` `bodyAt(x, y)` (the id of the shape at a point, 0 for none) |
+| Events | `onClick(sub)` `onCollide(sub)` |
+
+A shape's mass comes from its area, so a big one pushes a small one about. Shapes rest on
+each other, and slide or roll by their friction; ones that have stopped moving fall asleep
+(and wake when something hits them). A program only has to add its shapes: the world keeps
+moving on its own once the program has ended, and a handler runs when its event happens.
+
+`onClick` names a Sub called with the world and the x and y of the click, in world units.
+`onCollide` names a Sub called with the world and the ids of the two shapes that have
+hit each other (hard enough to matter; one id is 0 if a shape hit a side of the world).
+
+```vb
+Dim world = New Physics()
+Dim floor = world.addRect(200, 250, 240, 10)
+world.setFixed(floor, True)
+Dim ball = world.addBall(150, 40, 14)
+world.setBounce(ball, 0.9)
+Dim box = world.addRect(220, 40, 30, 30)
+world.setColor(box, "orange")
+world.setAngle(box, 20)
+```
+
+`examples/physics-balls`, `physics-shapes`, `physics-pyramid`, `physics-bumpers` and
+`physics-gravity` (each as `.crumb` and `.py`) are programs that use it.
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
 and `vp = Viewport()` (no `New`), methods in snake_case (`set_width`, `get_selected_index`,

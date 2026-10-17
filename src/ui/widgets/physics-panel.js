@@ -1,16 +1,22 @@
-// PhysicsPanel: the output page for physics - a ball that falls under
-// gravity and bounces off the sides of the panel (see docs/widgets.txt and
-// physics.js). Click to kick the ball away from the click.
+// PhysicsPanel: the output page for physics - the Physics class's world, with
+// its shapes falling, bouncing and spinning (see docs/widgets.txt and
+// ../physics.js, the engine).
 //
-// The ball is animated only while the page is showing: it pauses when the
+// The world has a size of its own in units (400 by 300 unless setSize says
+// otherwise), with (0, 0) at the top left, and is scaled to fit the panel,
+// keeping its shape, as the Canvas is. Until a program makes its Physics the
+// page shows a demo ball: click to kick it.
+//
+// The world is animated only while the page is showing: it pauses when the
 // page is hidden or removed from the document, and goes on when it is shown.
+// When every shape has come to rest nothing is animated at all.
 
 import { Panel } from './panel.js';
-import { newBall, stepBall, kickBall, atRest } from '../physics.js';
+import { PhysicsWorld } from '../physics.js';
 
 const STYLE = `
 .cr-physics-panel{background:var(--cr-output-bg);overflow:hidden;color:var(--cr-text-faint)}
-.cr-physics{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:pointer}
+.cr-physics{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:crosshair}
 `;
 
 function installStyle() {
@@ -21,6 +27,8 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
+const MAX_FRAME = 0.05;   // seconds: the longest time a frame moves the world on
+
 export class PhysicsPanel extends Panel {
   constructor() {
     super();
@@ -28,38 +36,56 @@ export class PhysicsPanel extends Panel {
     this.element.classList.add('cr-physics-panel');
     this.canvas = document.createElement('canvas');
     this.canvas.className = 'cr-physics';
-    this.canvas.setAttribute('aria-label', 'Bouncing ball: click to kick it');
+    this.canvas.setAttribute('aria-label', 'Physics: shapes that fall and bounce');
     this.element.appendChild(this.canvas);
-    this.ball = newBall();
-    this._frame = 0;     // the pending animation frame, 0 for none
-    this._last = 0;      // the time of the last frame
+    this.world = new PhysicsWorld();
+    this.world.onChange = () => this._changed();
+    this.demo = true;        // showing the demo ball, not a program's world
+    this._frame = 0;         // the pending animation frame, 0 for none
+    this._last = 0;          // the time of the last frame
     this._width = 0;
     this._height = 0;
+    this._addDemo();
     this.canvas.addEventListener('pointerdown', (e) => {
       const rect = this.canvas.getBoundingClientRect();
-      this.kick(e.clientX - rect.left, e.clientY - rect.top);
+      const { x, y } = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+      if (this.demo) this.world.kick(x, y);
+      this.element.dispatchEvent(new CustomEvent('physicsclick', { detail: { x: Math.round(x), y: Math.round(y) } }));
     });
   }
 
-  /** The world the ball is in: the size of the panel, in pixels. */
-  get world() { return { width: this._width, height: this._height }; }
+  _addDemo() {
+    const id = this.world.addBall(28, 28, 14);
+    this.world.setVelocity(id, 180, 0);
+  }
 
-  /** True while the page can be seen, which is when the ball moves. */
+  /** True while the page can be seen, which is when the world moves. */
   get running() {
     return this.visible && this.element.isConnected && this._width > 0 && this._height > 0;
   }
 
-  /** Kicks the ball away from the point (x, y of the panel). */
-  kick(x, y) {
-    this.ball = kickBall(this.ball, { x, y });
-    this._start();
+  /** A program made its Physics: the world is its own, new and empty. */
+  startProgram() {
+    this.demo = false;
+    this.world.reset();
   }
 
-  /** Puts the ball back at the top left, moving to the right. */
+  /** Before each run: the world as new again, with the demo ball. */
+  reset() {
+    this.demo = true;
+    this.world.reset();
+    this._addDemo();
+  }
+
+  /** Removes every shape (Clear Output); the world keeps its size, gravity and handlers. */
   clear() {
-    this.ball = newBall();
-    this._draw();
-    this._start();
+    this.world.clear();
+  }
+
+  /** A point of the panel (pixels) as a point of the world (units). */
+  toWorld(px, py) {
+    const { scale, left, top } = this._fit();
+    return { x: (px - left) / scale, y: (py - top) / scale };
   }
 
   /** A PhysicsPanel holds only its canvas. */
@@ -70,7 +96,7 @@ export class PhysicsPanel extends Panel {
   get visible() { return super.visible; }
   set visible(value) {
     super.visible = value;
-    if (this.visible) this._start();
+    if (this.visible) this._changed();
   }
 
   layout() {
@@ -80,14 +106,23 @@ export class PhysicsPanel extends Panel {
     const ratio = globalThis.devicePixelRatio || 1;
     this.canvas.width = Math.max(1, Math.round(width * ratio));
     this.canvas.height = Math.max(1, Math.round(height * ratio));
-    this.ball = stepBall(this.ball, 0, this.world);   // keep the ball inside a smaller panel
     this._draw();
-    this._start();
+    this._changed();
     super.layout();
   }
 
-  // Starts the animation if it is not going and the page is showing.
-  _start() {
+  // The world is as large as fits the panel, keeping its shape, centred.
+  _fit() {
+    const scale = Math.min(this._width / this.world.width, this._height / this.world.height) || 1;
+    return {
+      scale,
+      left: (this._width - this.world.width * scale) / 2,
+      top: (this._height - this.world.height * scale) / 2,
+    };
+  }
+
+  // Something changed: draw it, and start the animation if the world is moving.
+  _changed() {
     const later = globalThis.requestAnimationFrame;
     if (this._frame || !later || !this.running) return;
     this._last = 0;
@@ -96,37 +131,112 @@ export class PhysicsPanel extends Panel {
 
   _tick(time) {
     this._frame = 0;
-    if (!this.running) return;                 // paused: _start() goes on when it is shown
-    const dt = this._last ? (time - this._last) / 1000 : 0;
+    if (!this.running) return;                 // paused: _changed() goes on when it is shown
+    const dt = this._last ? Math.min((time - this._last) / 1000, MAX_FRAME) : 0;
     this._last = time;
-    this.ball = stepBall(this.ball, dt, this.world);
+    this.world.step(dt);
     this._draw();
-    if (atRest(this.ball, this.world) && Math.abs(this.ball.vx) < 1) return;   // nothing moves until kicked
-    this._frame = globalThis.requestAnimationFrame((t) => this._tick(t));
+    if (!this.world.sleeping && !this.world.paused) {
+      this._frame = globalThis.requestAnimationFrame((t) => this._tick(t));
+    }
   }
 
   _draw() {
     const ctx = this.canvas.getContext('2d');
-    if (!ctx) return;
-    const ratio = this.canvas.width / Math.max(1, this._width);
+    if (!ctx || this._width <= 0) return;
+    const ratio = this.canvas.width / this._width;
+    const { world } = this;
+    const { scale, left, top } = this._fit();
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, this._width, this._height);
-    const { x, y, r } = this.ball;
-    // The shadow on the floor shrinks as the ball rises.
-    const height = Math.max(0, Math.min(1, (this._height - r - y) / Math.max(1, this._height)));
-    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.setTransform(ratio * scale, 0, 0, ratio * scale, ratio * left, ratio * top);
+    ctx.fillStyle = world.background;
+    ctx.fillRect(0, 0, world.width, world.height);
+    ctx.save();
     ctx.beginPath();
-    ctx.ellipse(x, this._height - 4, r * (1 - 0.6 * height), r * 0.22 * (1 - 0.6 * height), 0, 0, Math.PI * 2);
-    ctx.fill();
-    const shine = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, r * 0.1, x, y, r);
-    shine.addColorStop(0, '#ffb86b');
-    shine.addColorStop(1, '#e8590c');
-    ctx.fillStyle = shine;
+    ctx.rect(0, 0, world.width, world.height);
+    ctx.clip();
+    for (const body of world.bodies.values()) this._drawBody(ctx, body);
+    ctx.restore();
+    if (this.demo) {
+      ctx.fillStyle = '#868e96';
+      ctx.font = '11px sans-serif';
+      ctx.textBaseline = 'top';
+      ctx.fillText('Click to kick the ball', 8, 6);
+    }
+    for (const body of world.bodies.values()) {
+      if (!body.label) continue;
+      ctx.fillStyle = '#111';
+      ctx.font = `${Math.max(8, Math.min(16, body.radius * 0.7))}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(body.label, body.x, body.y);
+      ctx.textAlign = 'start';
+    }
+  }
+
+  _drawBody(ctx, body) {
+    ctx.save();
+    ctx.translate(body.x, body.y);
+    ctx.rotate(body.angle);
+    ctx.fillStyle = body.color;
+    ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+    ctx.lineWidth = 1.2;
     ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
+    switch (body.shape) {
+      case 'circle':
+      case 'ball':
+        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        break;
+      case 'ellipse': {
+        const verts = body.collider.verts;
+        const rx = Math.max(...verts.map((v) => v[0]));
+        const ry = Math.max(...verts.map((v) => v[1]));
+        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        break;
+      }
+      default:
+        body.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+        ctx.closePath();
+    }
     ctx.fill();
-    ctx.fillStyle = getComputedStyle(this.element).color;
-    ctx.font = '11px sans-serif';
-    ctx.fillText('Click to kick the ball', 8, 16);
+    if (body.shape === 'ball') {
+      // A sphere: a light spot that stays put, and a dot that turns with the ball.
+      ctx.save();
+      ctx.rotate(-body.angle);
+      const g = ctx.createRadialGradient(-body.radius * 0.35, -body.radius * 0.35, body.radius * 0.1, 0, 0, body.radius);
+      g.addColorStop(0, 'rgba(255,255,255,0.6)');
+      g.addColorStop(1, 'rgba(0,0,0,0.25)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.fillStyle = 'rgba(0,0,0,0.45)';
+      ctx.beginPath();
+      ctx.arc(body.radius * 0.55, 0, Math.max(1.5, body.radius * 0.12), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.beginPath();
+    switch (body.shape) {
+      case 'circle':
+        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        ctx.moveTo(0, 0);
+        ctx.lineTo(body.radius, 0);          // a spoke, to show how it turns
+        break;
+      case 'ball':
+        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        break;
+      case 'ellipse': {
+        const verts = body.collider.verts;
+        ctx.ellipse(0, 0, Math.max(...verts.map((v) => v[0])), Math.max(...verts.map((v) => v[1])), 0, 0, Math.PI * 2);
+        break;
+      }
+      default:
+        body.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+        ctx.closePath();
+    }
+    ctx.stroke();
+    ctx.restore();
   }
 }

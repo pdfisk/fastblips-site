@@ -231,7 +231,7 @@ test('a console\'s host makes the Canvas, shows its tab and runs its methods', (
   assert.equal(host.call(id, 'isKeyDown', ['A']), true);
   assert.throws(() => host.call(id, 'setSize', [0, 1]), { name: 'WidgetError' });
   assert.throws(() => host.call(id, 'fly', []), { name: 'WidgetError', message: /no method 'fly'/ });
-  assert.throws(() => host.create('Label', ['x']), { name: 'WidgetError', message: /only a Board and a Canvas/ });
+  assert.throws(() => host.create('Label', ['x']), { name: 'WidgetError', message: /only a Board, a Canvas and a Physics/ });
   host.reset();
   assert.equal(host.has(id), false);
   assert.equal(canvasPanel.width, 400);

@@ -29,7 +29,7 @@ export class OutputPanel extends Panel {
   /** Shows the tab with this label. */
   selectTab(label) { this.tabPanel.select(label); }
 
-  /** Empties the Text, Board and Canvas pages and puts the Physics ball back. */
+  /** Empties the pages: the text, the board, the canvas and the physics world's shapes. */
   clear() {
     this.textPanel.text = '';
     this.boardPanel.clear();

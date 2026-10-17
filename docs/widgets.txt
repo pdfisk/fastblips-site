@@ -282,28 +282,35 @@ bottom and four pages.
     what was printed; programs print at its end.
   - Board: a BoardPanel (outputPanel.boardPanel).
   - Canvas: a CanvasPanel (outputPanel.canvasPanel).
-  - Physics: a PhysicsPanel (outputPanel.physicsPanel): a bouncing ball.
+  - Physics: a PhysicsPanel (outputPanel.physicsPanel): the Physics class's
+    world of falling, bouncing shapes.
   - selectedTab is the label of the page showing; selectTab(label) shows
     another.
-  - clear() empties the Text, Board and Canvas pages and puts the Physics
-    ball back at the start. No other children can be added.
+  - clear() empties the pages: the text, the board, the canvas and the
+    physics world's shapes. No other children can be added.
 
 
 PhysicsPanel
 ------------
-The Physics page of an OutputPanel: an orange ball that falls under gravity
-and bounces off the four sides of the panel, losing speed on each bounce,
-until it rolls to a stop on the floor. Click anywhere to kick the ball away
-from the click (always upward).
+The Physics page of an OutputPanel: the Physics class's world, a box of
+shapes that fall under gravity, bounce, spin and push each other (circles,
+balls, rectangles, ellipses and regular polygons; see "The Physics" in
+docs/crumb-v0.1-spec.md).
 
-  - The world is the size of the panel, in pixels; making the panel smaller
-    keeps the ball inside.
-  - The ball moves only while the page is showing: it pauses when the page is
-    hidden or the panel leaves the document, and goes on when it is shown,
-    and it stops animating (no frames) while it is at rest.
-  - clear() puts the ball back at the top left, moving to the right.
-  - The motion is in physics.js (newBall, stepBall, kickBall, atRest), which
-    needs no DOM. A PhysicsPanel holds only its canvas.
+  - The world has a size of its own in units (400 by 300 until the program's
+    setSize), with (0, 0) at the top left and y down, and is scaled to fit the
+    panel, keeping its shape, as the Canvas is. panel.world is the
+    PhysicsWorld of physics.js, the engine, which needs no DOM; the panel
+    draws it.
+  - Until a program makes its Physics the page shows a demo ball: click to kick
+    it. startProgram() gives a program a new, empty world; reset() (before
+    each run) puts the demo back; clear() (Clear Output) removes the shapes.
+  - A click fires a physicsclick event with the x and y of the world.
+  - The world moves only while the page is showing: it pauses when the page is
+    hidden or the panel leaves the document, and goes on when it is shown. A
+    shape that stays still for half a second falls asleep, and when every
+    shape is asleep nothing is animated (no frames) until something changes.
+  - A PhysicsPanel holds only its canvas.
 
 
 BoardPanel
@@ -1076,28 +1083,35 @@ bottom and four pages.
     what was printed; programs print at its end.
   - Board: a BoardPanel (outputPanel.boardPanel).
   - Canvas: a CanvasPanel (outputPanel.canvasPanel).
-  - Physics: a PhysicsPanel (outputPanel.physicsPanel): a bouncing ball.
+  - Physics: a PhysicsPanel (outputPanel.physicsPanel): the Physics class's
+    world of falling, bouncing shapes.
   - selectedTab is the label of the page showing; selectTab(label) shows
     another.
-  - clear() empties the Text, Board and Canvas pages and puts the Physics
-    ball back at the start. No other children can be added.
+  - clear() empties the pages: the text, the board, the canvas and the
+    physics world's shapes. No other children can be added.
 
 
 PhysicsPanel
 ------------
-The Physics page of an OutputPanel: an orange ball that falls under gravity
-and bounces off the four sides of the panel, losing speed on each bounce,
-until it rolls to a stop on the floor. Click anywhere to kick the ball away
-from the click (always upward).
+The Physics page of an OutputPanel: the Physics class's world, a box of
+shapes that fall under gravity, bounce, spin and push each other (circles,
+balls, rectangles, ellipses and regular polygons; see "The Physics" in
+docs/crumb-v0.1-spec.md).
 
-  - The world is the size of the panel, in pixels; making the panel smaller
-    keeps the ball inside.
-  - The ball moves only while the page is showing: it pauses when the page is
-    hidden or the panel leaves the document, and goes on when it is shown,
-    and it stops animating (no frames) while it is at rest.
-  - clear() puts the ball back at the top left, moving to the right.
-  - The motion is in physics.js (newBall, stepBall, kickBall, atRest), which
-    needs no DOM. A PhysicsPanel holds only its canvas.
+  - The world has a size of its own in units (400 by 300 until the program's
+    setSize), with (0, 0) at the top left and y down, and is scaled to fit the
+    panel, keeping its shape, as the Canvas is. panel.world is the
+    PhysicsWorld of physics.js, the engine, which needs no DOM; the panel
+    draws it.
+  - Until a program makes its Physics the page shows a demo ball: click to kick
+    it. startProgram() gives a program a new, empty world; reset() (before
+    each run) puts the demo back; clear() (Clear Output) removes the shapes.
+  - A click fires a physicsclick event with the x and y of the world.
+  - The world moves only while the page is showing: it pauses when the page is
+    hidden or the panel leaves the document, and goes on when it is shown. A
+    shape that stays still for half a second falls asleep, and when every
+    shape is asleep nothing is animated (no frames) until something changes.
+  - A PhysicsPanel holds only its canvas.
 
 
 BoardPanel

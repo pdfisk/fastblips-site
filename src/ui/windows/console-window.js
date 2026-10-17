@@ -91,9 +91,9 @@ export class ConsoleWindow extends HSplitWindow {
     this.outputPanel = new OutputPanel();
     this.outputPanel.element.classList.add('cr-console-output');
     this.output = this.outputPanel.textPanel;
-    // The widget host for programs run here: it has only the Board and the
-    // Canvas (New Board(), New Canvas()), which are the output's Board and
-    // Canvas pages.
+    // The widget host for programs run here: it has only the Board, the
+    // Canvas and the Physics world (New Board(), New Canvas(), New Physics()),
+    // which are the output's Board, Canvas and Physics pages.
     this.outputHost = new ConsoleOutputHost(this.outputPanel);
     this.left = this.input;
     this.right = this.outputPanel;

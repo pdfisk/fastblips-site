@@ -47,9 +47,11 @@
 // The Board is the program's board, a grid of cells for board games (a
 // BoardPanel, docs/widgets.txt), and the Canvas its drawing surface for 2D
 // and 3D graphics (a CanvasPanel). Like the Viewport they are singletons,
-// and they are the two classes a console's host has too: there they are the
+// and they are the classes a console's host has too: there they are the
 // Board and Canvas tabs of the console's output, and on an AppScreen each
-// covers the screen's text.
+// covers the screen's text. The Physics is a third such singleton, a world of
+// falling, bouncing shapes (a PhysicsPanel), which only a console has: its
+// Physics tab.
 
 import { Widget } from '../values.js';
 
@@ -291,6 +293,47 @@ export const WIDGET_CLASSES = Object.freeze([
     method('getMouseY', [], 'int'),
     method('onClick', ['handler:int:int']),
     method('onKey', ['handler:text']),
+  ], { common: [] }),
+  // The program's physics world: shapes that fall, bounce, spin and push each
+  // other. A singleton, like the Canvas. Its world is 400 by 300 units until
+  // setSize, (0, 0) at the top left, y down. Each shape added has an id (from
+  // 1) that the other methods take; a side of the world is id 0. Angles are
+  // in degrees.
+  cls('Physics', [], [
+    method('setSize', ['size', 'size']),
+    method('getWidth', [], 'int'),
+    method('getHeight', [], 'int'),
+    method('setBackground', ['text']),
+    method('setGravity', ['number', 'number']),
+    method('setWalls', ['boolean']),
+    method('setPaused', ['boolean']),
+    method('isPaused', [], 'boolean'),
+    method('clear'),
+    method('getCount', [], 'int'),
+    method('addCircle', ['number', 'number', 'number'], 'int'),
+    method('addBall', ['number', 'number', 'number'], 'int'),
+    method('addRect', Array(4).fill('number'), 'int'),
+    method('addEllipse', Array(4).fill('number'), 'int'),
+    method('addPolygon', ['number', 'number', 'number', 'index'], 'int'),
+    method('removeBody', ['index']),
+    method('setColor', ['index', 'text']),
+    method('setLabel', ['index', 'text']),
+    method('setFixed', ['index', 'boolean']),
+    method('setPosition', ['index', 'number', 'number']),
+    method('setVelocity', ['index', 'number', 'number']),
+    method('setAngle', ['index', 'number']),
+    method('setSpin', ['index', 'number']),
+    method('setBounce', ['index', 'number']),
+    method('setFriction', ['index', 'number']),
+    method('applyImpulse', ['index', 'number', 'number']),
+    method('getX', ['index'], 'number'),
+    method('getY', ['index'], 'number'),
+    method('getAngle', ['index'], 'number'),
+    method('getVx', ['index'], 'number'),
+    method('getVy', ['index'], 'number'),
+    method('bodyAt', ['number', 'number'], 'int'),
+    method('onClick', ['handler:int:int']),
+    method('onCollide', ['handler:int:int']),
   ], { common: [] }),
 ]);
 

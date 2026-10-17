@@ -295,6 +295,9 @@ export class ProgramWidgetHost {
 
   create(className, args) {
     if (className === 'Viewport') return this._idOf(this.layer);
+    if (className === 'Physics') {
+      throw new WidgetError('the Physics class needs a console: run the program in a console, whose output has a Physics tab');
+    }
     if (className === 'Board' || className === 'Canvas') {
       const surface = this._surfaces[className];
       if (!surface) throw new WidgetError(`there is no ${className} on this screen`);
