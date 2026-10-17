@@ -1,5 +1,5 @@
 // OutputPanel: where a program's output goes - a TabPanel with its labels
-// along the bottom and three pages: Text, Board and Canvas
+// along the bottom and four pages: Text, Board, Canvas and Physics
 // (see docs/widgets.txt).
 
 import { Panel } from './panel.js';
@@ -7,6 +7,7 @@ import { TabPanel } from './tab-panel.js';
 import { TextPanel } from './text-panel.js';
 import { BoardPanel } from './board-panel.js';
 import { CanvasPanel } from './canvas-panel.js';
+import { PhysicsPanel } from './physics-panel.js';
 
 export class OutputPanel extends Panel {
   constructor() {
@@ -19,19 +20,21 @@ export class OutputPanel extends Panel {
     this.textPanel.textArea.style.background = 'var(--cr-output-bg)';
     this.boardPanel = this.tabPanel.addTab('Board', new BoardPanel());
     this.canvasPanel = this.tabPanel.addTab('Canvas', new CanvasPanel());
+    this.physicsPanel = this.tabPanel.addTab('Physics', new PhysicsPanel());
   }
 
-  /** The label of the tab showing: 'Text', 'Board' or 'Canvas'. */
+  /** The label of the tab showing: 'Text', 'Board', 'Canvas' or 'Physics'. */
   get selectedTab() { return this.tabPanel.selectedLabel; }
 
   /** Shows the tab with this label. */
   selectTab(label) { this.tabPanel.select(label); }
 
-  /** Empties all three pages. */
+  /** Empties the Text, Board and Canvas pages and puts the Physics ball back. */
   clear() {
     this.textPanel.text = '';
     this.boardPanel.clear();
     this.canvasPanel.clear();
+    this.physicsPanel.clear();
   }
 
   /** An OutputPanel holds only its TabPanel. */

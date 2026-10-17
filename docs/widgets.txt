@@ -51,6 +51,7 @@ Class hierarchy
       OutputPanel
       BoardPanel
       CanvasPanel
+      PhysicsPanel
     Menu
     Button
     Label
@@ -274,16 +275,35 @@ labels.
 OutputPanel
 -----------
 The output side of a ConsoleWindow: a TabPanel with its labels along the
-bottom and three pages.
+bottom and four pages.
 
   - Text: a TextPanel (outputPanel.textPanel) that programs print to. It is
     selected at first. It is writeable: the user can type in it and edit
     what was printed; programs print at its end.
   - Board: a BoardPanel (outputPanel.boardPanel).
   - Canvas: a CanvasPanel (outputPanel.canvasPanel).
+  - Physics: a PhysicsPanel (outputPanel.physicsPanel): a bouncing ball.
   - selectedTab is the label of the page showing; selectTab(label) shows
     another.
-  - clear() empties all three pages. No other children can be added.
+  - clear() empties the Text, Board and Canvas pages and puts the Physics
+    ball back at the start. No other children can be added.
+
+
+PhysicsPanel
+------------
+The Physics page of an OutputPanel: an orange ball that falls under gravity
+and bounces off the four sides of the panel, losing speed on each bounce,
+until it rolls to a stop on the floor. Click anywhere to kick the ball away
+from the click (always upward).
+
+  - The world is the size of the panel, in pixels; making the panel smaller
+    keeps the ball inside.
+  - The ball moves only while the page is showing: it pauses when the page is
+    hidden or the panel leaves the document, and goes on when it is shown,
+    and it stops animating (no frames) while it is at rest.
+  - clear() puts the ball back at the top left, moving to the right.
+  - The motion is in physics.js (newBall, stepBall, kickBall, atRest), which
+    needs no DOM. A PhysicsPanel holds only its canvas.
 
 
 BoardPanel
@@ -825,6 +845,7 @@ SchedulerWindow (singleton)
       OutputPanel
       BoardPanel
       CanvasPanel
+      PhysicsPanel
     Menu
     Button
     Label
@@ -1048,16 +1069,35 @@ labels.
 OutputPanel
 -----------
 The output side of a ConsoleWindow: a TabPanel with its labels along the
-bottom and three pages.
+bottom and four pages.
 
   - Text: a TextPanel (outputPanel.textPanel) that programs print to. It is
     selected at first. It is writeable: the user can type in it and edit
     what was printed; programs print at its end.
   - Board: a BoardPanel (outputPanel.boardPanel).
   - Canvas: a CanvasPanel (outputPanel.canvasPanel).
+  - Physics: a PhysicsPanel (outputPanel.physicsPanel): a bouncing ball.
   - selectedTab is the label of the page showing; selectTab(label) shows
     another.
-  - clear() empties all three pages. No other children can be added.
+  - clear() empties the Text, Board and Canvas pages and puts the Physics
+    ball back at the start. No other children can be added.
+
+
+PhysicsPanel
+------------
+The Physics page of an OutputPanel: an orange ball that falls under gravity
+and bounces off the four sides of the panel, losing speed on each bounce,
+until it rolls to a stop on the floor. Click anywhere to kick the ball away
+from the click (always upward).
+
+  - The world is the size of the panel, in pixels; making the panel smaller
+    keeps the ball inside.
+  - The ball moves only while the page is showing: it pauses when the page is
+    hidden or the panel leaves the document, and goes on when it is shown,
+    and it stops animating (no frames) while it is at rest.
+  - clear() puts the ball back at the top left, moving to the right.
+  - The motion is in physics.js (newBall, stepBall, kickBall, atRest), which
+    needs no DOM. A PhysicsPanel holds only its canvas.
 
 
 BoardPanel

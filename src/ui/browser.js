@@ -47,6 +47,7 @@ import { TabPanel } from './widgets/tab-panel.js';
 import { OutputPanel } from './widgets/output-panel.js';
 import { BoardPanel } from './widgets/board-panel.js';
 import { CanvasPanel } from './widgets/canvas-panel.js';
+import { PhysicsPanel } from './widgets/physics-panel.js';
 import { LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow } from './windows/launch-window.js';
 import { Label } from './widgets/label.js';
 import * as db from './db-client.js';
@@ -64,7 +65,7 @@ const ui = {
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, CommunityProjectsWindow, RecordPanel, Label,
-  TabPanel, OutputPanel, BoardPanel, CanvasPanel,
+  TabPanel, OutputPanel, BoardPanel, CanvasPanel, PhysicsPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram, startProjectRuntime, findProject,

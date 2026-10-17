@@ -86,7 +86,7 @@ export class ConsoleWindow extends HSplitWindow {
     // once the source is edited it is compiled instead (program-loader.js).
     this.compiled = options.compiled ?? null;
     this.input = this.createInput(options.text ?? cls.defaultText);
-    // The right side is an OutputPanel (Text, Board and Canvas tabs);
+    // The right side is an OutputPanel (Text, Board, Canvas and Physics tabs);
     // output is its Text page, which programs print to.
     this.outputPanel = new OutputPanel();
     this.outputPanel.element.classList.add('cr-console-output');
