@@ -93,3 +93,79 @@ export function sharedProjects(records) {
 export async function listSharedProjects({ store } = {}) {
   return sharedProjects(await (store ?? allProjectStore()).list()).filter((p) => (p.scripts ?? []).length > 0);
 }
+
+const sameName = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+
+/** name if no taken name matches it (ignoring case), else 'name 2', 'name 3'... the first that is free. */
+export function uniqueName(name, taken) {
+  const used = new Set([...(taken ?? [])].map((n) => String(n ?? '').trim().toLowerCase()));
+  if (!used.has(String(name).trim().toLowerCase())) return name;
+  for (let n = 2; ; n += 1) {
+    if (!used.has(`${name} ${n}`.toLowerCase())) return `${name} ${n}`;
+  }
+}
+
+/**
+ * Copies a project into the space of the stores (the user's own: My
+ * Projects), as a project of that user with their own copies of its scripts.
+ * The scripts have to be copied too: a project can only list scripts that its
+ * owner has or that are shared, and the author could change theirs. Each is
+ * made from the snapshot the source holds (the scripts as the project was
+ * last saved), keeping its name unless the user already has a script of that
+ * name, which then gets ' 2', ' 3'... added. If the project cannot be made,
+ * the scripts made for it are removed again.
+ * @param {object} source - a project with its snapshots (GET /projects/:id)
+ * @param {{name?: string, projects: SourceStore, scripts: SourceStore}} options -
+ *   name: the new project's name (the source's by default); projects and
+ *   scripts: stores for the target space, the scripts one without a language
+ * @returns {Promise<{project: object, renamed: {from: string, to: string}[]}>}
+ *   the new project, and the scripts that had to be renamed
+ */
+export async function copyProject(source, { name, projects, scripts }) {
+  const newName = String(name ?? source.name ?? '').trim();
+  if (!newName) throw new Error('A name is required');
+  if ((await projects.list()).some((p) => sameName(p.name, newName))) {
+    throw new Error(`You already have a project called "${newName}"`);
+  }
+  const taken = (await scripts.list()).map((s) => s.name);
+  const made = [];
+  const renamed = [];
+  try {
+    for (const s of source.scripts ?? []) {
+      const scriptName = uniqueName(s.name, taken);
+      taken.push(scriptName);
+      if (scriptName !== s.name) renamed.push({ from: s.name, to: scriptName });
+      const fields = { name: scriptName, language: s.language, content: s.content ?? '' };
+      if (s.priority != null) fields.priority = s.priority;
+      if (s.compiled_code != null) fields.compiled_code = s.compiled_code;
+      made.push(await scripts.create(fields));
+    }
+    const project = await projects.create({
+      name: newName,
+      description: source.description ?? '',
+      shared: false,
+      script_ids: made.map((s) => s.id),
+    });
+    return { project, renamed };
+  } catch (e) {
+    await Promise.all(made.map((s) => scripts.remove(s.id).catch(() => {})));
+    throw e;
+  }
+}
+
+/**
+ * The Details page of a project, as text: its name, owner, number of scripts
+ * and (if given) when it was updated, then its description.
+ * @param {object} project - a project record
+ * @param {string} [updated] - the time to show for Updated (empty to leave the line out)
+ */
+export function projectDetails(project, updated = '') {
+  const lines = [
+    `Name:    ${project.name ?? ''}`,
+    `Owner:   ${project.owner || '(shared)'}`,
+    `Scripts: ${(project.scripts ?? []).length}`,
+  ];
+  if (updated) lines.push(`Updated: ${updated}`);
+  const description = String(project.description ?? '').trim();
+  return `${lines.join('\n')}\n\n${description || '(no description)'}`;
+}

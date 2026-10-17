@@ -29,7 +29,9 @@ Class hierarchy
             BasicDatabaseWindow
             PythonDatabaseWindow
           ProjectsWindow (singleton)
+          CommunityProjectsWindow (singleton)
         ScriptPickerWindow
+        CopyProjectWindow
         LaunchWindow (abstract)
           DesktopLaunchWindow
           MobileLaunchWindow
@@ -761,7 +763,16 @@ A Window listing every shared project, so they can be launched.
   - Its title is "Community Projects", matching the Navbar button that opens it.
   - There is only one; CommunityProjectsWindow.instance creates it on first use,
     and constructing a second one throws.
-  - Its content is a GridPanel with one row per project that has been shared
+  - It is an HSplitWindow: a vertical divider splits it, with the project grid on
+    the left and a TabPanel for the selected project on the right (the tabs are
+    empty while no row is selected):
+      Details  the name, owner, number of scripts, update time and description
+               (a read-only TextPanel).
+      Scripts  the project's scripts in order (a ListPanel, 'name  Language',
+               and '· owner' for another user's script); the first is selected.
+      Source   the source of the script selected in Scripts (a read-only
+               TextPanel), as the project last saved it.
+  - The left side is a GridPanel with one row per project that has been shared
     (the Shared box of the project in My Projects), whoever owns it, and the
     columns Name, Owner, Scripts and Updated. Owner is the user whose space the
     project is in, or "(shared)"; Scripts is how many scripts it has; Updated is
@@ -774,10 +785,30 @@ A Window listing every shared project, so they can be launched.
     DesktopLaunchWindow or MobileLaunchWindow; Web opens it as a full page
     in a new browser tab. The items are greyed out until a row is
     selected.
+  - Copy (greyed out until a row is selected) stores a copy of the selected
+    project in My Projects. It opens a CopyProjectWindow, where the name can
+    be edited first (a name that is already one of the user's projects is
+    refused). The copy is the user's own, unshared, with its own copies of the
+    scripts (a script whose name the user already has gets ' 2', ' 3'...), so
+    it does not change if the author edits theirs. It needs a signed-in user.
   - The list is read from the database each time the window is opened, by
     Refresh, and when the database server or the user changes. A failed
     read, or no shared projects, shows a note in place of the rows.
 
+
+CopyProjectWindow
+-----------------
+The dialog behind the Copy button of the CommunityProjectsWindow.
+
+  - new CopyProjectWindow({ project, onCopied }): project is the project to
+    copy, with its scripts' snapshots (GET /projects/:id). It says what is
+    being copied and has a Name field, filled with the project's name (or
+    'Name 2'... if the user already has a project called that).
+  - Copy (also Enter) stores the copy in My Projects with copyProject() of
+    projects.js, then closes, calls onCopied, fires cr-projectscopied on
+    document (the ProjectsWindow reloads) and shows a toast. A name that is
+    taken, or a server error, is shown in the window instead. Cancel (Escape)
+    closes it.
 
 SchedulerWindow (singleton)
         SignInWindow (singleton)

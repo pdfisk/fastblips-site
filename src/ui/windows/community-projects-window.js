@@ -1,18 +1,30 @@
 // CommunityProjectsWindow: the singleton window, opened by the Navbar's
 // Community Projects button, that lists every project that has been shared
 // (the "shared" flag of a project), whoever owns it, in a grid with the
-// columns Name, Owner, Scripts and Updated, so they can be launched. Choosing
+// columns Name, Owner, Scripts and Updated, so they can be launched. The
+// window is split by a vertical divider: the grid on the left, and on the
+// right a tabbed detail panel for the selected project - Details (name,
+// owner, description), Scripts (its scripts, in order) and Source (the
+// selected script's source, read only). Choosing
 // a project and pressing Launch (or double-clicking it, or pressing Enter)
-// runs the project as it was last saved in a new Desktop launch window. The
-// grid is read from the database each time the window is opened, and by
-// Refresh; it is also read again when the database server or the user changes.
+// runs the project as it was last saved in a new Desktop launch window. Copy
+// stores a copy of the chosen project in My Projects, under a name that can be
+// edited first (see CopyProjectWindow). The grid is read from the database each
+// time the window is opened, and by Refresh; it is also read again when the
+// database server or the user changes.
 
-import { Window } from './window.js';
+import { HSplitWindow } from './hsplit-window.js';
 import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
 import { Menu } from '../widgets/menu.js';
 import { GridPanel } from '../widgets/grid-panel.js';
-import { allProjectStore, sharedProjects } from '../projects.js';
+import { TabPanel } from '../widgets/tab-panel.js';
+import { TextPanel } from '../widgets/text-panel.js';
+import { ListPanel } from '../widgets/list-panel.js';
+import { allProjectStore, sharedProjects, projectScript, scriptLabel, projectDetails } from '../projects.js';
 import { RUN_TABLES } from '../run-app.js';
+import { CopyProjectWindow } from './copy-project-window.js';
+import { spaceName } from '../db-client.js';
+import { Toast } from '../toast.js';
 
 let instance = null;
 
@@ -39,7 +51,7 @@ export function projectUpdated(project) {
 
 const projectKey = (project) => String(project.id);
 
-export class CommunityProjectsWindow extends Window {
+export class CommunityProjectsWindow extends HSplitWindow {
   /** The single CommunityProjectsWindow, created on first use. */
   static get instance() {
     if (!instance) instance = new CommunityProjectsWindow();
@@ -52,7 +64,7 @@ export class CommunityProjectsWindow extends Window {
    */
   constructor({ list, get } = {}) {
     if (instance) throw new Error('CommunityProjectsWindow is a singleton; use CommunityProjectsWindow.instance');
-    super({ title: 'Community Projects', x: 300, y: 90, width: 440, height: 320, minWidth: 300, minHeight: 180 });
+    super({ title: 'Community Projects', x: 220, y: 90, width: 760, height: 380, minWidth: 480, minHeight: 220, position: 0.5 });
     instance = this;
     this.element.classList.add('cr-community-projects-window');
     this._read = list ?? (() => allProjectStore().list());
@@ -67,12 +79,25 @@ export class CommunityProjectsWindow extends Window {
         { label: 'Updated', width: '110px' }],
       emptyText: 'Loading...',
     });
-    this.content = this.grid;
+    // The detail panel: Details, Scripts and Source tabs for the selected project.
+    this.detailsPanel = new TextPanel({ readOnly: true });
+    this.scriptsPanel = new ListPanel({ emptyText: 'No project selected' });
+    this.sourcePanel = new TextPanel({ readOnly: true });
+    this.tabs = new TabPanel();
+    this.tabs.addTab('Details', this.detailsPanel);
+    this.tabs.addTab('Scripts', this.scriptsPanel);
+    this.tabs.addTab('Source', this.sourcePanel);
+    this.left = this.grid;
+    this.right = this.tabs;
+    this.full = null;          // the selected project with its scripts' snapshots, once read
+    this._detailToken = 0;
+    this.scriptsPanel.element.addEventListener('select', () => this._showSource());
     // As in a console: Launch > Desktop, Mobile or Web.
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
     addLaunchItems(this.launchMenu, (target) => this.launch(target), () => this.selectedProject !== null);
+    this.copyButton = this.buttonBar.addButton('Copy', () => this.copy());
     this.refreshButton = this.buttonBar.addButton('Refresh', () => this.refresh());
-    this.grid.element.addEventListener('select', () => this.updateButtons());
+    this.grid.element.addEventListener('select', () => { this.updateButtons(); this._syncDetail(); });
     this.grid.element.addEventListener('dblclick', (e) => { if (e.target.closest('td')) this.launch(); });
     this.grid.grid.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { e.preventDefault(); this.launch(); }
@@ -81,6 +106,7 @@ export class CommunityProjectsWindow extends Window {
     document.addEventListener('cr-dbserverchange', this._forget);
     document.addEventListener('cr-userchange', this._forget);
     this.updateButtons();
+    this._syncDetail();
   }
 
   /** The project whose row is selected, or null. */
@@ -114,6 +140,7 @@ export class CommunityProjectsWindow extends Window {
       sort: [p.name, projectOwner(p), (p.scripts ?? []).length, p.updated_at ?? ''],   // Scripts and Updated sort by value, not text
     }));
     this.updateButtons();
+    this._syncDetail(true);
   }
 
   /**
@@ -142,8 +169,65 @@ export class CommunityProjectsWindow extends Window {
     return new Cls({ title: project.name, programs }).open(this.parent);
   }
 
+  /**
+   * Opens the Copy Project dialog for the selected project: its name can be
+   * changed there before the copy (with its own copies of the scripts) is
+   * stored in My Projects. Needs a signed-in user, as My Projects is the
+   * user's own space. Resolves to the dialog; null if there is no project
+   * selected or nobody is signed in.
+   */
+  async copy() {
+    const project = this.selectedProject;
+    if (!project || !this.parent) return null;
+    if (!spaceName()) {
+      Toast.show(this.parent, { kind: 'error', message: 'Sign in (File > Sign In) to copy a project to My Projects' });
+      return null;
+    }
+    let full;
+    try {
+      full = await this._get(project.id);   // with the scripts' snapshots
+    } catch (e) {
+      Toast.show(this.parent, { kind: 'error', message: `Cannot read the project: ${e.message}` });
+      return null;
+    }
+    return new CopyProjectWindow({ project: full }).open(this.parent);
+  }
+
   updateButtons() {
+    this.copyButton.enabled = this.selectedProject !== null;
     this.buttonBar.layout();
+  }
+
+  // Fills the tabs for the selected project (or empties them), and reads the
+  // project with its scripts' snapshots for the Source tab. Unless force is
+  // set, nothing is done when the project shown is still the selected one.
+  _syncDetail(force = false) {
+    const project = this.selectedProject;
+    const key = project ? projectKey(project) : null;
+    if (!force && key === this._detailKey) return;
+    this._detailKey = key;
+    const token = ++this._detailToken;
+    this.full = null;
+    this.detailsPanel.text = project ? projectDetails(project, projectUpdated(project)) : '';
+    this.scriptsPanel.emptyText = project ? 'This project has no scripts' : 'No project selected';
+    this.scriptsPanel.items = (project?.scripts ?? []).map((s) => ({
+      value: s.id, label: scriptLabel(projectScript(s), project.owner ?? ''),
+    }));
+    this.scriptsPanel.select(this.scriptsPanel.items.length ? 0 : -1);
+    this._showSource();
+    if (!project) return;
+    this._get(project.id).then(
+      (full) => { if (token === this._detailToken) { this.full = full; this._showSource(); } },
+      (err) => { if (token === this._detailToken) this.sourcePanel.text = `Cannot read the project: ${err.message}`; },
+    );
+  }
+
+  // Shows the source of the script selected in the Scripts tab.
+  _showSource() {
+    const item = this.scriptsPanel.selectedItem;
+    if (!item) { this.sourcePanel.text = ''; return; }
+    const script = this.full?.scripts?.find((s) => s.id === item.value);
+    this.sourcePanel.text = !this.full ? 'Loading...' : script?.content ?? '';
   }
 
   /** Shows the window and reads the projects afresh. */

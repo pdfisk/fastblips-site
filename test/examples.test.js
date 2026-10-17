@@ -65,3 +65,48 @@ test('broken.crumb reports one error per planted mistake', () => {
   const linesSeen = new Set(errors.map((e) => e.line));
   assert.ok(linesSeen.size >= 12, 'errors should spread across the file, not pile up');
 });
+
+// The mobile examples, driven on an in-memory screen.
+import { VM } from '../src/index.js';
+import { FakeHost } from './fake-widget-host.js';
+
+function startMobileExample(file) {
+  const { chunk, errors } = compile(read(file), { filename: file });
+  assert.deepEqual(errors.map((e) => e.message), []);
+  const host = new FakeHost();
+  const output = [];
+  const vm = new VM(chunk, { gui: host, out: (line) => output.push(line) });
+  const settle = () => { while (!vm.runSlice(10000) && !vm.waiting && !vm.blocked); };
+  settle();
+  const all = () => [...host.widgets.values()];
+  const button = (text) => all().find((w) => w.className === 'Button' && w.props.text === text);
+  const click = (text) => { host.click(button(text).id); settle(); };
+  const labels = () => all().filter((w) => w.className === 'Label').map((w) => w.props.text);
+  return { host, output, all, click, labels, settle };
+}
+
+test('mobile-tip.crumb steps the bill, tip and people', () => {
+  const app = startMobileExample('mobile-tip.crumb');
+  assert.match(app.labels().join('|'), /Tip \$6\.00 {3}Total \$46\.00 {3}Each \$23\.00/);
+  app.click('+ 1%');
+  assert.match(app.labels().join('|'), /Tip: 16%/);
+  assert.match(app.labels().join('|'), /Tip \$6\.40 {3}Total \$46\.40/);
+});
+
+test('mobile-dice.crumb rolls and lists the rolls', () => {
+  const app = startMobileExample('mobile-dice.crumb');
+  app.click('Roll');
+  app.click('Roll');
+  const list = app.all().find((w) => w.className === 'ListPanel');
+  assert.equal(list.items.length, 2);
+  assert.match(list.items[1], /^#2 /);
+  assert.match(app.labels().join('|'), /Total: \d+/);
+});
+
+test('mobile-lights-out.crumb starts unsolved and counts moves', () => {
+  const app = startMobileExample('mobile-lights-out.crumb');
+  assert.equal(app.output[0], 'Turn every light off. Tap a square.');
+  app.host.clickCell(0, 0);
+  app.settle();
+  assert.equal(app.output.at(-1), 'Moves: 1');
+});
