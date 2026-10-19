@@ -310,6 +310,11 @@ docs/crumb-v0.1-spec.md).
     hidden or the panel leaves the document, and goes on when it is shown. A
     shape that stays still for half a second falls asleep, and when every
     shape is asleep nothing is animated (no frames) until something changes.
+  - Composite shapes are bodies of several parts (physics.js: Body, Part). The
+    panel draws world.bodies part by part, at each part's world pose, so a
+    group looks like its shapes together; labels come from world.parts.
+    Animations (moveTo, rotateTo, scaleTo, oscillate) run inside the engine's
+    step, so the panel only has to keep drawing while the world is awake.
   - A PhysicsPanel holds only its canvas.
 
 
@@ -1111,6 +1116,11 @@ docs/crumb-v0.1-spec.md).
     hidden or the panel leaves the document, and goes on when it is shown. A
     shape that stays still for half a second falls asleep, and when every
     shape is asleep nothing is animated (no frames) until something changes.
+  - Composite shapes are bodies of several parts (physics.js: Body, Part). The
+    panel draws world.bodies part by part, at each part's world pose, so a
+    group looks like its shapes together; labels come from world.parts.
+    Animations (moveTo, rotateTo, scaleTo, oscillate) run inside the engine's
+    step, so the panel only has to keep drawing while the world is awake.
   - A PhysicsPanel holds only its canvas.
 
 

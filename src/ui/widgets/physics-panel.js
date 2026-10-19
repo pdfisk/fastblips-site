@@ -7,6 +7,9 @@
 // keeping its shape, as the Canvas is. Until a program makes its Physics the
 // page shows a demo ball: click to kick it.
 //
+// A group (a composite of several shapes) is drawn part by part, each at its
+// place in the world, so the group moves, turns and grows as one.
+//
 // The world is animated only while the page is showing: it pauses when the
 // page is hidden or removed from the document, and goes on when it is shown.
 // When every shape has come to rest nothing is animated at all.
@@ -156,7 +159,7 @@ export class PhysicsPanel extends Panel {
     ctx.beginPath();
     ctx.rect(0, 0, world.width, world.height);
     ctx.clip();
-    for (const body of world.bodies.values()) this._drawBody(ctx, body);
+    for (const body of world.bodies.values()) for (const part of body.parts) this._drawPart(ctx, part);
     ctx.restore();
     if (this.demo) {
       ctx.fillStyle = '#868e96';
@@ -164,76 +167,77 @@ export class PhysicsPanel extends Panel {
       ctx.textBaseline = 'top';
       ctx.fillText('Click to kick the ball', 8, 6);
     }
-    for (const body of world.bodies.values()) {
-      if (!body.label) continue;
+    for (const part of world.parts.values()) {
+      if (!part.label) continue;
       ctx.fillStyle = '#111';
-      ctx.font = `${Math.max(8, Math.min(16, body.radius * 0.7))}px sans-serif`;
+      ctx.font = `${Math.max(8, Math.min(16, part.radius * 0.7))}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(body.label, body.x, body.y);
+      ctx.fillText(part.label, part.x, part.y);
       ctx.textAlign = 'start';
     }
   }
 
-  _drawBody(ctx, body) {
+  // One shape, at its place in the world: in a group, a part moves and turns with the group.
+  _drawPart(ctx, part) {
     ctx.save();
-    ctx.translate(body.x, body.y);
-    ctx.rotate(body.angle);
-    ctx.fillStyle = body.color;
+    ctx.translate(part.x, part.y);
+    ctx.rotate(part.angle);
+    ctx.fillStyle = part.color;
     ctx.strokeStyle = 'rgba(0,0,0,0.5)';
     ctx.lineWidth = 1.2;
     ctx.beginPath();
-    switch (body.shape) {
+    switch (part.shape) {
       case 'circle':
       case 'ball':
-        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        ctx.arc(0, 0, part.radius, 0, Math.PI * 2);
         break;
       case 'ellipse': {
-        const verts = body.collider.verts;
+        const verts = part.collider.verts;
         const rx = Math.max(...verts.map((v) => v[0]));
         const ry = Math.max(...verts.map((v) => v[1]));
         ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
         break;
       }
       default:
-        body.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+        part.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
         ctx.closePath();
     }
     ctx.fill();
-    if (body.shape === 'ball') {
+    if (part.shape === 'ball') {
       // A sphere: a light spot that stays put, and a dot that turns with the ball.
       ctx.save();
-      ctx.rotate(-body.angle);
-      const g = ctx.createRadialGradient(-body.radius * 0.35, -body.radius * 0.35, body.radius * 0.1, 0, 0, body.radius);
+      ctx.rotate(-part.angle);
+      const g = ctx.createRadialGradient(-part.radius * 0.35, -part.radius * 0.35, part.radius * 0.1, 0, 0, part.radius);
       g.addColorStop(0, 'rgba(255,255,255,0.6)');
       g.addColorStop(1, 'rgba(0,0,0,0.25)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, part.radius, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
       ctx.fillStyle = 'rgba(0,0,0,0.45)';
       ctx.beginPath();
-      ctx.arc(body.radius * 0.55, 0, Math.max(1.5, body.radius * 0.12), 0, Math.PI * 2);
+      ctx.arc(part.radius * 0.55, 0, Math.max(1.5, part.radius * 0.12), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.beginPath();
-    switch (body.shape) {
+    switch (part.shape) {
       case 'circle':
-        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        ctx.arc(0, 0, part.radius, 0, Math.PI * 2);
         ctx.moveTo(0, 0);
-        ctx.lineTo(body.radius, 0);          // a spoke, to show how it turns
+        ctx.lineTo(part.radius, 0);          // a spoke, to show how it turns
         break;
       case 'ball':
-        ctx.arc(0, 0, body.radius, 0, Math.PI * 2);
+        ctx.arc(0, 0, part.radius, 0, Math.PI * 2);
         break;
       case 'ellipse': {
-        const verts = body.collider.verts;
+        const verts = part.collider.verts;
         ctx.ellipse(0, 0, Math.max(...verts.map((v) => v[0])), Math.max(...verts.map((v) => v[1])), 0, 0, Math.PI * 2);
         break;
       }
       default:
-        body.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+        part.collider.verts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
         ctx.closePath();
     }
     ctx.stroke();

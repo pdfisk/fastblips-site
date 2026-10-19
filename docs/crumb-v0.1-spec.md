@@ -443,12 +443,32 @@ clockwise on the screen); speeds are in units per second; colours are any CSS co
 | Properties | `setFixed(id, b)` (a fixed shape never moves: platforms, bumpers) `setBounce(id, n)` (0 to 1: the share of its speed it keeps in a bounce) `setFriction(id, n)` (0 to 2) |
 | Moving | `setPosition(id, x, y)` `setVelocity(id, vx, vy)` `setAngle(id, degrees)` `setSpin(id, degrees_per_second)` `applyImpulse(id, ix, iy)` (a push: a heavier shape moves less) |
 | Reading | `getX(id)` `getY(id)` `getAngle(id)` `getVx(id)` `getVy(id)` `bodyAt(x, y)` (the id of the shape at a point, 0 for none) |
+| Composites | `addGroup(x, y)` (an empty group, returning its id) `attach(group, id)` (adds a shape to a group) `combine(a, b)` (joins two shapes, or groups, into a new group and returns its id) `detach(id)` (takes a shape out of its group) `getGroup(id)` (the group a shape is in, 0 for none) `getPartCount(group)` |
+| Resizing | `scaleBody(id, factor)` (at once; 0.05 to 20) `getScale(id)` |
+| Animating | `moveTo(id, x, y, seconds)` `rotateTo(id, degrees, seconds)` `scaleTo(id, factor, seconds)` (each a smooth move that ends exactly on its target) `oscillate(id, dx, dy, degrees, seconds)` (swings to and fro about where it is, once every `seconds`, until stopped) `stopAnimation(id)` `isAnimating(id)` |
 | Events | `onClick(sub)` `onCollide(sub)` |
 
 A shape's mass comes from its area, so a big one pushes a small one about. Shapes rest on
 each other, and slide or roll by their friction; ones that have stopped moving fall asleep
 (and wake when something hits them). A program only has to add its shapes: the world keeps
 moving on its own once the program has ended, and a handler runs when its event happens.
+
+**Composite shapes.** `combine(a, b)` joins shapes into one rigid **group**: it falls,
+tumbles, rests and collides as a single body, with the mass of all its shapes and one
+centre of mass, which is the group's position (`getX`, `setPosition`, `moveTo`, ... on the
+group's id use that point). The shapes keep their own ids, colours and labels, and can
+still be coloured or labelled one by one, but anything that moves or resizes takes the
+group's id: giving one of the shapes in a group to `setVelocity` and the like is a
+runtime error that names the group. `setColor`, `setBounce` and `setFriction` on a group
+set all its shapes. `removeBody` on a group removes the lot, and on one of its shapes removes just that shape. `detach(id)` makes a shape
+loose again, moving as it was; `combine` on a group and a shape (or two groups) joins them
+all, and the result is fixed if any part was.
+
+A fixed shape or group does not fall or get pushed, but it can move on its own: a
+`setSpin` or `setVelocity` makes it move steadily (a windmill), and `moveTo`, `rotateTo`,
+`scaleTo` and `oscillate` animate it. Whatever it moves into is pushed along. The
+animations work on any shape, and a moving one is carried by its animation instead of by
+gravity until it ends (`stopAnimation` ends it early).
 
 `onClick` names a Sub called with the world and the x and y of the click, in world units.
 `onCollide` names a Sub called with the world and the ids of the two shapes that have
@@ -465,8 +485,8 @@ world.setColor(box, "orange")
 world.setAngle(box, 20)
 ```
 
-`examples/physics-balls`, `physics-shapes`, `physics-pyramid`, `physics-bumpers` and
-`physics-gravity` (each as `.crumb` and `.py`) are programs that use it.
+`examples/physics-balls`, `physics-shapes`, `physics-pyramid`, `physics-bumpers`,
+`physics-gravity`, `physics-composites`, `physics-machine` and `physics-tower` (each as `.crumb` and `.py`) are programs that use it.
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
 and `vp = Viewport()` (no `New`), methods in snake_case (`set_width`, `get_selected_index`,

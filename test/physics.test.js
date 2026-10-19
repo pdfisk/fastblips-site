@@ -194,7 +194,7 @@ test('PhysicsBinding runs the class\'s methods on the panel\'s world', () => {
   binding.call('setColor', [ball, 'red']);
   binding.call('setAngle', [box, 90]);
   binding.call('setVelocity', [ball, 5, 6]);
-  assert.equal(panel.world.body(ball).color, 'red');
+  assert.equal(panel.world.part(ball).color, 'red');
   assert.equal(Math.round(binding.call('getAngle', [box])), 90);
   assert.deepEqual([binding.call('getVx', [ball]), binding.call('getVy', [ball])], [5, 6]);
   assert.equal(binding.call('bodyAt', [100, 50]), ball);
@@ -273,6 +273,9 @@ const EXAMPLES = {
   'physics-pyramid': [21, true],
   'physics-bumpers': [6, true],
   'physics-gravity': [27, false],
+  'physics-composites': [5, true],
+  'physics-machine': [24, true],
+  'physics-tower': [1, true],
 };
 
 for (const [name, [shapes, adds]] of Object.entries(EXAMPLES)) {
@@ -297,3 +300,127 @@ for (const [name, [shapes, adds]] of Object.entries(EXAMPLES)) {
     });
   }
 }
+
+// ------------------------------------------------------------ composites
+
+test('combine joins shapes into one group body with the centre of mass as its position', () => {
+  const w = new PhysicsWorld();
+  const a = w.addCircle(100, 100, 10);
+  const b = w.addCircle(140, 100, 10);
+  const g = w.combine(a, b);
+  assert.notEqual(g, a);
+  assert.notEqual(g, b);
+  assert.equal(w.partCount(g), 2);
+  assert.equal(w.groupOf(a), g);
+  assert.equal(w.count, 1);
+  const p = w.pose(g);
+  assert.ok(Math.abs(p.x - 120) < 0.01 && Math.abs(p.y - 100) < 0.01);
+  assert.throws(() => w.setVelocity(a, 1, 1), /part of group/);
+});
+
+test('a group falls and rests as one rigid body, and attach adds a shape', () => {
+  const w = new PhysicsWorld();
+  const a = w.addBall(100, 50, 12);
+  const b = w.addBall(140, 50, 12);
+  const g = w.combine(a, b);
+  const c = w.addBall(120, 50, 12);
+  w.attach(g, c);
+  assert.equal(w.partCount(g), 3);
+  run(w, 10);
+  assert.ok(inside(w, w.pose(g)));
+  assert.equal(w.sleeping, true);
+  const d = w.part(a).x - w.part(b).x;
+  assert.ok(Math.abs(Math.abs(d) - 40) < 0.5, 'parts keep their distance');
+});
+
+test('detach turns a part back into a shape of its own', () => {
+  const w = new PhysicsWorld();
+  const a = w.addBall(100, 100, 10);
+  const b = w.addBall(140, 100, 10);
+  const g = w.combine(a, b);
+  w.detach(b);
+  assert.equal(w.count, 2);
+  assert.equal(w.groupOf(b), 0);
+  assert.equal(w.partCount(g), 1);
+  assert.doesNotThrow(() => w.setVelocity(b, 5, 5));
+});
+
+test('scaleBody scales mass with area and rejects bad factors', () => {
+  const w = new PhysicsWorld();
+  const a = w.addRect(100, 100, 20, 20);
+  const b = w.addRect(130, 100, 20, 20);
+  const g = w.combine(a, b);
+  const m1 = w.bodies.get(g).mass;
+  w.scaleBody(g, 2);
+  assert.ok(Math.abs(w.bodies.get(g).mass / m1 - 4) < 0.01);
+  assert.equal(w.scaleOf(g), 2);
+  assert.throws(() => w.scaleBody(g, 0), RangeError);
+  assert.throws(() => w.scaleBody(g, 1000), RangeError);
+});
+
+test('moveTo, rotateTo and scaleTo reach their targets and the world then sleeps', () => {
+  const w = new PhysicsWorld();
+  w.gravity = 0;
+  const a = w.addRect(100, 100, 30, 30);
+  w.setFixed(a, true);
+  w.moveTo(a, 250, 200, 1);
+  w.rotateTo(a, 90, 1);
+  w.scaleTo(a, 2, 1);
+  assert.equal(w.isAnimating(a), true);
+  for (let i = 0; i < 200; i += 1) w.step(1 / 60);
+  const p = w.pose(a);
+  assert.ok(Math.abs(p.x - 250) < 0.5 && Math.abs(p.y - 200) < 0.5);
+  assert.ok(Math.abs(w.scaleOf(a) - 2) < 0.01);
+  assert.equal(w.isAnimating(a), false);
+});
+
+test('oscillate swings a body about its start until stopped', () => {
+  const w = new PhysicsWorld();
+  const a = w.addRect(200, 150, 20, 20);
+  w.setFixed(a, true);
+  w.oscillate(a, 60, 0, 0, 2);
+  let min = 1e9, max = -1e9;
+  for (let i = 0; i < 360; i += 1) { w.step(1 / 60); const x = w.pose(a).x; min = Math.min(min, x); max = Math.max(max, x); }
+  assert.ok(max - min > 100 && max - min < 130, `range ${max - min}`);
+  w.stopAnimation(a);
+  assert.equal(w.isAnimating(a), false);
+});
+
+test('a fixed spinning group pushes a ball and stays put', () => {
+  const w = new PhysicsWorld();
+  const hub = w.addCircle(200, 150, 8);
+  const bar = w.addRect(200, 150, 120, 6);
+  const mill = w.combine(hub, bar);
+  w.setFixed(mill, true);
+  w.setSpin(mill, 180);
+  const ball = w.addBall(230, 100, 6);
+  for (let i = 0; i < 300; i += 1) w.step(1 / 60);
+  const p = w.pose(mill);
+  assert.ok(Math.abs(p.x - 200) < 0.01 && Math.abs(p.y - 150) < 0.01);
+  assert.ok(Math.abs(w.pose(ball).x - 230) > 1 || Math.abs(w.pose(ball).y - 100) > 1);
+});
+
+test('the Physics binding drives composites and animations', () => {
+  const host = physicsHost();
+  const out = [];
+  const src = `Dim w = New Physics()
+Dim a = w.addBall(100, 100, 10)
+Dim b = w.addBall(140, 100, 10)
+Dim g = w.combine(a, b)
+Print w.getPartCount(g)
+Print w.getGroup(a) = g
+w.scaleTo(g, 2, 1)
+w.moveTo(g, 200, 200, 1)
+w.oscillate(g, 10, 0, 0, 2)
+Print w.isAnimating(g)
+w.stopAnimation(g)
+Print w.isAnimating(g)
+w.detach(b)
+Print w.getPartCount(g)
+`;
+  const { chunk, errors } = compile(src, { filename: 'composites.crumb' });
+  assert.deepEqual(errors.map((e) => e.message), []);
+  const vm = new VM(chunk, { gui: host, out: (t) => out.push(t.trim()) });
+  settle(vm);
+  assert.deepEqual(out, ['2', 'True', 'True', 'False', '1']);
+});

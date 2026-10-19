@@ -298,7 +298,8 @@ export const WIDGET_CLASSES = Object.freeze([
   // other. A singleton, like the Canvas. Its world is 400 by 300 units until
   // setSize, (0, 0) at the top left, y down. Each shape added has an id (from
   // 1) that the other methods take; a side of the world is id 0. Angles are
-  // in degrees.
+  // in degrees. Shapes can be combined into groups (addGroup / attach /
+  // combine): one rigid body that moves, resizes and animates as a whole.
   cls('Physics', [], [
     method('setSize', ['size', 'size']),
     method('getWidth', [], 'int'),
@@ -332,6 +333,20 @@ export const WIDGET_CLASSES = Object.freeze([
     method('getVx', ['index'], 'number'),
     method('getVy', ['index'], 'number'),
     method('bodyAt', ['number', 'number'], 'int'),
+    method('addGroup', ['number', 'number'], 'int'),
+    method('attach', ['index', 'index']),
+    method('combine', ['index', 'index'], 'int'),
+    method('detach', ['index']),
+    method('getGroup', ['index'], 'int'),
+    method('getPartCount', ['index'], 'int'),
+    method('scaleBody', ['index', 'number']),
+    method('getScale', ['index'], 'number'),
+    method('scaleTo', ['index', 'number', 'number']),
+    method('moveTo', ['index', 'number', 'number', 'number']),
+    method('rotateTo', ['index', 'number', 'number']),
+    method('oscillate', ['index', 'number', 'number', 'number', 'number']),
+    method('stopAnimation', ['index']),
+    method('isAnimating', ['index'], 'boolean'),
     method('onClick', ['handler:int:int']),
     method('onCollide', ['handler:int:int']),
   ], { common: [] }),
