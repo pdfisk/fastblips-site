@@ -12,7 +12,7 @@ export class Loader {
    * @param {{filename?: string}} options - default filename used in
    *   diagnostics when a call does not pass its own.
    */
-  constructor({ filename = 'input.crumb' } = {}) {
+  constructor({ filename = 'input.bas' } = {}) {
     this.filename = filename;
   }
 

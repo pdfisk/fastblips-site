@@ -95,15 +95,15 @@ test('compiled code in another language is not used', () => {
 test('running the same source again uses the compile cache', () => {
   const compileFn = crumbCompiler();
   const source = 'For i = 1 To 2\n  Print i\nNext\n';
-  const first = loadProgram({ language: 'crumb', source, filename: 'a.crumb', compile: compileFn });
-  const second = loadProgram({ language: 'crumb', source, filename: 'a.crumb', compile: compileFn });
+  const first = loadProgram({ language: 'crumb', source, filename: 'a.bas', compile: compileFn });
+  const second = loadProgram({ language: 'crumb', source, filename: 'a.bas', compile: compileFn });
   assert.equal(first.origin, 'source');
   assert.equal(second.origin, 'cache');
   assert.equal(compileFn.calls, 1);
   assert.notEqual(first.chunk, second.chunk, 'each load is a fresh chunk');
   assert.deepEqual(outputOf(second.chunk), ['1', '2']);
 
-  const edited = loadProgram({ language: 'crumb', source: `${source}Print 3\n`, filename: 'a.crumb', compile: compileFn });
+  const edited = loadProgram({ language: 'crumb', source: `${source}Print 3\n`, filename: 'a.bas', compile: compileFn });
   assert.equal(edited.origin, 'source');
   assert.equal(compileFn.calls, 2);
 });

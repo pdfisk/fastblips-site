@@ -7,16 +7,16 @@ import { parse, compile, run, formatDiagnostics } from '../src/index.js';
 
 const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'examples');
 const read = (file) => readFileSync(join(dir, file), 'utf8');
-const files = readdirSync(dir).filter((f) => f.endsWith('.crumb'));
+const files = readdirSync(dir).filter((f) => f.endsWith('.bas'));
 
-/** broken.crumb fails to load; errors.crumb loads but fails at runtime. */
-const RUNNABLE = files.filter((f) => f !== 'broken.crumb' && f !== 'errors.crumb');
+/** broken.bas fails to load; errors.bas loads but fails at runtime. */
+const RUNNABLE = files.filter((f) => f !== 'broken.bas' && f !== 'errors.bas');
 
 test('every example is accounted for', () => {
   assert.ok(files.length >= 5, `expected examples in ${dir}`);
 });
 
-for (const file of [...RUNNABLE, 'errors.crumb']) {
+for (const file of [...RUNNABLE, 'errors.bas']) {
   test(`${file} compiles with no load errors`, () => {
     const source = read(file);
     const { chunk, errors } = compile(source, { filename: file });
@@ -25,28 +25,28 @@ for (const file of [...RUNNABLE, 'errors.crumb']) {
   });
 }
 
-test('fizzbuzz.crumb prints 20 lines', () => {
-  const result = run(read('fizzbuzz.crumb'), { filename: 'fizzbuzz.crumb' });
+test('fizzbuzz.bas prints 20 lines', () => {
+  const result = run(read('fizzbuzz.bas'), { filename: 'fizzbuzz.bas' });
   assert.equal(result.error, null);
   assert.equal(result.output.length, 20);
   assert.equal(result.output[14], 'FizzBuzz');
 });
 
-test('factorial.crumb prints 0! through 9!', () => {
-  const result = run(read('factorial.crumb'), { filename: 'factorial.crumb' });
+test('factorial.bas prints 0! through 9!', () => {
+  const result = run(read('factorial.bas'), { filename: 'factorial.bas' });
   assert.equal(result.error, null);
   assert.equal(result.output[0], 'Factorial(0) = 1');
   assert.equal(result.output[9], 'Factorial(9) = 362880');
 });
 
-test('words.crumb finds the longest word', () => {
-  const result = run(read('words.crumb'), { filename: 'words.crumb' });
+test('words.bas finds the longest word', () => {
+  const result = run(read('words.bas'), { filename: 'words.bas' });
   assert.equal(result.error, null);
   assert.deepEqual(result.output, ['WORDS: 9', 'LONGEST: quick', 'BACKWARDS: kciuq']);
 });
 
-test('errors.crumb fails at the planted line with a full traceback', () => {
-  const result = run(read('errors.crumb'), { filename: 'errors.crumb' });
+test('errors.bas fails at the planted line with a full traceback', () => {
+  const result = run(read('errors.bas'), { filename: 'errors.bas' });
   assert.deepEqual(result.output, ['before']);          // Print ran before the fault
   assert.equal(result.error.line, 9);
   assert.match(result.error.message, /operator \+ expects Number, Number/);
@@ -56,12 +56,12 @@ test('errors.crumb fails at the planted line with a full traceback', () => {
   );
 });
 
-test('broken.crumb reports one error per planted mistake', () => {
-  const source = read('broken.crumb');
-  const { errors } = parse(source, { filename: 'broken.crumb' });
+test('broken.bas reports one error per planted mistake', () => {
+  const source = read('broken.bas');
+  const { errors } = parse(source, { filename: 'broken.bas' });
   // 14 deliberate mistakes; the count is asserted so a regression that starts
   // cascading (or stops reporting) shows up here.
-  assert.equal(errors.length, 14, `\n${formatDiagnostics(errors, source, 'broken.crumb')}`);
+  assert.equal(errors.length, 14, `\n${formatDiagnostics(errors, source, 'broken.bas')}`);
   const linesSeen = new Set(errors.map((e) => e.line));
   assert.ok(linesSeen.size >= 12, 'errors should spread across the file, not pile up');
 });
@@ -85,16 +85,16 @@ function startMobileExample(file) {
   return { host, output, all, click, labels, settle };
 }
 
-test('mobile-tip.crumb steps the bill, tip and people', () => {
-  const app = startMobileExample('mobile-tip.crumb');
+test('mobile-tip.bas steps the bill, tip and people', () => {
+  const app = startMobileExample('mobile-tip.bas');
   assert.match(app.labels().join('|'), /Tip \$6\.00 {3}Total \$46\.00 {3}Each \$23\.00/);
   app.click('+ 1%');
   assert.match(app.labels().join('|'), /Tip: 16%/);
   assert.match(app.labels().join('|'), /Tip \$6\.40 {3}Total \$46\.40/);
 });
 
-test('mobile-dice.crumb rolls and lists the rolls', () => {
-  const app = startMobileExample('mobile-dice.crumb');
+test('mobile-dice.bas rolls and lists the rolls', () => {
+  const app = startMobileExample('mobile-dice.bas');
   app.click('Roll');
   app.click('Roll');
   const list = app.all().find((w) => w.className === 'ListPanel');
@@ -103,8 +103,8 @@ test('mobile-dice.crumb rolls and lists the rolls', () => {
   assert.match(app.labels().join('|'), /Total: \d+/);
 });
 
-test('mobile-lights-out.crumb starts unsolved and counts moves', () => {
-  const app = startMobileExample('mobile-lights-out.crumb');
+test('mobile-lights-out.bas starts unsolved and counts moves', () => {
+  const app = startMobileExample('mobile-lights-out.bas');
   assert.equal(app.output[0], 'Turn every light off. Tap a square.');
   app.host.clickCell(0, 0);
   app.settle();

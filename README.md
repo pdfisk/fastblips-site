@@ -50,7 +50,7 @@ src/ui/runtime.js     the Scheduler the browser UI runs programs on
 src/ui/windows/basic-console-window.js    a console that runs Crumb
 src/ui/windows/python-console-window.js   a console that runs MiniPy
 
-bin/crumb.js          CLI (.crumb files, and .py files through MiniPy)
+bin/crumb.js          CLI (.bas files, and .py files through MiniPy)
 web/                  the playground page and its build
 docs/shared-opcodes.md  how the two languages share one instruction set
 ```
@@ -113,7 +113,7 @@ runaway loop reports the budget rather than hanging the tab.
 ```js
 import { run, compile, parse } from 'crumb-lang';
 
-const { output, loadErrors, error, ok } = run(source, { filename: 'tally.crumb' });
+const { output, loadErrors, error, ok } = run(source, { filename: 'tally.bas' });
 ```
 
 Nothing throws on bad input. Per spec section 11 load errors are collected and
@@ -121,12 +121,12 @@ returned as a list; a runtime error comes back as `error` with a `line` and a
 `traceback`. `parse` stops after the AST, `compile` returns the chunk.
 
 ```
-$ crumb run    examples/fizzbuzz.crumb   # compile and execute (default)
-$ crumb dis    examples/factorial.crumb  # disassemble
-$ crumb check  examples/broken.crumb     # load errors only; exit 1 if any
-$ crumb parse  examples/words.crumb      # indented s-expression AST
-$ crumb tokens examples/words.crumb      # one line per token
-$ crumb json   examples/words.crumb      # AST as JSON
+$ crumb run    examples/fizzbuzz.bas   # compile and execute (default)
+$ crumb dis    examples/factorial.bas  # disassemble
+$ crumb check  examples/broken.bas     # load errors only; exit 1 if any
+$ crumb parse  examples/words.bas      # indented s-expression AST
+$ crumb tokens examples/words.bas      # one line per token
+$ crumb json   examples/words.bas      # AST as JSON
 ```
 
 `run` takes VM options: `out` (a line sink), `transcript` (the line sink for
@@ -150,7 +150,7 @@ A `Scheduler` shows the process as `waiting` meanwhile and runs the others.
 `runAsync()` (the `crumb` command uses `runAsync`). The `fetch` VM option
 replaces the global `fetch`, for tests. Crumb gets the response as a String
 and reads it with `JsonGet`, `JsonCount` and `JsonKey`; MiniPy gets dicts
-and lists. `docs/apis.md` lists free APIs to try, and `examples/api-tour.crumb`
+and lists. `docs/apis.md` lists free APIs to try, and `examples/api-tour.bas`
 and `examples/api-tour.py` visit twelve of them.
 
 ## Scheduling
@@ -276,7 +276,7 @@ when it is reached. Short-circuiting therefore also short-circuits the type
 check, which is what makes `False And 1 = "x"` legal.
 
 ```
-$ crumb dis examples/factorial.crumb
+$ crumb dis examples/factorial.bas
 line     addr  op                 args    ; note
     6      0  CONST              0       ; 0
     |      2  CONST              1       ; 9
@@ -332,11 +332,11 @@ cascades from a broken AST.
 Uncatchable, with a source line and a traceback of call sites:
 
 ```
-errors.crumb:9: error: operator + expects Number, Number but got String, Number
-errors.crumb:9:     Return label + k
-  in Function Boom, called at errors.crumb:3
-  in Function Depth, called at errors.crumb:4
-  in Function Depth, called at errors.crumb:13
+errors.bas:9: error: operator + expects Number, Number but got String, Number
+errors.bas:9:     Return label + k
+  in Function Boom, called at errors.bas:3
+  in Function Depth, called at errors.bas:4
+  in Function Depth, called at errors.bas:13
 ```
 
 Type mismatch, index out of range, division by zero, a `Function` that ended
@@ -355,9 +355,9 @@ resolution, arity and slot allocation; the VM's arithmetic, comparison,
 short-circuiting, control flow, arrays, procedures and built-ins; and the
 scheduler's time slicing, delayed starts, sleeping, background running,
 suspend and resume, failure isolation and kill.
-`examples/broken.crumb` plants 14 load errors and the suite asserts exactly 14
+`examples/broken.bas` plants 14 load errors and the suite asserts exactly 14
 diagnostics, so a recovery regression that starts cascading fails the build;
-`examples/errors.crumb` asserts the runtime traceback.
+`examples/errors.bas` asserts the runtime traceback.
 
 For MiniPy (`test/python.test.js`): every program in `test/python/` must
 print exactly its `.out` file, and for everything CPython can run that file is

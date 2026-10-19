@@ -252,7 +252,7 @@
     var code = source.value;
     var lines = code.split('\n');
     var started = performance.now();
-    var result = window.Crumb.run(code, { filename: 'program.crumb', maxSteps: MAX_STEPS });
+    var result = window.Crumb.run(code, { filename: 'program.bas', maxSteps: MAX_STEPS });
     var elapsed = performance.now() - started;
 
     flagged = [];
@@ -317,7 +317,7 @@
 
   function renderBytecode() {
     var code = source.value;
-    var compiled = window.Crumb.compile(code, { filename: 'program.crumb' });
+    var compiled = window.Crumb.compile(code, { filename: 'program.bas' });
 
     if (!compiled.ok) {
       flagged = compiled.errors.map(function (error) { return error.line; });

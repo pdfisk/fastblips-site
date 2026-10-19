@@ -28,6 +28,7 @@ import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
 import { runParameter, projectParameter, startRuntime, startProjectRuntime } from './run-app.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
+import { FileCopyWindow } from './windows/file-copy-window.js';
 
 /**
  * Starts the UI the page calls for: with ?run=<program name>, that program
@@ -102,10 +103,12 @@ function schedulerSummary() {
 //   New Basic    a new, empty Basic console
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
-//                (.crumb/.bas: Basic, .py: Python)
+//                (.bas: Basic, .py: Python)
 //   Save         the front-most console's source, to its file
 //   Save As...   the front-most console's source, to a new file
 //   Delete       the front-most console's file, after confirming
+//   File Copy    the File Copy window: copies files between folders and
+//                local or remote databases, two panes, like Norton Commander
 // Save and Save As are greyed out unless a console is the front-most showing
 // window; Delete also needs that console's file to be deletable (a file
 // opened or saved through the File System Access API, in Chrome or Edge).
@@ -133,6 +136,8 @@ function fileMenu(viewport) {
   menu.addItem('Delete', () => frontConsole()?.deleteFile(), {
     enabled: () => Boolean(frontConsole()?.canDeleteFile),
   });
+  menu.addSeparator();
+  menu.addItem('File Copy', () => FileCopyWindow.instance.open(viewport));
   return menu;
 }
 

@@ -34,7 +34,7 @@ class Scope {
 }
 
 export class Compiler {
-  constructor({ filename = 'input.crumb' } = {}) {
+  constructor({ filename = 'input.bas' } = {}) {
     this.filename = filename;
     this.code = [];
     this.lines = [];

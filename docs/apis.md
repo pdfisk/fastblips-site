@@ -3,7 +3,7 @@
 Twelve public APIs that answer in JSON, need no key or sign-up, and allow requests from
 web pages (CORS), so `Fetch` (Crumb) and `fetch()` (MiniPy) work with them from the
 playground, a launch window or a `?run=` page. All were checked from a browser on
-2026-09-26. `examples/api-tour.crumb` and `examples/api-tour.py` visit each one.
+2026-09-26. `examples/api-tour.bas` and `examples/api-tour.py` visit each one.
 
 | # | API | Example URL | Try these paths (Crumb `JsonGet`) |
 |---|---|---|---|

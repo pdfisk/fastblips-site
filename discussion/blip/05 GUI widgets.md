@@ -77,7 +77,7 @@ Sub Picked(w, index)
 End Sub
 ```
 
-`examples/widget-tour.crumb` and `examples/widget-tour.py` use most of the
+`examples/widget-tour.bas` and `examples/widget-tour.py` use most of the
 classes.
 
 ### The Viewport, ids and saved screens

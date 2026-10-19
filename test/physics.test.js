@@ -279,7 +279,7 @@ const EXAMPLES = {
 };
 
 for (const [name, [shapes, adds]] of Object.entries(EXAMPLES)) {
-  for (const ext of ['crumb', 'py']) {
+  for (const ext of ['bas', 'py']) {
     test(`${name}.${ext} makes ${shapes} shapes, handles a click and keeps them in the world`, () => {
       const host = physicsHost();
       const out = [];
@@ -418,7 +418,7 @@ Print w.isAnimating(g)
 w.detach(b)
 Print w.getPartCount(g)
 `;
-  const { chunk, errors } = compile(src, { filename: 'composites.crumb' });
+  const { chunk, errors } = compile(src, { filename: 'composites.bas' });
   assert.deepEqual(errors.map((e) => e.message), []);
   const vm = new VM(chunk, { gui: host, out: (t) => out.push(t.trim()) });
   settle(vm);

@@ -486,7 +486,7 @@ world.setAngle(box, 20)
 ```
 
 `examples/physics-balls`, `physics-shapes`, `physics-pyramid`, `physics-bumpers`,
-`physics-gravity`, `physics-composites`, `physics-machine` and `physics-tower` (each as `.crumb` and `.py`) are programs that use it.
+`physics-gravity`, `physics-composites`, `physics-machine` and `physics-tower` (each as `.bas` and `.py`) are programs that use it.
 
 MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
 and `vp = Viewport()` (no `New`), methods in snake_case (`set_width`, `get_selected_index`,
@@ -543,8 +543,8 @@ Two fatal, uncatchable phases. No `Try`/`Catch`, no `On Error`.
 Diagnostic shape:
 
 ```
-tally.crumb:14: error: operator + expects Number, Number but got String, Number
-tally.crumb:14:   total = label + 1
+tally.bas:14: error: operator + expects Number, Number but got String, Number
+tally.bas:14:   total = label + 1
 ```
 
 ## 12. Reserved words (25)

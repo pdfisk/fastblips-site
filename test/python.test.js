@@ -74,7 +74,7 @@ test('every opcode has a unique name, a section and known operand kinds', () => 
 
 test('the Crumb compiler emits only core and crumb opcodes', () => {
   const allowed = new Set([...SECTIONS.core, ...SECTIONS.crumb]);
-  for (const file of readdirSync(examples).filter((f) => f.endsWith('.crumb') && f !== 'broken.crumb')) {
+  for (const file of readdirSync(examples).filter((f) => f.endsWith('.bas') && f !== 'broken.bas')) {
     const { chunk } = compileCrumb(readFileSync(join(examples, file), 'utf8'), { filename: file });
     for (const name of opcodesOf(chunk)) assert.ok(allowed.has(name), `${file} uses ${name}`);
   }

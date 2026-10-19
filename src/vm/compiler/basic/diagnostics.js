@@ -13,10 +13,10 @@ export class CrumbError extends Error {
 /**
  * Renders diagnostics in the two-line shape the spec mandates:
  *
- *   tally.crumb:14: error: <message>
- *   tally.crumb:14:   total = label + 1
+ *   tally.bas:14: error: <message>
+ *   tally.bas:14:   total = label + 1
  */
-export function formatDiagnostics(errors, source, filename = 'input.crumb') {
+export function formatDiagnostics(errors, source, filename = 'input.bas') {
   const lines = source.split(/\r\n|\n|\r/);
   const out = [];
   for (const error of errors) {

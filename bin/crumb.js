@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// crumb — load a .crumb (or MiniPy .py) file and run, disassemble or inspect it.
+// crumb — load a .bas (or MiniPy .py) file and run, disassemble or inspect it.
 //
 //   crumb run    <file>   compile and execute (default)
 //   crumb dis    <file>   disassemble the bytecode
@@ -28,7 +28,7 @@ const file = argv[0];
 
 if (!file) {
   process.stderr.write(
-    'usage: crumb <command> <file.crumb | file.py>\n'
+    'usage: crumb <command> <file.bas | file.py>\n'
     + '  run     compile and execute      (default)\n'
     + '  dis     disassemble the bytecode\n'
     + '  parse   indented s-expression AST (Crumb)\n'

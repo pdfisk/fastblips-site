@@ -1,5 +1,5 @@
 # A tour of the widgets in MiniPy: the same classes and methods as Crumb's
-# (examples/widget-tour.crumb), spelled the Python way. Run it from a
+# (examples/widget-tour.bas), spelled the Python way. Run it from a
 # launch window (a Python console's Launch menu).
 
 page = VPanel()

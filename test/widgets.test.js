@@ -13,7 +13,7 @@ import { WIDGET_CLASSES } from '../src/vm/runtime/widgets.js';
 import { FakeHost } from './fake-widget-host.js';
 
 function crumb(source) {
-  const { chunk, errors } = compile(source, { filename: 't.crumb' });
+  const { chunk, errors } = compile(source, { filename: 't.bas' });
   assert.deepEqual(errors.map((e) => e.message), []);
   return chunk;
 }
@@ -212,7 +212,7 @@ test('Crumb: onClick runs the Sub for each click, after the module code', () => 
 });
 
 test('Crumb: object load errors', () => {
-  const errorsOf = (source) => compile(source, { filename: 't.crumb' }).errors.map((e) => e.message);
+  const errorsOf = (source) => compile(source, { filename: 't.bas' }).errors.map((e) => e.message);
   assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, Canvas, HPanel/);
   assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
   assert.match(errorsOf('Dim x = New HPanel(1)')[0], /'New HPanel' takes 0 arguments, found 1/);
@@ -355,10 +355,10 @@ test('Scheduler: a waiting process sleeps off the queues until a click', () => {
   assert.deepEqual(out, ['hit']);
 });
 
-test('examples/button-demo.crumb', () => {
+test('examples/button-demo.bas', () => {
   const host = new FakeHost();
   const out = [];
-  const source = readFileSync(new URL('../examples/button-demo.crumb', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../examples/button-demo.bas', import.meta.url), 'utf8');
   const vm = new VM(crumb(source), { gui: host, out: (t) => out.push(t), transcript: (t) => out.push(t) });
   settle(vm);
   for (let i = 0; i < 10; i++) host.click(3);
@@ -374,9 +374,9 @@ test('examples/button-demo.crumb', () => {
   assert.deepEqual(out, ['Start over after 10 clicks']);
 });
 
-test('examples/widget-tour.crumb and widget-tour.py', () => {
+test('examples/widget-tour.bas and widget-tour.py', () => {
   const read = (name) => readFileSync(new URL(`../examples/${name}`, import.meta.url), 'utf8');
-  const crumbRun = runCrumb(read('widget-tour.crumb'));
+  const crumbRun = runCrumb(read('widget-tour.bas'));
   assert.equal(crumbRun.vm.waiting, true);
   const { host, vm } = crumbRun;
   const find = (className) => [...host.widgets.values()].find((w) => w.className === className);
@@ -661,9 +661,9 @@ test('MiniPy: the Board, with snake_case methods and a function for clicks', () 
   assert.deepEqual(out, ['True 3 3 False -1', '1 1 X', '0 2 O', '1 1 X']);
 });
 
-test('examples/tic-tac-toe.crumb and tic-tac-toe.py', () => {
+test('examples/tic-tac-toe.bas and tic-tac-toe.py', () => {
   const read = (name) => readFileSync(new URL(`../examples/${name}`, import.meta.url), 'utf8');
-  for (const run of [() => runCrumb(read('tic-tac-toe.crumb')), () => runPy(read('tic-tac-toe.py'))]) {
+  for (const run of [() => runCrumb(read('tic-tac-toe.bas')), () => runPy(read('tic-tac-toe.py'))]) {
     const { vm, host, out } = run();
     const board = host.get(host.board);
     assert.deepEqual([board.props.rows, board.props.columns, board.props.checkered], [3, 3, false]);
@@ -743,7 +743,7 @@ test('Crumb: Canvas mistakes are load or runtime errors', () => {
   assert.match(crumbError('Dim c = New Canvas()\nc.setSize(0, 10)'), /width must be a number from 1 to 4000/);
   assert.match(crumbError('Dim c = New Canvas()\nc.line(1, 2, 3, "x")'), /line expects a Number as argument 4/);
   assert.match(crumbError('Dim c = New Canvas()\nc.setLeft(3)'), /a Canvas has no method 'setLeft'/);
-  const { errors } = compile('Dim c = New Canvas()\nc.line(1, 2, 3)', { filename: 't.crumb' });
+  const { errors } = compile('Dim c = New Canvas()\nc.line(1, 2, 3)', { filename: 't.bas' });
   assert.equal(errors.length, 1);
 });
 
@@ -771,9 +771,9 @@ test('MiniPy: the Canvas, with snake_case methods', () => {
     ['fillRect', 'fillBox3d', 'fillTriangle3d', 'lookAt', 'update']);
 });
 
-test('examples/canvas-demo.crumb and canvas-demo.py', () => {
+test('examples/canvas-demo.bas and canvas-demo.py', () => {
   const read = (name) => readFileSync(new URL(`../examples/${name}`, import.meta.url), 'utf8');
-  for (const [make, source] of [[crumb, read('canvas-demo.crumb')], [py, read('canvas-demo.py')]]) {
+  for (const [make, source] of [[crumb, read('canvas-demo.bas')], [py, read('canvas-demo.py')]]) {
     const host = new FakeHost();
     const out = [];
     const vm = new VM(make(source), { gui: host, out: (t) => out.push(t), sleep: () => {} });

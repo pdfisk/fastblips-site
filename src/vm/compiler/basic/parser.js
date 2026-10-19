@@ -23,7 +23,7 @@ const COMPARE_OPS = new Set(['=', '<>', '<', '<=', '>', '>=']);
 const MUL_OPS = new Set(['*', '/', '\\']);
 
 export class Parser {
-  constructor(tokens, { filename = 'input.crumb' } = {}) {
+  constructor(tokens, { filename = 'input.bas' } = {}) {
     this.tokens = tokens;
     this.filename = filename;
     this.pos = 0;

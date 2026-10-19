@@ -14,7 +14,7 @@ const DIGIT = /[0-9]/;
 const NUMBER_RE = /[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/g;
 
 export class Lexer {
-  constructor(source, { filename = 'input.crumb' } = {}) {
+  constructor(source, { filename = 'input.bas' } = {}) {
     this.source = source;
     this.filename = filename;
     this.pos = 0;

@@ -17,7 +17,7 @@ export class BasicConsoleWindow extends ConsoleWindow {
   static get titlePrefix() { return 'Basic Console'; }
 
   static get fileTypes() {
-    return [{ description: 'Crumb Basic source', accept: { 'text/plain': ['.crumb', '.bas'] } }];
+    return [{ description: 'Crumb Basic source', accept: { 'text/plain': ['.bas'] } }];
   }
   static get defaultText() { return 'Print "Hello, world"\n'; }
 
@@ -43,7 +43,7 @@ export class BasicConsoleWindow extends ConsoleWindow {
    * @returns {{process: object|null, errorCount: number, origin: string|null}}
    */
   static spawn(source, {
-    name, output, gui = null, filename = 'console.crumb', onExit, priority, compiled = null,
+    name, output, gui = null, filename = 'console.bas', onExit, priority, compiled = null,
   } = {}) {
     const { chunk, errors, errorCount, origin } = loadProgram({
       language: 'crumb', source, compiled, filename,
@@ -97,7 +97,7 @@ export class BasicConsoleWindow extends ConsoleWindow {
   }
 
   /** Compiles Crumb source without running it (a DatabaseWindow's Compile button). */
-  static compileSource(source, filename = 'console.crumb') {
+  static compileSource(source, filename = 'console.bas') {
     const { chunk, errors } = compile(source, { filename });
     if (!chunk || errors.length > 0) {
       return { chunk: null, errors: formatDiagnostics(errors, source, filename), errorCount: errors.length };

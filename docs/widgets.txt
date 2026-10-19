@@ -30,6 +30,7 @@ Class hierarchy
             PythonDatabaseWindow
           ProjectsWindow (singleton)
           CommunityProjectsWindow (singleton)
+          FileCopyWindow (singleton)
         ScriptPickerWindow
         CopyProjectWindow
         LaunchWindow (abstract)
@@ -496,8 +497,8 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     Register..., which opens the RegisterWindow, then a separator. It then has New Basic and New Python; then Open..., Save and
     Save As...; then Delete, with a separator between the groups.
     - New Basic and New Python open an empty console in that language.
-    - Open... asks for a source file and opens it in a new console: .crumb
-      and .bas files in a BasicConsoleWindow, .py files in a
+    - Open... asks for a source file and opens it in a new console: .bas
+      files in a BasicConsoleWindow, .py files in a
       PythonConsoleWindow. The console's title shows the file name.
     - Save writes the front-most console's source back to its file; for a
       console with no file yet it does what Save As... does.
@@ -653,7 +654,7 @@ opened from a console's Launch menu; any number can be open at once.
     console afterwards does not change it. The console's class
     (window.language) runs it, so Go still works after the console closes.
   - Titled with the name of the script loaded in the console that launched
-    it (console.scriptName): the console's file name, e.g. fizzbuzz.crumb;
+    it (console.scriptName): the console's file name, e.g. fizzbuzz.bas;
     for a console opened from a DatabaseWindow, the record's name; otherwise
     the console's title (e.g. Basic Console 2).
   - Each new launch window opens slightly below and to the right of the
@@ -826,6 +827,35 @@ A Window listing every shared project, so they can be launched.
   - The list is read from the database each time the window is opened, by
     Refresh, and when the database server or the user changes. A failed
     read, or no shared projects, shows a note in place of the rows.
+
+
+FileCopyWindow (singleton)
+-------------------------
+A Window, opened by File > File Copy, that copies files between two places in
+the manner of Norton Commander. The copy engine and the volumes are in
+src/ui/file-volumes.js, which needs no DOM.
+
+  - Its title is "File Copy". There is only one; FileCopyWindow.instance creates
+    it on first use, and constructing a second one throws.
+  - Two panes side by side, each showing a folder of a volume: a folder on this
+    computer (File System Access API: Chrome and Edge, picked with "Folder on
+    this computer..."), Browser files (the page's private file system, any
+    browser) or the scripts of one space of a database server (the signed-in
+    user's, or the shared ones, on the Remote or the Local server), listed as
+    name.bas and name.py. A database has no folders and keeps only .bas
+    and .py text files. Picked folders last until the page is closed.
+  - The active pane is the source; the other is the target. Keys: Tab, arrows,
+    Home/End, PgUp/PgDn, Enter (open a folder; .. or Backspace goes up),
+    Insert or Space (mark), + - * (mark all, none, invert), F5 copy, F6 move,
+    F7 new folder, F8 or Delete delete, F9 refresh, Escape (stops a job). The
+    buttons along the bottom do the same. Without marks a command works on the
+    file under the cursor.
+  - Folders are copied with all they hold. A file that exists in the target
+    (names compare ignoring case) is replaced only when asked: Overwrite, Skip,
+    Overwrite All, Skip All or Cancel. A mistake with one file is reported and
+    the rest go on. A move deletes each source once it is copied.
+  - Questions and the folder name are asked on a line above the status line,
+    not in a dialog; the status line says what was done.
 
 
 CopyProjectWindow
@@ -1302,8 +1332,8 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     Register..., which opens the RegisterWindow, then a separator. It then has New Basic and New Python; then Open..., Save and
     Save As...; then Delete, with a separator between the groups.
     - New Basic and New Python open an empty console in that language.
-    - Open... asks for a source file and opens it in a new console: .crumb
-      and .bas files in a BasicConsoleWindow, .py files in a
+    - Open... asks for a source file and opens it in a new console: .bas
+      files in a BasicConsoleWindow, .py files in a
       PythonConsoleWindow. The console's title shows the file name.
     - Save writes the front-most console's source back to its file; for a
       console with no file yet it does what Save As... does.
@@ -1459,7 +1489,7 @@ opened from a console's Launch menu; any number can be open at once.
     console afterwards does not change it. The console's class
     (window.language) runs it, so Go still works after the console closes.
   - Titled with the name of the script loaded in the console that launched
-    it (console.scriptName): the console's file name, e.g. fizzbuzz.crumb;
+    it (console.scriptName): the console's file name, e.g. fizzbuzz.bas;
     for a console opened from a DatabaseWindow, the record's name; otherwise
     the console's title (e.g. Basic Console 2).
   - Each new launch window opens slightly below and to the right of the
@@ -2009,7 +2039,7 @@ changed through methods, and in MiniPy the same way with Python spellings:
     the key's name. A program in a loop of its own (a game: draw, update,
     Sleep) gets no events until the loop ends, so it asks isKeyDown and
     getMouseX / getMouseY instead. CanvasBinding (src/ui/board-host.js)
-    runs these methods for both hosts. examples/canvas-demo.crumb and
+    runs these methods for both hosts. examples/canvas-demo.bas and
     canvas-demo.py use it.
     The Board's methods: setSize(rows, columns), getRows, getColumns; setText /
     getText, setBackground / getBackground and setColor / getColor, each
@@ -2020,7 +2050,7 @@ changed through methods, and in MiniPy the same way with Python spellings:
     the column of the cell clicked - the one event that passes two values
     ('handler:int:int' in the class table). A cell off the board is a
     runtime error. BoardBinding (src/ui/board-host.js) runs these methods
-    on a BoardPanel for both hosts. examples/tic-tac-toe.crumb and
+    on a BoardPanel for both hosts. examples/tic-tac-toe.bas and
     tic-tac-toe.py use it.
   - The Viewport. For a program, the topmost GUI object is its Viewport: a
     singleton (New Viewport() / Viewport() always gives the same object)
@@ -2079,8 +2109,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
     and that value as its arguments, when the program is idle. A program
     with a handler keeps running after its top-level code, waiting for
     events (its process shows as 'waiting' in the Process window), until
-    it is stopped. examples/widget-tour.crumb and widget-tour.py show most
-    of the classes; examples/button-demo.crumb is a small one.
+    it is stopped. examples/widget-tour.bas and widget-tour.py show most
+    of the classes; examples/button-demo.bas is a small one.
 
 
 GUI designer

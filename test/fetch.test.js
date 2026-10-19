@@ -36,7 +36,7 @@ function fakeFetch(routes) {
 const W = 'https://api.example.com/weather';
 
 function crumb(source) {
-  const { chunk, errors } = compile(source, { filename: 't.crumb' });
+  const { chunk, errors } = compile(source, { filename: 't.bas' });
   assert.deepEqual(errors, []);
   return chunk;
 }

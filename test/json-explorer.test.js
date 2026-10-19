@@ -1,4 +1,4 @@
-// examples/json-explorer.crumb: Fetch a JSON API, list its keys sorted,
+// examples/json-explorer.bas: Fetch a JSON API, list its keys sorted,
 // show the picked key's value; a two-pane desktop layout and a one-pane
 // mobile layout. The network is replaced by a fake fetch whose answers
 // have the shape of the five real APIs.
@@ -10,7 +10,7 @@ import { compile } from '../src/index.js';
 import { VM } from '../src/vm/vm.js';
 import { FakeHost } from './fake-widget-host.js';
 
-const SOURCE = readFileSync(new URL('../examples/json-explorer.crumb', import.meta.url), 'utf8');
+const SOURCE = readFileSync(new URL('../examples/json-explorer.bas', import.meta.url), 'utf8');
 
 const ANSWERS = {
   'https://pokeapi.co/api/v2/pokemon/pikachu': {
@@ -53,7 +53,7 @@ async function fakeFetch(url) {
 
 /** Starts the example on a screen `width` pixels wide and waits for the first download. */
 async function start(width) {
-  const { chunk, errors } = compile(SOURCE, { filename: 'json-explorer.crumb' });
+  const { chunk, errors } = compile(SOURCE, { filename: 'json-explorer.bas' });
   assert.deepEqual(errors.map((e) => e.message), []);
   const host = new FakeHost();
   host.widgets.get(host.viewportId()).props.width = width;
