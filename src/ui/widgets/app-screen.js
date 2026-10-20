@@ -3,7 +3,8 @@
 // Print output), and the widgets the program makes (New Button, New Label,
 // ...) float above the text at the positions it gives them. Between the
 // two are the program's Board (New Board() / Board()), a BoardPanel, and its
-// Canvas (New Canvas() / Canvas()), a CanvasPanel; each covers the text once
+// Canvas (New Canvas() / Canvas()), a CanvasPanel, and its Physics
+// (New Physics() / Physics()), a PhysicsPanel; each covers the text once
 // the program uses it.
 //
 // screen.host (a ProgramWidgetHost, ../program-widgets.js) is the VM's
@@ -14,6 +15,7 @@ import { Panel } from './panel.js';
 import { TextPanel } from './text-panel.js';
 import { BoardPanel } from './board-panel.js';
 import { CanvasPanel } from './canvas-panel.js';
+import { PhysicsPanel } from './physics-panel.js';
 import { FreeLayer, ProgramWidgetHost } from '../program-widgets.js';
 
 export class AppScreen extends Panel {
@@ -28,9 +30,12 @@ export class AppScreen extends Panel {
     // And until it makes its Canvas.
     this.canvasPanel = this.add(new CanvasPanel());
     this.canvasPanel.visible = false;
+    // And until it makes its Physics (shapes that fall, bounce and spin).
+    this.physicsPanel = this.add(new PhysicsPanel());
+    this.physicsPanel.visible = false;
     this.widgetLayer = this.add(new FreeLayer());
     /** The VM's widget host (pass it as the `gui` option). */
-    this.host = new ProgramWidgetHost(this.widgetLayer, { board: this.boardPanel, canvas: this.canvasPanel });
+    this.host = new ProgramWidgetHost(this.widgetLayer, { board: this.boardPanel, canvas: this.canvasPanel, physics: this.physicsPanel });
   }
 
   layout() {
@@ -38,17 +43,18 @@ export class AppScreen extends Panel {
     this.textPanel.setBounds(0, 0, width, height);
     this.boardPanel.setBounds(0, 0, width, height);
     this.canvasPanel.setBounds(0, 0, width, height);
+    this.physicsPanel.setBounds(0, 0, width, height);
     this.widgetLayer.setBounds(0, 0, width, height);
     super.layout();
   }
 
   /** Removes every widget the program added, and hides and empties its
-   *  board and its canvas (Go and Reset do this). */
+   *  board, its canvas and its physics world (Go and Reset do this). */
   clearWidgets() { this.host.clear(); }
 
-  /** An AppScreen holds only its text, its board, its canvas and its widget layer. */
+  /** An AppScreen holds only its text, its board, its canvas, its physics and its widget layer. */
   add(child) {
-    if (this.children.length >= 4) throw new Error('AppScreen cannot contain other widgets');
+    if (this.children.length >= 5) throw new Error('AppScreen cannot contain other widgets');
     return super.add(child);
   }
 }

@@ -13,6 +13,7 @@ import { VM } from '../src/vm/vm.js';
 import { WidgetError } from '../src/vm/runtime/widgets.js';
 import { PhysicsWorld, MAX_BODIES } from '../src/ui/physics.js';
 import { PhysicsBinding } from '../src/ui/board-host.js';
+import { ProgramWidgetHost } from '../src/ui/program-widgets.js';
 
 const DEG = 180 / Math.PI;
 
@@ -424,3 +425,53 @@ Print w.getPartCount(g)
   settle(vm);
   assert.deepEqual(out, ['2', 'True', 'True', 'False', '1']);
 });
+
+// ------------------------------------------------------------ launch screens
+
+// A launch window's screen has a Physics page of its own (AppScreen's
+// physicsPanel), which a program's New Physics() shows.
+function screenHost(withPhysics = true) {
+  const layer = { id: '', children: [], element: { style: {} }, add() {}, remove() {}, layout() {} };
+  const panel = { ...fakePanel(), visible: false };
+  Object.assign(panel.element, { style: {}, dataset: {} });
+  return { panel, host: new ProgramWidgetHost(layer, withPhysics ? { physics: panel } : {}) };
+}
+
+test('on a launch screen, New Physics() shows the screen\'s Physics page with a new world', () => {
+  const { panel, host } = screenHost();
+  const id = host.create('Physics', []);
+  assert.equal(panel.visible, true);
+  assert.equal(panel.demo, false);
+  assert.equal(host.has(id), true);
+  assert.equal(host.classOf(id), 'Physics');
+  const ball = host.call(id, 'addBall', [100, 50, 10]);
+  assert.equal(host.call(id, 'getCount', []), 1);
+  assert.equal(host.create('Physics', []), id, 'one world per screen');
+  assert.equal(panel.world.count, 0, 'making it again starts a new, empty world');
+  host.call(id, 'addCircle', [50, 50, 5]);
+  host.clear();   // Reset or Go again
+  assert.equal(panel.visible, false);
+  assert.equal(panel.demo, true);
+  assert.ok(ball > 0);
+});
+
+test('a screen without a Physics page says so', () => {
+  const { host } = screenHost(false);
+  assert.throws(() => host.create('Physics', []), { name: 'WidgetError', message: /no Physics on this screen/ });
+});
+
+for (const file of ['physics-composites.bas', 'physics-composites.py', 'physics-balls.bas', 'physics-balls.py']) {
+  test(`${file} runs on a launch screen and fills its Physics page`, () => {
+    const { panel, host } = screenHost();
+    const out = [];
+    const vm = new VM(load(file), { gui: host, out: (t) => out.push(t) });
+    settle(vm);
+    assert.equal(panel.visible, true);
+    assert.ok(panel.world.count >= 5);
+    assert.ok(out.length >= 1);
+    run(panel.world, 2);
+    panel.element.dispatchEvent(new CustomEvent('physicsclick', { detail: { x: 250, y: 120 } }));
+    settle(vm);
+    assert.ok(panel.world.count >= 6);
+  });
+}

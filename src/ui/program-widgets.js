@@ -35,7 +35,7 @@ import { Spacer } from './widgets/spacer.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
-import { BoardBinding, CanvasBinding } from './board-host.js';
+import { BoardBinding, CanvasBinding, PhysicsBinding } from './board-host.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
@@ -225,17 +225,20 @@ export class ProgramWidgetHost {
   /**
    * @param {FreeLayer} layer - the program's Viewport
    * @param {{board?: import('./widgets/board-panel.js').BoardPanel,
-   *          canvas?: import('./widgets/canvas-panel.js').CanvasPanel}} [options] -
-   *   board, canvas: the screen's BoardPanel and CanvasPanel, each hidden
-   *   until the program makes its Board or its Canvas (they are not in the
-   *   Viewport); without one there is no Board or no Canvas.
+   *          canvas?: import('./widgets/canvas-panel.js').CanvasPanel,
+   *          physics?: import('./widgets/physics-panel.js').PhysicsPanel}} [options] -
+   *   board, canvas, physics: the screen's BoardPanel, CanvasPanel and
+   *   PhysicsPanel, each hidden until the program makes its Board, its Canvas
+   *   or its Physics (they are not in the Viewport); without one there is no
+   *   Board, no Canvas or no Physics.
    */
-  constructor(layer, { board = null, canvas = null } = {}) {
+  constructor(layer, { board = null, canvas = null, physics = null } = {}) {
     this.layer = layer;
-    /** className -> { binding, panel } for the screen's Board and Canvas. */
+    /** className -> { binding, panel } for the screen's Board, Canvas and Physics. */
     this._surfaces = {};
     if (board) this._surfaces.Board = { binding: new BoardBinding(board), panel: board };
     if (canvas) this._surfaces.Canvas = { binding: new CanvasBinding(canvas), panel: canvas };
+    if (physics) this._surfaces.Physics = { binding: new PhysicsBinding(physics), panel: physics };
     this._widgets = new Map();       // id -> widget
     this._ids = new Map();           // widget -> id
     this._nextId = 1;
@@ -250,8 +253,8 @@ export class ProgramWidgetHost {
   /** Every widget, oldest first. */
   get widgets() { return [...this._widgets.values()]; }
 
-  /** Removes every widget; ids start from 1 again. The board and the
-   *  canvas are hidden and put back as new. */
+  /** Removes every widget; ids start from 1 again. The board, the
+   *  canvas and the physics world are hidden and put back as new. */
   clear() {
     for (const { binding, panel } of Object.values(this._surfaces)) {
       panel.visible = false;
@@ -295,13 +298,11 @@ export class ProgramWidgetHost {
 
   create(className, args) {
     if (className === 'Viewport') return this._idOf(this.layer);
-    if (className === 'Physics') {
-      throw new WidgetError('the Physics class needs a console: run the program in a console, whose output has a Physics tab');
-    }
-    if (className === 'Board' || className === 'Canvas') {
+    if (className === 'Board' || className === 'Canvas' || className === 'Physics') {
       const surface = this._surfaces[className];
       if (!surface) throw new WidgetError(`there is no ${className} on this screen`);
       const { panel } = surface;
+      if (className === 'Physics') surface.binding.start();   // a new, empty world
       panel.visible = true;
       panel.layout();
       return this._ids.get(panel) ?? this._register(panel, className);

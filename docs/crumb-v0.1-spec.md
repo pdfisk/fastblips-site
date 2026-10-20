@@ -196,7 +196,7 @@ label.setWidth(100)
 | `ListPanel` | `New ListPanel()` | A list the user picks a row from |
 | `Canvas` | `New Canvas()` | The program's canvas: a surface for 2D and 3D drawing, for showing data and for games. A **singleton**, like the `Board` |
 | `Board` | `New Board()` | The program's board: a grid of equal cells that hold text, for board games. A **singleton**, like the `Viewport`, but not a widget in it |
-| `Physics` | `New Physics()` | The program's physics world: shapes that fall, bounce, spin and push each other. A **singleton**, like the `Canvas`; only a console has one (the Physics tab of its output) |
+| `Physics` | `New Physics()` | The program's physics world: shapes that fall, bounce, spin and push each other. A **singleton**, like the `Canvas`; in a console it is the Physics tab of the output, and in a launch window or page the screen's Physics page |
 
 `New` with any other name, or the wrong number of arguments, is a load error. Text
 arguments are converted as by `Str`.
@@ -425,8 +425,9 @@ End While
 
 **The Physics.** `New Physics()` is the program's physics world: shapes that fall under
 gravity, bounce, spin and push each other. It can be made in a console, whose output has a
-Physics tab that shows it; a launch window or page has no Physics, and `New Physics()`
-there is a runtime error that says so. It has none of the methods every widget has.
+Physics tab that shows it, and in a launch window or a `?run=` page (desktop or mobile),
+where it covers the printed text, as the Board and the Canvas do; widgets the program
+makes still float above it. Each Go starts with it empty, and Reset puts it away. It has none of the methods every widget has.
 
 The world is 400 units wide and 300 high until `setSize(width, height)`, with (0, 0) at
 the top left, x to the right and y down, and is scaled to fit wherever it is shown. Its

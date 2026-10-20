@@ -1983,16 +1983,17 @@ The screen a program runs on, in a LaunchWindow and on the ?run= page
 (src/ui/widgets/app-screen.js).
 
   - A TextPanel (screen.textPanel) fills it: the program's Print output.
-  - A BoardPanel (screen.boardPanel) and a CanvasPanel (screen.canvasPanel)
-    lie over the text, each hidden until the program makes its Board or
-    its Canvas; it then covers the text.
+  - A BoardPanel (screen.boardPanel), a CanvasPanel (screen.canvasPanel) and
+    a PhysicsPanel (screen.physicsPanel) lie over the text, each hidden
+    until the program makes its Board, its Canvas or its Physics; it then
+    covers the text. The physics world only moves while it is showing.
   - Over it, a transparent layer (screen.widgetLayer, a FreeLayer) holds the
     widgets the program makes. Clicks outside them go through to the text.
     The program's Labels are opaque, so printed text does not show through.
   - screen.host, a ProgramWidgetHost, is what the VM calls to make and
     change the widgets (its `gui` option).
-  - clearWidgets() removes them all, and hides the board and the canvas
-    and puts them back as new (Go and Reset do this).
+  - clearWidgets() removes them all, and hides the board, the canvas and the
+    physics world and puts them back as new (Go and Reset do this).
 
 
 Program widgets
@@ -2023,10 +2024,10 @@ changed through methods, and in MiniPy the same way with Python spellings:
         console.outputHost). Each Run starts with the board and the canvas
         as new and the Text page showing; a program that stops with an
         error shows the Text page again, where the error is.
-      - on an AppScreen (a launch window, the ?run= page), the screen's
-        own BoardPanel and CanvasPanel, each covering the printed text
-        once the program makes it (the canvas over the board). Widgets
-        still float above them.
+      - on an AppScreen (a launch window, desktop or mobile, the ?run=
+        page), the screen's own BoardPanel, CanvasPanel and PhysicsPanel,
+        each covering the printed text once the program makes it (the
+        canvas over the board). Widgets still float above them.
     New classes go at the end of WIDGET_CLASSES: compiled code names a
     class by its position there.
     The Canvas's methods are the CanvasPanel's: setSize, getWidth,
