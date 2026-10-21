@@ -2150,10 +2150,45 @@ Designer button opens one.
     line as "Label = Handler", with "-" for a separator.
   - The ButtonBar: New (a menu of classes: the new composite's root),
     Open (the saved composites; Refresh list reads them again), the
-    composite's name, Save, Add, Delete, Up, Down, and Test, which
-    switches the Preview between designing and using it. The title shows
-    the name and a * while there are unsaved changes; New, Open and
-    closing ask before discarding them.
+    composite's name, Save, Add, Delete, Up, Down, Test, which
+    switches the Preview between designing and using it, and Code (below).
+    The title shows the name and a * while there are unsaved changes;
+    New, Open and closing ask before discarding them.
+  - Code opens the DesignerCodeWindow
+    (src/ui/windows/designer-code-window.js): the Basic or Python program
+    that builds the design, which follows the design as it is edited.
+    Copy puts it on the clipboard. Save as script keeps it as a script in
+    the signed-in user's space. Saving under the name of a script made
+    this way again rebuilds only its layout section and leaves the rest
+    alone; a script of that name that the designer did not make is never
+    overwritten.
+  - The program is a header, then a layout section between two
+    "DESIGNER LAYOUT" comment lines, then (Crumb) or before (MiniPy, which
+    needs a function defined before a call names it) a stub for each
+    handler the design names: a Sub or a function with the widget, and
+    then the event's value, as parameters. The layout section makes the
+    widgets with the same calls a program would write (New Label("x") or
+    Label("x"), setId, setBounds where a widget is placed freely,
+    setWidth / setHeight / setFlex in a row or column, add, setFirst,
+    addTab, setContent, getButtonBar().addButton, ...), then adds the
+    root to the Viewport, or opens it if it is a Window. A widget is
+    called by its id, or else by its class and a number (label1, button2;
+    the root is root, or win). A name that is a reserved word, a built-in
+    or already taken gets a number after it. Handler names are exactly
+    the design's (a saved composite finds handlers by them) and a widget's
+    variable gives way to one: Crumb keeps Subs and variables in one
+    namespace. A menu item the design gives no handler gets one made from
+    the menu's and the item's words (File, Open -> FileOpen / file_open),
+    because addItem needs one. The design stays the source of truth:
+    edit it and generate again.
+  - The generator is DOM-free (src/ui/designer-codegen.js), with one table
+    for the spelling of both languages. generateCode(root, {language,
+    name}) gives the whole program; updateCode(existing, root, ...)
+    rebuilds the layout section of one already edited and adds only the
+    handlers it lacks; saveAsScript(store, ...) is what Save as script
+    does. test/designer-codegen.test.js compiles the programs, runs them
+    on the in-memory widget host and compares the widgets they build
+    with the design.
   - The model - the node tree and its fields - is DOM-free
     (src/ui/designer-model.js, tested in test/designer-model.test.js). A
     node is exactly what the widget host saves (toJson, saveComposite),

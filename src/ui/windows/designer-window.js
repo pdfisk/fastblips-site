@@ -10,7 +10,9 @@
 // select it. Where it is placed freely (the root, or in a Panel) it can be
 // dragged to move it, and resized by its corner grip. Rows, columns, tabs
 // and splits are arranged with Add, Delete, Up and Down. Test switches the
-// Preview from designing to using it (buttons click, lists scroll).
+// Preview from designing to using it (buttons click, lists scroll). Code
+// shows the Basic or Python program that builds the design
+// (designer-code-window.js).
 //
 // The model - the node tree, the fields - is in ../designer-model.js.
 
@@ -31,6 +33,7 @@ import {
   PALETTE, newNode, addChild, removeNode, moveNode, parentOf, canAdd, outline,
   fieldsFor, getField, setField, toDoc,
 } from '../designer-model.js';
+import { DesignerCodeWindow } from './designer-code-window.js';
 
 const STYLE = `
 .cr-designer-caption{font:bold var(--cr-font-size-small) var(--cr-font-ui);color:var(--cr-text-muted);
@@ -328,6 +331,8 @@ export class DesignerWindow extends Window {
     this.selected = this.root;
     this.dirty = false;
     this.names = [];                 // saved composites, for the Open menu
+    this.codeWindow = null;          // the open Code window, which follows the design
+    this.viewport = null;
 
     this.outlineList = new ListPanel();
     this.paletteList = new ListPanel({ items: PALETTE.map((c) => ({ label: c, value: c })) });
@@ -362,12 +367,15 @@ export class DesignerWindow extends Window {
     bar.addButton('Up', () => this.move(-1));
     bar.addButton('Down', () => this.move(1));
     this.testButton = bar.addButton('Test', () => this.toggleTest());
+    bar.addButton('Code', () => this.showCode());
     bar.add(new Spacer());
     this.statusLabel = bar.add(new Label(''));
 
     this.nameField.element.addEventListener('input', () => this._title());
     this.element.addEventListener('close', (e) => {
-      if (e.target === this.element && this.dirty && !confirm(`Discard unsaved changes to "${this.name || 'the new composite'}"?`)) e.preventDefault();
+      if (e.target !== this.element) return;
+      if (this.dirty && !confirm(`Discard unsaved changes to "${this.name || 'the new composite'}"?`)) { e.preventDefault(); return; }
+      this.codeWindow?.close();
     });
     this._title();
     this.refreshNames();
@@ -377,8 +385,16 @@ export class DesignerWindow extends Window {
 
   open(viewport) {
     super.open(viewport);
+    this.viewport = viewport;
     this.refresh();
     return this;
+  }
+
+  /** Opens the window with the program that builds the design (or brings it to the front). */
+  showCode() {
+    if (!this.codeWindow?.parent) this.codeWindow = new DesignerCodeWindow({ designer: this });
+    this.codeWindow.refresh();
+    this.codeWindow.open(this.viewport);   // also restores a minimized one
   }
 
   // ---- state
@@ -406,6 +422,7 @@ export class DesignerWindow extends Window {
     this.outlineList.select(rows.findIndex((r) => r.node === this.selected));
     this.preview.render();
     this.inspector.render(this.selected);
+    this.codeWindow?.refresh();
   }
 
   changed() {
