@@ -12,7 +12,8 @@
 // and splits are arranged with Add, Delete, Up and Down. Test switches the
 // Preview from designing to using it (buttons click, lists scroll). Code
 // shows the Basic or Python program that builds the design
-// (designer-code-window.js).
+// (designer-code-window.js). Size limits the Preview to the screen of a
+// phone or tablet, to see how the design fits it.
 //
 // The model - the node tree, the fields - is in ../designer-model.js.
 
@@ -40,6 +41,9 @@ const STYLE = `
   background:var(--cr-buttonbar-bg);border-bottom:1px solid var(--cr-buttonbar-border);padding:0 6px}
 .cr-designer-preview{background:var(--cr-output-bg);overflow:hidden;
   background-image:radial-gradient(var(--cr-divider) 1px,transparent 1px);background-size:10px 10px}
+.cr-designer-preview.cr-designer-sized{overflow:auto}
+.cr-designer-device{box-shadow:0 0 0 1px var(--cr-accent),0 2px 12px rgba(0,0,0,.35);overflow:hidden;
+  background:var(--cr-window-bg)}
 .cr-designer-select{position:absolute;pointer-events:none;outline:2px solid var(--cr-accent);
   outline-offset:-1px;z-index:99999;box-sizing:border-box}
 .cr-designer-grip{position:absolute;right:-5px;bottom:-5px;width:9px;height:9px;background:var(--cr-accent);
@@ -67,6 +71,17 @@ function installStyle() {
   style.textContent = STYLE;
   document.head.appendChild(style);
 }
+
+/** The screens the Preview can be limited to, as { label, width, height } (null: the whole Preview). */
+export const PREVIEW_SIZES = [
+  { label: 'Fit the window', size: null },
+  { label: 'Phone, portrait (360 x 640)', size: { width: 360, height: 640 } },
+  { label: 'Phone, landscape (640 x 360)', size: { width: 640, height: 360 } },
+  { label: 'Small phone (320 x 568)', size: { width: 320, height: 568 } },
+  { label: 'Large phone (412 x 915)', size: { width: 412, height: 915 } },
+  { label: 'Tablet, portrait (768 x 1024)', size: { width: 768, height: 1024 } },
+  { label: 'Tablet, landscape (1024 x 768)', size: { width: 1024, height: 768 } },
+];
 
 /** A caption above a widget, in a column. */
 function titled(caption, widget) {
@@ -107,6 +122,7 @@ class PreviewPanel extends Panel {
     this.layer.element.style.pointerEvents = 'auto';
     this.host = new ProgramWidgetHost(this.layer);
     this.testing = false;
+    this.size = null;             // { width, height } of the screen shown, or null to fill the Preview
     this.nodeOf = new Map();      // widget -> node
     this.widgetOf = new Map();    // node -> widget
 
@@ -151,9 +167,25 @@ class PreviewPanel extends Panel {
 
   layout() {
     const { width, height } = this.bounds;
-    this.layer.setBounds(0, 0, width, height);
+    const s = this.size;
+    this.element.classList.toggle('cr-designer-sized', Boolean(s));
+    this.layer.element.classList.toggle('cr-designer-device', Boolean(s));
+    if (s) {
+      // The screen sits in the middle of the Preview, or at its top left (to scroll) if it does not fit.
+      const margin = 12;
+      this.layer.setBounds(Math.max(margin, Math.round((width - s.width) / 2)),
+        Math.max(margin, Math.round((height - s.height) / 2)), s.width, s.height);
+    } else {
+      this.layer.setBounds(0, 0, width, height);
+    }
     super.layout();
     this.drawSelection();
+  }
+
+  /** Limits the Preview to a screen of this size, or (null) lets it fill the Preview again. */
+  setSize(size) {
+    this.size = size;
+    this.layout();
   }
 
   /** Shows the tab (of any TabPanel above it) that holds node. */
@@ -176,7 +208,7 @@ class PreviewPanel extends Panel {
     const p = this.element.getBoundingClientRect();
     if (r.width === 0 && r.height === 0) { box.style.display = 'none'; return; }
     Object.assign(box.style, {
-      display: 'block', left: `${r.left - p.left}px`, top: `${r.top - p.top}px`,
+      display: 'block', left: `${r.left - p.left + this.element.scrollLeft}px`, top: `${r.top - p.top + this.element.scrollTop}px`,
       width: `${r.width}px`, height: `${r.height}px`,
     });
     this.grip.style.display = this.designer.isFree(this.designer.selected) ? 'block' : 'none';
@@ -333,6 +365,7 @@ export class DesignerWindow extends Window {
     this.names = [];                 // saved composites, for the Open menu
     this.codeWindow = null;          // the open Code window, which follows the design
     this.viewport = null;
+    this.previewSize = PREVIEW_SIZES[0];   // the screen the Preview shows (Size menu)
 
     this.outlineList = new ListPanel();
     this.paletteList = new ListPanel({ items: PALETTE.map((c) => ({ label: c, value: c })) });
@@ -368,6 +401,11 @@ export class DesignerWindow extends Window {
     bar.addButton('Down', () => this.move(1));
     this.testButton = bar.addButton('Test', () => this.toggleTest());
     bar.addButton('Code', () => this.showCode());
+    this.sizeMenu = new Menu('Size');
+    for (const choice of PREVIEW_SIZES) {
+      this.sizeMenu.addItem(choice.label, () => this.setPreviewSize(choice), { checked: () => this.previewSize === choice });
+    }
+    bar.add(this.sizeMenu);
     bar.add(new Spacer());
     this.statusLabel = bar.add(new Label(''));
 
@@ -490,6 +528,13 @@ export class DesignerWindow extends Window {
     const problem = moveNode(this.root, this.selected, delta);
     if (problem) { this.status(`Cannot move it: ${problem}`, 'error'); return; }
     this.changed();
+  }
+
+  /** Shows the design on the screen of a phone or tablet (one of PREVIEW_SIZES), or on all of the Preview. */
+  setPreviewSize(choice) {
+    this.previewSize = choice;
+    this.preview.setSize(choice.size);
+    this.status(choice.size ? `Preview: ${choice.size.width} x ${choice.size.height}` : 'Preview fits the window');
   }
 
   toggleTest() {

@@ -19,6 +19,8 @@
 //        F6 Move       the same, deleting each once copied
 //        F7 New Folder in the active pane
 //        F8, Delete    delete the marked files, after asking
+//        F2            sign in to the remote database, or out of it: the
+//                      "my scripts" pane then shows that user's scripts
 //        F9            read both panes again
 // Folders are copied with all they hold. A file that exists in the target is
 // replaced only when asked: Overwrite, Skip, Overwrite All, Skip All or Cancel.
@@ -30,6 +32,9 @@ import {
   DirectoryVolume, databaseVolumes, canPickFolder, canUseBrowserFiles,
   transfer, removeEntries, describeResult, formatSize,
 } from '../file-volumes.js';
+import {
+  userName, setUser, findUser, USER_NAME_PATTERN, REMOTE_SERVER_URL,
+} from '../db-client.js';
 
 let instance = null;
 
@@ -296,11 +301,12 @@ export class FileCopyWindow extends Window {
   }
 
   /**
-   * @param {{volumes?: object[], pickFolder?: () => Promise<object|null>, browserFiles?: () => Promise<object|null>}} [options] -
-   *   the database volumes, how a folder is picked, and how the browser's private
-   *   file system is opened (tests); the real ones by default
+   * @param {{volumes?: object[], pickFolder?: () => Promise<object|null>, browserFiles?: () => Promise<object|null>, lookup?: (name: string) => Promise<object|null>}} [options] -
+   *   the database volumes, how a folder is picked, how the browser's private
+   *   file system is opened, and how a user is looked up on the remote server
+   *   (tests); the real ones by default
    */
-  constructor({ volumes, pickFolder, browserFiles } = {}) {
+  constructor({ volumes, pickFolder, browserFiles, lookup } = {}) {
     if (instance) throw new Error('FileCopyWindow is a singleton; use FileCopyWindow.instance');
     super({ title: 'File Copy', x: 70, y: 60, width: 800, height: 460, minWidth: 520, minHeight: 300 });
     instance = this;
@@ -310,6 +316,7 @@ export class FileCopyWindow extends Window {
     this._pick = pickFolder ?? (() => pickRealFolder());
     this._canPick = pickFolder ? true : canPickFolder();
     this._browserFiles = browserFiles ?? (() => openBrowserFiles());
+    this._lookup = lookup ?? ((name) => findUser(name, { baseUrl: REMOTE_SERVER_URL }));
     this.browser = null;   // the Browser files volume, once opened
     this.busy = false;
     this.stopRequested = false;
@@ -327,6 +334,8 @@ export class FileCopyWindow extends Window {
     this.folderButton = this.buttonBar.addButton('F7 New Folder', () => this.makeFolder());
     this.deleteButton = this.buttonBar.addButton('F8 Delete', () => this.deleteSelected());
     this.buttonBar.addButton('F9 Refresh', () => this.refresh());
+    this.loginButton = this.buttonBar.addButton('F2 Sign In', () => this.toggleLogin());
+    this._loginLabel();
 
     this.panel.element.addEventListener('keydown', (e) => this._key(e));
     document.addEventListener('cr-userchange', () => this._userChanged());
@@ -398,7 +407,66 @@ export class FileCopyWindow extends Window {
     if (volume) await pane.load(volume, []);
   }
 
+  /** The Sign In / Sign Out button says which it will do, and for whom. */
+  _loginLabel() {
+    const user = userName();
+    this.loginButton.label = user ? `F2 Sign Out (${user})` : 'F2 Sign In';
+    this.buttonBar.layout();
+  }
+
+  /** Signs out if a user is signed in, else asks for a user name to sign in with. */
+  toggleLogin() {
+    return userName() ? this.signOut() : this.signIn();
+  }
+
+  /** Signs out of the remote database: the "my scripts" pane goes back to the shared scripts. */
+  signOut() {
+    if (this.busy) { this.status('Wait until the current job is done (Escape stops it)', true); return false; }
+    const was = userName();
+    setUser('');
+    this.status(`Signed out ${was}: working in the shared space`);
+    return true;
+  }
+
+  /**
+   * Asks for a user name and signs in as it if the remote server has a user registered under it.
+   * @returns {Promise<boolean>} true if signed in
+   */
+  async signIn() {
+    if (this.busy) { this.status('Wait until the current job is done (Escape stops it)', true); return false; }
+    const answer = await this.ask({
+      message: 'Sign in to the remote database. User name:', input: userName(),
+      buttons: [{ label: 'Sign In', value: 'yes' }, { label: 'Cancel', value: 'no' }],
+    });
+    if (!answer || answer.value !== 'yes') { this.status('Cancelled'); return false; }
+    const name = answer.text.trim();
+    if (!USER_NAME_PATTERN.test(name)) {
+      this.status('A user name is 2 to 30 letters, digits, - or _', true);
+      return false;
+    }
+    this.busy = true;
+    this.status('Signing in...');
+    let user;
+    try {
+      user = await this._lookup(name);
+    } catch (e) {
+      this.busy = false;
+      this.status(`Could not sign in: ${e?.message || e}`, true);
+      return false;
+    }
+    this.busy = false;
+    if (!user) {
+      this.status(`There is no user called ${name} on the remote database. Register first (File > Register...)`, true);
+      return false;
+    }
+    const signedInAs = user.name ?? name;
+    setUser(signedInAs);   // the panes showing a database read again (see _userChanged)
+    this.status(`Signed in as ${signedInAs}`);
+    return true;
+  }
+
   _userChanged() {
+    this._loginLabel();
     for (const pane of [this.leftPane, this.rightPane]) {
       if (pane.volume && this.databases.includes(pane.volume)) pane.load(pane.volume, []);
     }
@@ -504,6 +572,7 @@ export class FileCopyWindow extends Window {
       case '+': return handled(() => pane.markAll(true));
       case '-': return handled(() => pane.markAll(false));
       case '*': return handled(() => pane.invert());
+      case 'F2': return handled(() => this.toggleLogin());
       case 'F5': return handled(() => this.copy(false));
       case 'F6': return handled(() => this.copy(true));
       case 'F7': return handled(() => this.makeFolder());
