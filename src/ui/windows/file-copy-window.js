@@ -33,7 +33,7 @@ import {
   transfer, removeEntries, describeResult, formatSize,
 } from '../file-volumes.js';
 import {
-  userName, setUser, findUser, USER_NAME_PATTERN, REMOTE_SERVER_URL,
+  userName, setUser, signIn, signOut, USER_NAME_PATTERN, REMOTE_SERVER_URL,
 } from '../db-client.js';
 
 let instance = null;
@@ -301,12 +301,12 @@ export class FileCopyWindow extends Window {
   }
 
   /**
-   * @param {{volumes?: object[], pickFolder?: () => Promise<object|null>, browserFiles?: () => Promise<object|null>, lookup?: (name: string) => Promise<object|null>}} [options] -
+   * @param {{volumes?: object[], pickFolder?: () => Promise<object|null>, browserFiles?: () => Promise<object|null>, signIn?: (credentials: {name: string, password: string}) => Promise<object|null>}} [options] -
    *   the database volumes, how a folder is picked, how the browser's private
-   *   file system is opened, and how a user is looked up on the remote server
+   *   file system is opened, and how a user is signed in on the remote server
    *   (tests); the real ones by default
    */
-  constructor({ volumes, pickFolder, browserFiles, lookup } = {}) {
+  constructor({ volumes, pickFolder, browserFiles, signIn: signInCall } = {}) {
     if (instance) throw new Error('FileCopyWindow is a singleton; use FileCopyWindow.instance');
     super({ title: 'File Copy', x: 70, y: 60, width: 800, height: 460, minWidth: 520, minHeight: 300 });
     instance = this;
@@ -316,7 +316,7 @@ export class FileCopyWindow extends Window {
     this._pick = pickFolder ?? (() => pickRealFolder());
     this._canPick = pickFolder ? true : canPickFolder();
     this._browserFiles = browserFiles ?? (() => openBrowserFiles());
-    this._lookup = lookup ?? ((name) => findUser(name, { baseUrl: REMOTE_SERVER_URL }));
+    this._signIn = signInCall ?? ((credentials) => signIn(credentials, { baseUrl: REMOTE_SERVER_URL }));
     this.browser = null;   // the Browser files volume, once opened
     this.busy = false;
     this.stopRequested = false;
@@ -423,13 +423,15 @@ export class FileCopyWindow extends Window {
   signOut() {
     if (this.busy) { this.status('Wait until the current job is done (Escape stops it)', true); return false; }
     const was = userName();
+    signOut({ baseUrl: REMOTE_SERVER_URL });   // the server forgets the token
     setUser('');
     this.status(`Signed out ${was}: working in the shared space`);
     return true;
   }
 
   /**
-   * Asks for a user name and signs in as it if the remote server has a user registered under it.
+   * Asks for a user name and password and signs in with them on the remote server,
+   * which answers with the token that lets the user change their scripts.
    * @returns {Promise<boolean>} true if signed in
    */
   async signIn() {
@@ -444,11 +446,16 @@ export class FileCopyWindow extends Window {
       this.status('A user name is 2 to 30 letters, digits, - or _', true);
       return false;
     }
+    const secret = await this.ask({
+      message: `Password for ${name}:`, input: '', secret: true,
+      buttons: [{ label: 'Sign In', value: 'yes' }, { label: 'Cancel', value: 'no' }],
+    });
+    if (!secret || secret.value !== 'yes') { this.status('Cancelled'); return false; }
     this.busy = true;
     this.status('Signing in...');
     let user;
     try {
-      user = await this._lookup(name);
+      user = await this._signIn({ name, password: secret.text });
     } catch (e) {
       this.busy = false;
       this.status(`Could not sign in: ${e?.message || e}`, true);
@@ -456,7 +463,7 @@ export class FileCopyWindow extends Window {
     }
     this.busy = false;
     if (!user) {
-      this.status(`There is no user called ${name} on the remote database. Register first (File > Register...)`, true);
+      this.status(`Could not sign in as ${name}`, true);
       return false;
     }
     const signedInAs = user.name ?? name;
@@ -496,9 +503,9 @@ export class FileCopyWindow extends Window {
    * Asks a question on the line above the status line and waits for the
    * answer: the value of the button chosen (Enter chooses the first), or the
    * text typed if there is a field, or null for Escape.
-   * @param {{message: string, buttons?: {label: string, value: string}[], input?: string}} question
+   * @param {{message: string, buttons?: {label: string, value: string}[], input?: string, secret?: boolean}} question
    */
-  ask({ message, buttons = [], input }) {
+  ask({ message, buttons = [], input, secret = false }) {
     const bar = this.panel.prompt;
     return new Promise((resolve) => {
       const text = document.createElement('span');
@@ -510,6 +517,7 @@ export class FileCopyWindow extends Window {
       if (input !== undefined) {
         field = document.createElement('input');
         field.value = input;
+        if (secret) { field.type = 'password'; field.autocomplete = 'current-password'; }
         field.spellcheck = false;
         field.setAttribute('aria-label', message);
         parts.push(field);

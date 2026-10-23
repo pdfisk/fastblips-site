@@ -81,7 +81,7 @@ let pageSpace = null;   // set by setSpace() on this page
 /**
  * The user this browser works as (Settings > User), or '' for none: the one
  * chosen on this page, else the one remembered from an earlier visit. There
- * is no sign-in yet, so this is only a name.
+ * is a name; the token that proves it is kept by signIn().
  */
 export function userName() {
   if (user !== null) return user;
@@ -120,6 +120,42 @@ export function spaceName() { return pageSpace ?? userName(); }
 export function setSpace(owner) { pageSpace = owner == null ? null : String(owner).trim(); }
 
 function trimUrl(url) { return String(url).trim().replace(/\/+$/, ''); }
+
+// Sign-in tokens, one per server (a token from one server means nothing to
+// another), remembered in localStorage between visits.
+const TOKEN_KEY = 'crumb.tokens';
+const tokens = new Map();   // server URL -> token, for this page
+let tokensRead = false;
+
+function readTokens() {
+  if (tokensRead) return;
+  tokensRead = true;
+  try {
+    const saved = JSON.parse(globalThis.localStorage?.getItem(TOKEN_KEY) ?? '{}');
+    for (const [url, token] of Object.entries(saved)) if (typeof token === 'string' && token) tokens.set(url, token);
+  } catch { /* storage blocked or not JSON */ }
+}
+
+function saveTokens() {
+  try {
+    if (tokens.size) globalThis.localStorage?.setItem(TOKEN_KEY, JSON.stringify(Object.fromEntries(tokens)));
+    else globalThis.localStorage?.removeItem(TOKEN_KEY);
+  } catch { /* not remembered */ }
+}
+
+/** The sign-in token for a server (the one in use by default), or '' for none. */
+export function getToken(baseUrl = getServerUrl()) {
+  readTokens();
+  return tokens.get(trimUrl(typeof baseUrl === 'function' ? baseUrl() : baseUrl)) ?? '';
+}
+
+/** Remembers the token for a server, or forgets it if token is empty. */
+export function setToken(token, baseUrl = getServerUrl()) {
+  readTokens();
+  const url = trimUrl(typeof baseUrl === 'function' ? baseUrl() : baseUrl);
+  if (token) tokens.set(url, String(token)); else tokens.delete(url);
+  saveTokens();
+}
 
 /** An error from the server or the network, with a readable message. */
 export class StoreError extends Error {
@@ -217,11 +253,13 @@ export class SourceStore {
 
   async _request(method, path, body) {
     const url = `${this.baseUrl}/${this.resource}${path}`;
+    const token = getToken(this.baseUrl);
     let response;
     try {
       response = await this._fetch(url, {
         method,
         headers: { Accept: 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(body ? { 'Content-Type': 'application/json' } : {}) },
         body: body ? JSON.stringify(body) : undefined,
       });
@@ -233,6 +271,14 @@ export class SourceStore {
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
     if (!response.ok) {
+      if (response.status === 401 && !this.noSignInHint) {
+        // A token the server no longer accepts is dropped, so the next sign-in starts clean.
+        if (token) setToken('', this.baseUrl);
+        throw new StoreError(token
+          ? 'Your sign-in has expired: sign in again (File > Sign In)'
+          : 'Sign in first (File > Sign In) to change the remote database',
+        { status: 401, details: data });
+      }
       throw new StoreError(errorMessage(response.status, data), { status: response.status, details: data });
     }
     return data;
@@ -242,20 +288,63 @@ export class SourceStore {
 /** What an e-mail address must look like (as on the server). */
 export const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+$/;
 
+/** What a password must be (as on the server): 8 to 72 characters. */
+export const PASSWORD_MIN = 8;
+export const PASSWORD_MAX = 72;
+
+/** Why a password is not acceptable, or null if it is. */
+export function passwordProblem(password) {
+  const n = String(password ?? '').length;
+  return n >= PASSWORD_MIN && n <= PASSWORD_MAX ? null : `A password is ${PASSWORD_MIN} to ${PASSWORD_MAX} characters`;
+}
+
 /**
  * Registers a user on the server (POST /users) and returns the new user,
- * { id, name, email, created_at }. email is optional. Fails with a
- * StoreError, e.g. "name has already been taken". It does not sign in: call
- * setUser() for that.
- * @param {{name: string, email?: string}} fields
+ * { id, name, email, created_at }. email is optional. The token the server
+ * answers with is kept, so the new user is signed in to that server. Fails
+ * with a StoreError, e.g. "name has already been taken".
+ * @param {{name: string, password: string, email?: string}} fields
  * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
  */
-export function registerUser({ name, email } = {}, { baseUrl = getServerUrl, fetch: fetchFn } = {}) {
-  const user = { name: String(name ?? '').trim() };
+export async function registerUser({ name, password, email } = {}, { baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const user = { name: String(name ?? '').trim(), password: String(password ?? '') };
   const address = String(email ?? '').trim();
   if (address) user.email = address;
   const store = new SourceStore({ resource: 'users', key: 'user', baseUrl, fetch: fetchFn });
-  return store._request('POST', '', { user });
+  store.noSignInHint = true;
+  const created = await store._request('POST', '', { user });
+  if (created?.token) setToken(created.token, store.baseUrl);
+  return created;
+}
+
+/**
+ * Signs in on the server (POST /session) and keeps the token it answers with.
+ * Returns the user, { id, name, admin }. A wrong name or password is a
+ * StoreError with status 401.
+ * @param {{name: string, password: string}} credentials
+ * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
+ */
+export async function signIn({ name, password } = {}, { baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const store = new SourceStore({ resource: 'session', key: 'session', baseUrl, fetch: fetchFn });
+  store.noSignInHint = true;
+  const session = { name: String(name ?? '').trim(), password: String(password ?? '') };
+  const answer = await store._request('POST', '', { session });
+  setToken(answer.token, store.baseUrl);
+  return answer.user;
+}
+
+/**
+ * Signs out on the server (DELETE /session) and forgets the token. The token
+ * is forgotten even if the server cannot be reached.
+ * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
+ */
+export async function signOut({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const store = new SourceStore({ resource: 'session', key: 'session', baseUrl, fetch: fetchFn });
+  store.noSignInHint = true;
+  try {
+    if (getToken(store.baseUrl)) await store._request('DELETE', '');
+  } catch { /* already signed out, or no server: the token goes either way */ }
+  setToken('', store.baseUrl);
 }
 
 /**

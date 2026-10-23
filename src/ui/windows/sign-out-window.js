@@ -4,7 +4,7 @@
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
-import { userName, setUser } from '../db-client.js';
+import { userName, setUser, signOut } from '../db-client.js';
 import { Toast } from '../toast.js';
 import { installStyle } from './sign-in-window.js';
 
@@ -59,6 +59,7 @@ export class SignOutWindow extends Window {
   signOut() {
     const viewport = this.parent;
     const name = userName();
+    signOut();   // the server forgets the token; the user is signed out here whatever it answers
     setUser('');
     this.close();
     if (viewport && name) Toast.show(viewport, { kind: 'success', message: `Signed out ${name}` });

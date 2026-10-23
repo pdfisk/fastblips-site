@@ -1,8 +1,7 @@
 // RegisterWindow: the singleton window for registering a new user on the
 // database server (File > Register...). It asks for a user name and an
-// optional e-mail address, creates the user (POST /users) and signs in as
-// them. The server has no credentials yet, so registering only reserves the
-// name. How it went is shown to the user: success in a Toast, which pops out
+// password and an optional e-mail address, creates the user (POST /users) and signs in as
+// them. The server answers with a sign-in token, which is kept. How it went is shown to the user: success in a Toast, which pops out
 // as this window closes, or an error in a NotificationWindow, which stays
 // until it is dismissed.
 
@@ -10,7 +9,9 @@ import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { NotificationWindow } from './notification-window.js';
 import { Toast } from '../toast.js';
-import { registerUser, setUser, USER_NAME_PATTERN, EMAIL_PATTERN, serverName } from '../db-client.js';
+import {
+  registerUser, setUser, USER_NAME_PATTERN, EMAIL_PATTERN, passwordProblem, serverName,
+} from '../db-client.js';
 
 const STYLE = `
 .cr-register{box-sizing:border-box;padding:12px 14px;display:grid;
@@ -50,6 +51,7 @@ class RegisterPanel extends Panel {
       return input;
     };
     this.nameInput = field('User name', 'text', 'username', 30);
+    this.passwordInput = field('Password', 'password', 'new-password', 72);
     this.emailInput = field('E-mail', 'email', 'email', 254);
     this.note = document.createElement('div');
     this.note.className = 'cr-register-note';
@@ -72,7 +74,7 @@ export class RegisterWindow extends Window {
    */
   constructor({ register = registerUser } = {}) {
     if (instance) throw new Error('RegisterWindow is a singleton; use RegisterWindow.instance');
-    super({ title: 'Register', x: 140, y: 110, width: 340, height: 170, resizable: false });
+    super({ title: 'Register', x: 140, y: 110, width: 340, height: 205, resizable: false });
     instance = this;
     this.register = register;
     this.busy = false;        // waiting for the server
@@ -83,7 +85,7 @@ export class RegisterWindow extends Window {
     this.registerButton = this.buttonBar.addButton('Register', () => this.submit());
     this.buttonBar.addButton('Cancel', () => this.close());
 
-    for (const input of [this.panel.nameInput, this.panel.emailInput]) {
+    for (const input of [this.panel.nameInput, this.panel.passwordInput, this.panel.emailInput]) {
       input.addEventListener('input', () => this.updateButtons());
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') { e.preventDefault(); this.submit(); }
@@ -96,12 +98,16 @@ export class RegisterWindow extends Window {
   /** The name typed, trimmed. */
   get name() { return this.panel.nameInput.value.trim(); }
 
+  /** The password typed (not trimmed). */
+  get password() { return this.panel.passwordInput.value; }
+
   /** The e-mail address typed, trimmed ('' for none). */
   get email() { return this.panel.emailInput.value.trim(); }
 
   updateButtons() {
     this.registerButton.enabled = !this.busy && this.name !== '';
     this.panel.nameInput.disabled = this.busy;
+    this.panel.passwordInput.disabled = this.busy;
     this.panel.emailInput.disabled = this.busy;
     this.buttonBar.layout();
   }
@@ -111,6 +117,8 @@ export class RegisterWindow extends Window {
     if (!USER_NAME_PATTERN.test(this.name)) {
       return 'A user name is 2 to 30 letters, digits, - or _, starting with a letter or digit';
     }
+    const weak = passwordProblem(this.password);
+    if (weak) return weak;
     if (this.email && !EMAIL_PATTERN.test(this.email)) return 'That is not an e-mail address';
     return null;
   }
@@ -132,7 +140,7 @@ export class RegisterWindow extends Window {
     this.updateButtons();
     let user;
     try {
-      user = await this.register({ name: this.name, email: this.email });
+      user = await this.register({ name: this.name, password: this.password, email: this.email });
     } catch (e) {
       return this._fail(e?.message || 'Could not register');
     } finally {
@@ -191,6 +199,7 @@ export class RegisterWindow extends Window {
     if (!this.busy) {
       this._dismiss();
       this.panel.nameInput.value = '';
+      this.panel.passwordInput.value = '';
       this.panel.emailInput.value = '';
       this._showNote();
       this.updateButtons();

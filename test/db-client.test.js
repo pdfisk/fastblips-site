@@ -1,12 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser, signIn, signOut, getToken, setToken } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
   const calls = [];
   const fn = async (url, init) => {
-    calls.push({ url, method: init.method, body: init.body ? JSON.parse(init.body) : undefined });
+    calls.push({ url, method: init.method, auth: init.headers?.Authorization, body: init.body ? JSON.parse(init.body) : undefined });
     const r = responses.shift();
     if (r instanceof Error) throw r;
     return { ok: r.status < 400, status: r.status, text: async () => (r.body === undefined ? '' : JSON.stringify(r.body)) };
@@ -112,18 +112,18 @@ test('the viewports store: find by name, content sent as a JSON object', async (
 
 test('registerUser posts the name and e-mail to /users', async () => {
   const fetch = fakeFetch({ status: 201, body: { id: 7, name: 'ann', email: 'ann@x.org' } });
-  const user = await registerUser({ name: ' ann ', email: ' ann@x.org ' }, { baseUrl: 'http://db.test', fetch });
+  const user = await registerUser({ name: ' ann ', password: 'secret123', email: ' ann@x.org ' }, { baseUrl: 'http://db.test', fetch });
   assert.equal(user.id, 7);
   assert.equal(fetch.calls[0].method, 'POST');
   assert.equal(fetch.calls[0].url, 'http://db.test/users');
-  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann', email: 'ann@x.org' } });
+  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann', password: 'secret123', email: 'ann@x.org' } });
 });
 
 test('registerUser leaves out a blank e-mail and reports a taken name', async () => {
   const fetch = fakeFetch({ status: 422, body: { errors: { name: ['has already been taken'] } } });
-  await assert.rejects(registerUser({ name: 'ann', email: '' }, { baseUrl: 'http://db.test', fetch }),
+  await assert.rejects(registerUser({ name: 'ann', password: 'secret123', email: '' }, { baseUrl: 'http://db.test', fetch }),
     (e) => e instanceof StoreError && e.status === 422 && e.message === 'name has already been taken');
-  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann' } });
+  assert.deepEqual(fetch.calls[0].body, { user: { name: 'ann', password: 'secret123' } });
 });
 
 test('findUser gets the user by name, and answers null when nobody is registered', async () => {
@@ -146,4 +146,55 @@ test('a project is saved with its shared flag', async () => {
   await s.update(1, { shared: 0 });
   assert.deepEqual(fetch.calls[0].body, { project: { name: 'p', shared: true, script_ids: [] } });
   assert.deepEqual(fetch.calls[1].body, { project: { shared: false } });   // a boolean, always
+});
+
+test('a store sends the sign-in token of its server, and no other', async () => {
+  setToken('', 'http://db.test'); setToken('', 'http://other.test');
+  setToken('tok-1', 'http://db.test/');
+  const fetch = fakeFetch({ status: 200, body: [] }, { status: 200, body: [] });
+  await store(fetch).list();
+  await new SourceStore({ ...TABLES.basic, baseUrl: 'http://other.test', fetch }).list();
+  assert.deepEqual(fetch.calls.map((c) => c.auth), ['Bearer tok-1', undefined]);
+  setToken('', 'http://db.test');
+});
+
+test('a write with no token is told to sign in; an expired token is forgotten', async () => {
+  setToken('', 'http://db.test');
+  let fetch = fakeFetch({ status: 401, body: { error: 'sign in required' } });
+  await assert.rejects(store(fetch).create({ name: 'a.bas', content: '' }),
+    (e) => e instanceof StoreError && e.status === 401 && /Sign in first/.test(e.message));
+  setToken('old', 'http://db.test');
+  fetch = fakeFetch({ status: 401, body: { error: 'the token is not valid or has expired: sign in again' } });
+  await assert.rejects(store(fetch).create({ name: 'a.bas', content: '' }), /expired/);
+  assert.equal(getToken('http://db.test'), '');
+});
+
+test('signIn posts the credentials to /session and keeps the token; signOut deletes it', async () => {
+  setToken('', 'http://db.test');
+  let fetch = fakeFetch({ status: 201, body: { token: 'tok-2', user: { id: 7, name: 'Ann', admin: false } } });
+  const user = await signIn({ name: ' ann ', password: 'secret123' }, { baseUrl: 'http://db.test', fetch });
+  assert.equal(user.name, 'Ann');
+  assert.deepEqual(fetch.calls[0].body, { session: { name: 'ann', password: 'secret123' } });
+  assert.equal(fetch.calls[0].url, 'http://db.test/session');
+  assert.equal(getToken('http://db.test'), 'tok-2');
+  fetch = fakeFetch({ status: 204 });
+  await signOut({ baseUrl: 'http://db.test', fetch });
+  assert.deepEqual([fetch.calls[0].method, fetch.calls[0].auth], ['DELETE', 'Bearer tok-2']);
+  assert.equal(getToken('http://db.test'), '');
+});
+
+test('signIn reports a wrong password as the server words it, and keeps no token', async () => {
+  setToken('', 'http://db.test');
+  const fetch = fakeFetch({ status: 401, body: { error: 'wrong name or password' } });
+  await assert.rejects(signIn({ name: 'ann', password: 'nope-nope' }, { baseUrl: 'http://db.test', fetch }), /wrong name or password/);
+  assert.equal(getToken('http://db.test'), '');
+});
+
+test('registerUser keeps the token the server answers with', async () => {
+  setToken('', 'http://db.test');
+  const fetch = fakeFetch({ status: 201, body: { id: 1, name: 'ann', token: 'tok-3' } });
+  await registerUser({ name: 'ann', password: 'secret123' }, { baseUrl: 'http://db.test', fetch });
+  assert.equal(fetch.calls[0].body.user.password, 'secret123');
+  assert.equal(getToken('http://db.test'), 'tok-3');
+  setToken('', 'http://db.test');
 });
