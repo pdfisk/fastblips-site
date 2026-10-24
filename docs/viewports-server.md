@@ -85,6 +85,7 @@ the program fixed), `flex`, `fill`, `visible`, `background`, `color` and
 | Window | `title`, `bounds`, `maximized`, `content`, `buttonBar`, `open` |
 | TextPanel, MonacoPanel | `text`, `readOnly`; MonacoPanel `language` |
 | ListPanel | `items` (strings), `selected`, `emptyText` |
+| Ellipse, RoundedRect | `borderWidth` (default 2); RoundedRect `radius` (default 12). `background` is the fill and `color` the outline |
 
 Handlers are saved by name: a Crumb `Sub`'s name, or a MiniPy module-level
 function's name (a bound method or lambda has no name to save, so it is

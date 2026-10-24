@@ -464,3 +464,18 @@ test('saveAsScript: it will not overwrite other scripts, and needs a name', asyn
   assert.equal(store.rows[0].content, 'Print "hello"\n', 'untouched');
   assert.equal(store.rows.length, 2);
 });
+
+test('shapes: the generated programs set the outline width and the corner radius', () => {
+  const root = newNode('Panel');
+  add(root, made('Ellipse', { 'Outline width': '4', 'Left': '10' }, { parent: root }));
+  add(root, made('RoundedRect', { 'Corner radius': '20' }, { parent: root }));
+  const crumb = generateCode(root, { language: 'basic' });
+  const python = generateCode(root, { language: 'python' });
+  assert.match(crumb, /New Ellipse\(\)/);
+  assert.match(crumb, /setBorderWidth\(4\)/);
+  assert.match(crumb, /New RoundedRect\(\)/);
+  assert.match(crumb, /setRadius\(20\)/);
+  assert.match(python, /RoundedRect\(\)/);
+  assert.match(python, /set_radius\(20\)/);
+  assert.doesNotMatch(crumb, /setRadius.*\n.*setRadius/, 'only the RoundedRect has a radius');
+});

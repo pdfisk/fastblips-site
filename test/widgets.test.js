@@ -53,6 +53,7 @@ test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
     'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board', 'Canvas', 'Physics',
+    'Ellipse', 'RoundedRect',
   ]);
   for (const c of WIDGET_CLASSES) {
     for (const m of c.methods) assert.match(m.py, /^[a-z_]+(3d)?$/, `${c.name}.${m.name}`);
@@ -213,7 +214,7 @@ test('Crumb: onClick runs the Sub for each click, after the module code', () => 
 
 test('Crumb: object load errors', () => {
   const errorsOf = (source) => compile(source, { filename: 't.bas' }).errors.map((e) => e.message);
-  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, Canvas, HPanel/);
+  assert.match(errorsOf('Dim x = New Screen()')[0], /no class 'Screen': the classes are Board, Button, ButtonBar, Canvas, Ellipse, HPanel/);
   assert.match(errorsOf('Dim x = New Label()')[0], /'New Label' takes 1 argument, found 0/);
   assert.match(errorsOf('Dim x = New HPanel(1)')[0], /'New HPanel' takes 0 arguments, found 1/);
   assert.match(errorsOf('Dim x = New HPanel')[0], /expected '\(' after 'New HPanel'/);

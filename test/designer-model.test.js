@@ -5,14 +5,14 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   PALETTE, newNode, addChild, removeNode, moveNode, parentOf, childrenOf, outline,
-  fieldsFor, getField, setField, eventsOf, toDoc, canAdd,
+  fieldsFor, getField, setField, eventsOf, toDoc, canAdd, insertChild, moveNodeTo, isWithin, pasteNode, makeIdsUnique, cloneNode,
 } from '../src/ui/designer-model.js';
 
 const field = (node, label, opts) => fieldsFor(node, opts).flatMap(([, fs]) => fs).find((f) => f.label === label);
 
 test('the palette is every class but the Viewport; new nodes get New\'s defaults', () => {
   assert.equal(PALETTE.includes('Viewport'), false);
-  assert.equal(PALETTE.length, 15);
+  assert.equal(PALETTE.length, 17);
   assert.deepEqual(PALETTE, [...PALETTE].sort((a, b) => a.localeCompare(b)), 'palette is alphabetical');
   assert.deepEqual(newNode('Button'), { class: 'Button', text: 'Button', box: [0, 0, 100, 32] });
   assert.deepEqual(newNode('HSplitPanel'), { class: 'HSplitPanel', position: 0.5, first: null, second: null, box: [0, 0, 320, 200] });
@@ -128,4 +128,80 @@ test('fields: list items, menu items, tab labels, events', () => {
   assert.equal('enabled' in button, false);
 
   assert.deepEqual(toDoc(button), { format: 'fastblip-viewport', version: 1, kind: 'composite', root: button });
+});
+
+test('insertChild puts a widget at a place in a list container, else where addChild would', () => {
+  const root = newNode('VPanel');
+  const [a, b, c] = ['Label', 'Button', 'Label'].map(newNode);
+  insertChild(root, a); insertChild(root, c); insertChild(root, b, 1);
+  assert.deepEqual(root.children, [a, b, c]);
+  insertChild(root, newNode('TextPanel'), 99);
+  assert.equal(root.children.length, 4);
+  assert.match(insertChild(root, newNode('Window'), 0), /only be the root/);
+  const split = newNode('HSplitPanel');
+  assert.equal(insertChild(split, a, 0), null);
+  assert.equal(split.first, a);
+});
+
+test('moveNodeTo reorders, reparents, and refuses to put a widget inside itself', () => {
+  const root = newNode('VPanel');
+  const row = newNode('HPanel');
+  const [a, b, c] = ['Label', 'Button', 'Label'].map(newNode);
+  addChild(root, a); addChild(root, b); addChild(root, row); addChild(row, c);
+  assert.equal(moveNodeTo(root, a, root, 2), null);          // after b: index counts the old list
+  assert.deepEqual(root.children, [b, a, row]);
+  assert.equal(moveNodeTo(root, a, root, 0), null);
+  assert.deepEqual(root.children, [a, b, row]);
+  assert.equal(moveNodeTo(root, b, row, 0), null);           // into another container
+  assert.deepEqual(row.children, [b, c]);
+  assert.deepEqual(root.children, [a, row]);
+  assert.match(moveNodeTo(root, row, row), /inside itself/);
+  assert.match(moveNodeTo(root, row, a), /cannot hold/);
+  assert.deepEqual(row.children, [b, c], 'a refused move changes nothing');
+  assert.deepEqual(root.children, [a, row]);
+  assert.match(moveNodeTo(root, root, row), /root/);
+  assert.equal(isWithin(c, root), true);
+  assert.equal(isWithin(root, c), false);
+});
+
+test('moveNodeTo restores a widget that a full split panel refuses', () => {
+  const root = newNode('VPanel');
+  const split = newNode('HSplitPanel');
+  const [a, b, c] = ['Label', 'Button', 'Label'].map(newNode);
+  addChild(root, split); addChild(split, a); addChild(split, b); addChild(root, c);
+  assert.match(moveNodeTo(root, c, split), /both sides are taken/);
+  assert.deepEqual(root.children, [split, c]);
+  assert.equal(moveNodeTo(root, a, root, 0), null);
+  assert.equal(split.first, null);
+  assert.equal(moveNodeTo(root, c, split), null);
+  assert.equal(split.first, c);
+});
+
+test('pasteNode adds a copy inside a container or after a leaf, with ids of its own', () => {
+  const root = newNode('VPanel');
+  const row = newNode('HPanel');
+  const ok = newNode('Button'); ok.id = 'ok';
+  addChild(root, row); addChild(row, ok);
+  const copied = cloneNode(ok);
+  let pasted = pasteNode(root, row, copied);          // into a container: at the end
+  assert.deepEqual(row.children.map((c) => c.id), ['ok', 'ok2']);
+  assert.equal(pasted.node, row.children[1]);
+  pasted = pasteNode(root, ok, copied);              // beside a leaf: right after it
+  assert.deepEqual(row.children.map((c) => c.id), ['ok', 'ok3', 'ok2']);
+  assert.notEqual(pasted.node, copied, 'it is a copy');
+  assert.equal(copied.id, 'ok', 'the clipboard is not changed');
+});
+
+test('pasteNode offsets a copy in a Panel, copies whole subtrees and says why it cannot paste', () => {
+  const root = newNode('Panel');
+  const box = newNode('VPanel'); box.id = 'form';
+  const label = newNode('Label'); label.id = 'form';
+  addChild(root, box); addChild(box, label);
+  const { node } = pasteNode(root, root, box);
+  assert.deepEqual(node.box.slice(0, 2), [12, 12]);
+  assert.equal(node.children.length, 1);
+  assert.equal(node.id, 'form2');
+  assert.equal(node.children[0].id, 'form3', 'ids inside the copy stay unique too');
+  assert.match(pasteNode(root, root, newNode('Window')).problem, /only be the root/);
+  assert.match(pasteNode(newNode('Label'), newNode('Label'), box).problem, /cannot hold/);
 });

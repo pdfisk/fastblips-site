@@ -124,7 +124,7 @@ function identOf(text) {
 const VARIABLE_BASES = {
   Label: 'label', Button: 'button', Menu: 'menu', Spacer: 'spacer', Panel: 'panel', HPanel: 'row', VPanel: 'column',
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
-  TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list',
+  TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -300,6 +300,10 @@ class Generator {
         }
         break;
       }
+      case 'Ellipse': case 'RoundedRect':
+        if (Number.isFinite(node.borderWidth)) this.call(v, 'setBorderWidth', [num(node.borderWidth)]);
+        if (node.class === 'RoundedRect' && Number.isFinite(node.radius)) this.call(v, 'setRadius', [num(node.radius)]);
+        break;
       case 'Menu': this.menuItems(v, node); break;
       default: break;
     }

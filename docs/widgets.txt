@@ -1828,6 +1828,15 @@ Spacer
 An empty Widget with a flex weight (1 by default). Placed in an HPanel, it
 takes up the free space, pushing the widgets after it to the right.
 
+Ellipse, RoundedRect
+--------------------
+Filled shapes (src/ui/widgets/shape.js). The fill is the widget's background
+(the theme's accent until set) and the outline its colour, drawn borderWidth
+pixels wide (2 by default, 0 for none). An Ellipse as wide as it is high is a
+circle. A RoundedRect has corners of radius pixels (12 by default; 0 is a
+plain rectangle). They have no text, so in a row or column they are as big as
+their width and height say (120 by 80 by default). Both take onClick.
+
 
 Theming
 -------
@@ -2132,10 +2141,24 @@ Designer button opens one.
     selection is outlined in the Preview, and a widget on a hidden tab has
     its tab shown. In design mode presses never reach the widgets.
   - Where a widget is placed freely (the root, or a child of a Panel) it
-    can be dragged in the Preview to move it, and resized by the grip at
-    its corner; a Window root moves by any part of it. In rows, columns,
-    tabs and splits the container places it: Width / Height fix its size
-    there, Flex shares out the rest.
+    can be dragged in the Preview to move it; a Window root moves by any
+    part of it. Every widget is resized by the grip at its corner (in a
+    row, column, tab or split that sets its Width / Height, which fix its
+    size there; Flex shares out the rest).
+  - Drag and drop: a class dragged from the Palette to the Preview or the
+    Outline is added where it is dropped. A widget in a row, column, tab
+    or split is dragged in the Preview to move it, in its container or
+    into another; a marker shows where it would land (a line between
+    widgets, a dashed box for inside one). Rows of the Outline are
+    dragged the same way: the upper quarter of a row drops before it, the
+    lower quarter after it, between them inside it. Nothing can be dropped
+    into itself. Escape cancels a drag.
+  - Edit: Cut, Copy and Paste (also Ctrl+X, Ctrl+C, Ctrl+V when no text
+    field has the focus) work on the selected widget and everything in
+    it. The clipboard is shared by every designer. Paste adds a copy inside
+    the selection if it can hold one, else after it; ids in the copy that
+    the design already uses get a number (save, save2), and a copy in a
+    Panel is offset a little.
   - Add (or double-clicking a Palette class) adds a widget of that class
     to the selection when it can hold one - at the end of a list, as a new
     tab, in a split panel's empty side, as a Window's content and then to
@@ -2149,7 +2172,8 @@ Designer button opens one.
     the program that loads the composite. Menu items are written one to a
     line as "Label = Handler", with "-" for a separator.
   - The ButtonBar: New (a menu of classes: the new composite's root),
-    Open (the saved composites; Refresh list reads them again), the
+    Open (the saved composites; Refresh list reads them again), Edit
+    (Cut, Copy, Paste), the
     composite's name, Save, Add, Delete, Up, Down, Test, which
     switches the Preview between designing and using it, and Code (below).
     The title shows the name and a * while there are unsaved changes;

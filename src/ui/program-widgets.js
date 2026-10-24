@@ -32,6 +32,7 @@ import { Button } from './widgets/button.js';
 import { Label } from './widgets/label.js';
 import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
+import { Ellipse, RoundedRect } from './widgets/shape.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
@@ -213,6 +214,8 @@ const CLASSES = {
   TextPanel: { make: (text) => new TextPanel({ text }), box: DEFAULT_BOXES.TextPanel },
   MonacoPanel: { make: (text, language) => new MonacoPanel({ text, language }), box: DEFAULT_BOXES.MonacoPanel },
   ListPanel: { make: () => new ListPanel(), box: DEFAULT_BOXES.ListPanel },
+  Ellipse: { make: () => new Ellipse(), box: DEFAULT_BOXES.Ellipse },
+  RoundedRect: { make: () => new RoundedRect(), box: DEFAULT_BOXES.RoundedRect },
 };
 
 
@@ -475,6 +478,10 @@ export class ProgramWidgetHost {
         put('selected', w.selectedIndex, -1);
         put('emptyText', w.emptyText, '');
         break;
+      case 'Ellipse': case 'RoundedRect':
+        put('borderWidth', w.borderWidth, 2);
+        if (cls === 'RoundedRect') put('radius', w.radius, 12);
+        break;
       case 'HPanel': case 'VPanel':
         put('padding', w.padding, 0);
         put('spacing', w.spacing, 0);
@@ -632,6 +639,10 @@ export class ProgramWidgetHost {
 
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
+      case 'Ellipse': case 'RoundedRect':
+        if (num(node.borderWidth) !== undefined) w.borderWidth = node.borderWidth;
+        if (cls === 'RoundedRect' && num(node.radius) !== undefined) w.radius = node.radius;
+        break;
       case 'Menu':
         w._items = [];
         for (const item of node.items ?? []) {
@@ -743,6 +754,11 @@ export class ProgramWidgetHost {
       case 'Button.getText': case 'Menu.getText': return w.label;
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
+
+      case 'Ellipse.setBorderWidth': case 'RoundedRect.setBorderWidth': w.borderWidth = a; return undefined;
+      case 'Ellipse.getBorderWidth': case 'RoundedRect.getBorderWidth': return w.borderWidth;
+      case 'RoundedRect.setRadius': w.radius = a; return undefined;
+      case 'RoundedRect.getRadius': return w.radius;
 
       case 'Button.setEnabled': w.enabled = a; return undefined;
       case 'Button.isEnabled': return w.enabled;

@@ -8,8 +8,14 @@
 // toolkit classes by a ProgramWidgetHost; on the right, the Properties of
 // the widget selected. Click a widget in the Preview or the Outline to
 // select it. Where it is placed freely (the root, or in a Panel) it can be
-// dragged to move it, and resized by its corner grip. Rows, columns, tabs
-// and splits are arranged with Add, Delete, Up and Down. Test switches the
+// dragged to move it; elsewhere (in a row, column, tab or split) dragging it
+// moves it to the place where it is dropped, in the same container or in
+// another. Every widget is resized by its corner grip. A class dragged from
+// the Palette and dropped on the Preview is added there. Add, Delete, Up and
+// Down still arrange the selection without the mouse. The Outline takes drags
+// too: a row dropped on another becomes its child, or goes just before or
+// after it. Cut, Copy and Paste (the Edit menu, Ctrl+X, Ctrl+C and Ctrl+V) work
+// on a widget with everything in it, between designers too. Test switches the
 // Preview from designing to using it (buttons click, lists scroll). Code
 // shows the Basic or Python program that builds the design
 // (designer-code-window.js). Size limits the Preview to the screen of a
@@ -31,8 +37,8 @@ import {
   FreeLayer, ProgramWidgetHost, fetchDoc, storeDoc, listDocs,
 } from '../program-widgets.js';
 import {
-  PALETTE, newNode, addChild, removeNode, moveNode, parentOf, canAdd, outline,
-  fieldsFor, getField, setField, toDoc,
+  PALETTE, newNode, addChild, insertChild, removeNode, moveNode, moveNodeTo, parentOf, canAdd, outline,
+  fieldsFor, getField, setField, toDoc, childrenOf, isWithin, pasteNode, cloneNode,
 } from '../designer-model.js';
 import { DesignerCodeWindow } from './designer-code-window.js';
 
@@ -48,6 +54,11 @@ const STYLE = `
   outline-offset:-1px;z-index:99999;box-sizing:border-box}
 .cr-designer-grip{position:absolute;right:-5px;bottom:-5px;width:9px;height:9px;background:var(--cr-accent);
   pointer-events:auto;cursor:nwse-resize}
+.cr-designer-drop{position:absolute;pointer-events:none;z-index:99998;box-sizing:border-box;
+  background:var(--cr-accent);opacity:.85}
+.cr-designer-drop.cr-designer-into{background:transparent;outline:2px dashed var(--cr-accent);outline-offset:-2px;opacity:1}
+.cr-designer-ghost{position:fixed;pointer-events:none;z-index:2147483647;padding:2px 8px;
+  background:var(--cr-accent);color:#fff;font:var(--cr-font-size) var(--cr-font-ui);border-radius:3px;opacity:.9}
 .cr-designer-inspector{position:absolute;inset:0;overflow:auto;padding:6px 8px;box-sizing:border-box;
   background:var(--cr-window-bg);color:var(--cr-text);font:var(--cr-font-size) var(--cr-font-ui)}
 .cr-designer-inspector h4{margin:10px 0 4px;font-size:var(--cr-font-size-small);color:var(--cr-text-muted);
@@ -110,6 +121,68 @@ class NameField extends Widget {
   set value(text) { this.element.value = text; }
 }
 
+// ------------------------------------------------------------ dragging
+
+/** Draws marker over target.rect (viewport coordinates) inside container, or hides it for null. */
+function paintMarker(marker, target, container, scrolls = false) {
+  if (!target) { marker.style.display = 'none'; return; }
+  const p = container.getBoundingClientRect();
+  marker.classList.toggle('cr-designer-into', Boolean(target.into));
+  Object.assign(marker.style, {
+    display: 'block', left: `${target.rect.left - p.left + (scrolls ? container.scrollLeft : 0)}px`,
+    top: `${target.rect.top - p.top + (scrolls ? container.scrollTop : 0)}px`,
+    width: `${target.rect.width}px`, height: `${target.rect.height}px`,
+  });
+}
+
+/**
+ * Follows the pointer from a press until it is let go, as a drag: a ghost
+ * with label follows it, resolve(x, y) says where it would land (a target, or
+ * null for nowhere), paint(target) shows that, and letting go on a target
+ * calls drop(target); letting go anywhere else calls miss(). Escape cancels.
+ * A press that never moves more than a few pixels is no drag.
+ */
+function trackDrag(down, { label, resolve, paint, drop, miss, end }) {
+  const ghost = document.createElement('div');
+  ghost.className = 'cr-designer-ghost';
+  ghost.textContent = label;
+  let started = false;
+  const saved = document.body.style.userSelect;
+  const finish = () => {
+    document.removeEventListener('pointermove', onMove, true);
+    document.removeEventListener('pointerup', onUp, true);
+    document.removeEventListener('pointercancel', finish, true);
+    document.removeEventListener('keydown', onKey, true);
+    document.body.style.userSelect = saved;
+    ghost.remove();
+    paint(null);
+    end?.();
+  };
+  const onMove = (e) => {
+    if (!started) {
+      if (Math.abs(e.clientX - down.clientX) + Math.abs(e.clientY - down.clientY) < 4) return;
+      started = true;
+      document.body.style.userSelect = 'none';
+      document.body.appendChild(ghost);
+    }
+    ghost.style.left = `${e.clientX + 12}px`;
+    ghost.style.top = `${e.clientY + 12}px`;
+    paint(resolve(e.clientX, e.clientY));
+  };
+  const onUp = (e) => {
+    const target = started ? resolve(e.clientX, e.clientY) : null;
+    const wasStarted = started;
+    finish();
+    if (!wasStarted) return;
+    if (target) drop(target); else miss();
+  };
+  const onKey = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(); } };
+  document.addEventListener('pointermove', onMove, true);
+  document.addEventListener('pointerup', onUp, true);
+  document.addEventListener('pointercancel', finish, true);
+  document.addEventListener('keydown', onKey, true);
+}
+
 // ------------------------------------------------------------ the preview
 
 /** The composite, built from the real widgets, with the selection drawn on it. */
@@ -133,6 +206,10 @@ class PreviewPanel extends Panel {
     this.grip.title = 'Drag to resize';
     this.selectBox.appendChild(this.grip);
     this.element.appendChild(this.selectBox);
+    this.marker = document.createElement('div');   // where a drag would drop
+    this.marker.className = 'cr-designer-drop';
+    this.marker.style.display = 'none';
+    this.element.appendChild(this.marker);
 
     // In design mode a press selects (and may drag); nothing reaches the widgets.
     const swallow = (e) => { if (!this.testing) { e.preventDefault(); e.stopPropagation(); } };
@@ -211,7 +288,7 @@ class PreviewPanel extends Panel {
       display: 'block', left: `${r.left - p.left + this.element.scrollLeft}px`, top: `${r.top - p.top + this.element.scrollTop}px`,
       width: `${r.width}px`, height: `${r.height}px`,
     });
-    this.grip.style.display = this.designer.isFree(this.designer.selected) ? 'block' : 'none';
+    this.grip.style.display = 'block';
   }
 
   /** The node shown by the element pressed, or the root. */
@@ -231,9 +308,124 @@ class PreviewPanel extends Panel {
     const resizing = e.target === this.grip;
     const node = resizing ? this.designer.selected : this._nodeAt(e.target);
     if (!resizing) this.designer.select(node);
-    if (!this.designer.isFree(node)) return;
+    this.designer.outlineList.list.focus({ preventScroll: true });   // so Ctrl+X, C and V reach the designer
+    if (!this.designer.isFree(node)) {
+      if (resizing) this._resizeInFlow(e, node);
+      else this.startDrag(e, { node, label: node.class });
+      return;
+    }
     this._drag(e, node, resizing);
   }
+
+  /**
+   * Resizes a widget that sits in a row, column, tab or split: its width and
+   * height are fields it may be given (a row or column otherwise sizes it
+   * itself), and the Preview is built again as they change.
+   */
+  _resizeInFlow(down, node) {
+    const widget = this.widgetOf.get(node);
+    if (!widget) return;
+    const box = widget.element.getBoundingClientRect();
+    const grip = this.grip;
+    grip.setPointerCapture?.(down.pointerId);
+    let moved = false;
+    const onMove = (e) => {
+      const width = Math.max(8, Math.round(box.width + e.clientX - down.clientX));
+      const height = Math.max(8, Math.round(box.height + e.clientY - down.clientY));
+      if (!moved && Math.abs(width - box.width) + Math.abs(height - box.height) < 3) return;
+      moved = true;
+      this.designer.applyPlace(node, { width, height });
+      this.render();
+    };
+    const onUp = () => {
+      grip.removeEventListener('pointermove', onMove);
+      grip.removeEventListener('pointerup', onUp);
+      grip.removeEventListener('pointercancel', onUp);
+      if (moved) this.designer.changed();
+    };
+    grip.addEventListener('pointermove', onMove);
+    grip.addEventListener('pointerup', onUp);
+    grip.addEventListener('pointercancel', onUp);
+  }
+
+  // ---- drag and drop: a Palette class or a widget, dropped where it should go
+
+  /** Starts dragging a Palette class (cls) or an existing widget (node); see DesignerWindow.dragFrom. */
+  startDrag(down, spec) { this.designer.dragFrom(down, spec); }
+
+  /**
+   * Where a widget dropped at the pointer would go: { parent, index?, place?, rect } -
+   * the container, the position in it (lists), the left/top inside a Panel
+   * (free placement), and the box to mark - or null. Nothing may go inside
+   * the widget being moved.
+   */
+  _dropTarget(x, y, moving) {
+    if (this.testing) return null;
+    const el = document.elementFromPoint(x, y);
+    if (!el || !this.element.contains(el)) return null;
+    const d = this.designer;
+    let hit = this._nodeAt(el);
+    while (hit && moving && isWithin(hit, moving)) hit = parentOf(d.root, hit);
+    if (!hit) return null;
+    const rectOf = (n) => this.widgetOf.get(n)?.element.getBoundingClientRect() ?? null;
+    const horizontal = (n) => n.class === 'HPanel' || n.class === 'ButtonBar';
+
+    let parent = hit;
+    let before = null;   // the sibling to go before, or null for the end (or the first slot)
+    let anchor = null;   // the sibling the pointer is over, if hit is not a container
+    if (!canAdd(hit)) {
+      parent = parentOf(d.root, hit);
+      if (!parent) return null;
+      anchor = hit;
+    }
+    if (parent.class === 'Panel') {
+      const box = rectOf(parent);
+      if (!box) return null;
+      const here = { x: x - box.left, y: y - box.top };
+      return { parent, place: { left: Math.max(0, Math.round(here.x)), top: Math.max(0, Math.round(here.y)) },
+        rect: { left: x, top: y, width: 8, height: 8 }, into: true, region: 'preview' };
+    }
+    const listy = ['HPanel', 'VPanel', 'ButtonBar'].includes(parent.class);
+    if (!listy) {
+      if (!canAdd(parent)) return null;
+      const box = rectOf(parent);
+      return box ? { parent, rect: box, into: true, region: 'preview' } : null;
+    }
+    const kids = childrenOf(parent).filter((k) => k !== moving);
+    const after = (kid) => {
+      const r = rectOf(kid);
+      if (!r) return false;
+      return horizontal(parent) ? x >= r.left + r.width / 2 : y >= r.top + r.height / 2;
+    };
+    let at = kids.length;
+    if (anchor) {
+      const i = kids.indexOf(anchor);
+      at = i < 0 ? kids.length : i + (after(anchor) ? 1 : 0);
+    } else {
+      at = kids.findIndex((k) => !after(k));
+      if (at < 0) at = kids.length;
+    }
+    before = kids[at] ?? null;
+    // The index counts the parent's own list, which still holds the widget being moved.
+    const own = childrenOf(parent);
+    const index = before ? own.indexOf(before) : own.length;
+    let rect;
+    if (before) rect = rectOf(before);
+    else if (kids.length) rect = rectOf(kids[kids.length - 1]);
+    else rect = rectOf(parent);
+    if (!rect) return null;
+    const line = 3;
+    if (!kids.length) return { parent, index, rect, into: true, region: 'preview' };
+    const edge = before
+      ? (horizontal(parent) ? { left: rect.left - line / 2, top: rect.top, width: line, height: rect.height }
+        : { left: rect.left, top: rect.top - line / 2, width: rect.width, height: line })
+      : (horizontal(parent) ? { left: rect.right - line / 2, top: rect.top, width: line, height: rect.height }
+        : { left: rect.left, top: rect.bottom - line / 2, width: rect.width, height: line });
+    return { parent, index, rect: edge, region: 'preview' };
+  }
+
+  /** Marks where a drag would drop (a target from _dropTarget), or (null) hides the mark. */
+  showMarker(target) { paintMarker(this.marker, target, this.element, true); }
 
   /** Moves (or with the grip, resizes) a freely placed widget, then records its new box. */
   _drag(down, node, resizing) {
@@ -351,6 +543,7 @@ class InspectorPanel extends Panel {
 // -------------------------------------------------------------- the window
 
 let opened = 0;
+let clipboard = null;   // the node last cut or copied: shared by every designer on the page
 
 export class DesignerWindow extends Window {
   /** @param {{ root?: object, name?: string }} options - a composite to start with */
@@ -371,14 +564,30 @@ export class DesignerWindow extends Window {
     this.paletteList = new ListPanel({ items: PALETTE.map((c) => ({ label: c, value: c })) });
     this.preview = new PreviewPanel(this);
     this.inspector = new InspectorPanel(this);
-    const left = new VSplitPanel({ first: titled('Outline', this.outlineList), second: titled('Palette (double-click to add)', this.paletteList), position: 0.6 });
+    const left = new VSplitPanel({ first: titled('Outline', this.outlineList), second: titled('Palette (double-click, or drag to the Preview)', this.paletteList), position: 0.6 });
     const right = new HSplitPanel({ first: titled('Preview', this.preview), second: titled('Properties', this.inspector), position: 0.62 });
     this.content = new HSplitPanel({ first: left, second: right, position: 0.24 });
 
     this.outlineList.element.addEventListener('select', (e) => {
       if (e.target === this.outlineList.element && e.detail.item) this.select(e.detail.item.value);
     });
+    this.outlineMarker = document.createElement('div');   // where a drag in the Outline would drop
+    this.outlineMarker.className = 'cr-designer-drop';
+    this.outlineMarker.style.display = 'none';
+    this.outlineList.element.appendChild(this.outlineMarker);
+    // Dragging a row of the Outline moves that widget (and what is in it) to where it is dropped.
+    this.outlineList.element.addEventListener('pointerdown', (e) => {
+      const row = e.button === 0 ? e.target.closest('li[data-index]') : null;
+      const node = row && outline(this.root)[Number(row.dataset.index)]?.node;
+      if (node && node !== this.root) this.dragFrom(e, { node, label: node.class });
+    });
     this.paletteList.element.addEventListener('dblclick', () => this.addFromPalette());
+    // Dragging a class from the Palette to the Preview adds a widget where it is dropped.
+    this.paletteList.element.addEventListener('pointerdown', (e) => {
+      const row = e.button === 0 ? e.target.closest('li[data-index]') : null;
+      const cls = row && this.paletteList.items[Number(row.dataset.index)]?.value;
+      if (cls) this.dragFrom(e, { cls, label: `+ ${cls}` });
+    });
 
     const bar = this.buttonBar;
     const newMenu = new Menu('New');
@@ -391,6 +600,11 @@ export class DesignerWindow extends Window {
       { label: 'Refresh list', action: () => this.refreshNames() },
     ];
     bar.add(this.openMenu);
+    const editMenu = new Menu('Edit');
+    editMenu.addItem('Cut  (Ctrl+X)', () => this.cut(), { enabled: () => this.selected !== this.root });
+    editMenu.addItem('Copy  (Ctrl+C)', () => this.copy());
+    editMenu.addItem('Paste  (Ctrl+V)', () => this.paste(), { enabled: () => clipboard !== null });
+    bar.add(editMenu);
     this.nameField = bar.add(new NameField('composite name'));
     this.nameField.value = name;
     bar.addButton('Save', () => this.save());
@@ -410,6 +624,16 @@ export class DesignerWindow extends Window {
     this.statusLabel = bar.add(new Label(''));
 
     this.nameField.element.addEventListener('input', () => this._title());
+    // Ctrl+X, C and V on the widgets, unless a text field has the focus (it cuts, copies and pastes its own text).
+    this.element.addEventListener('keydown', (e) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || this.preview.testing) return;
+      const t = e.target;
+      if (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName)) return;
+      const action = { x: () => this.cut(), c: () => this.copy(), v: () => this.paste() }[e.key.toLowerCase()];
+      if (!action) return;
+      e.preventDefault();
+      action();
+    });
     this.element.addEventListener('close', (e) => {
       if (e.target !== this.element) return;
       if (this.dirty && !confirm(`Discard unsaved changes to "${this.name || 'the new composite'}"?`)) { e.preventDefault(); return; }
@@ -477,15 +701,121 @@ export class DesignerWindow extends Window {
     this.preview.reveal(node);
   }
 
-  /** Records a drag in the preview: new left/top, or width/height. */
-  setPlace(node, place) {
+  /** Sets the left/top or width/height fields a node has, without showing the change. */
+  applyPlace(node, place) {
     const fields = fieldsFor(node, { isRoot: node === this.root, parent: parentOf(this.root, node) })
       .flatMap(([, fs]) => fs);
     for (const [key, value] of Object.entries(place)) {
       const field = fields.find((f) => f.key === key && f.type === 'number');
       if (field) setField(node, field, String(value));
     }
+  }
+
+  /** Records a drag in the preview: new left/top, or width/height. */
+  setPlace(node, place) {
+    this.applyPlace(node, place);
     this.changed();
+  }
+
+  /**
+   * Adds a new widget of class cls, or moves the widget node, to a drop
+   * target found by the Preview ({ parent, index?, place? }), and selects it.
+   */
+  drop({ cls = null, node = null }, { parent, index, place }) {
+    let moved = node;
+    let problem;
+    if (cls) {
+      moved = newNode(cls);
+      problem = insertChild(parent, moved, index);
+    } else {
+      problem = moveNodeTo(this.root, node, parent, index);
+    }
+    if (problem) { this.status(problem, 'error'); return false; }
+    if (place) this.applyPlace(moved, place);
+    this.selected = moved;
+    this.status(cls ? `Added a ${cls}` : `Moved the ${moved.class}`);
+    this.changed();
+    return true;
+  }
+
+  // ---- cut, copy and paste
+
+  /** Copies the selected widget, and everything in it, to the clipboard. */
+  copy() {
+    clipboard = cloneNode(this.selected);
+    try { globalThis.navigator?.clipboard?.writeText?.(JSON.stringify(clipboard, null, 2))?.catch?.(() => {}); } catch { /* the page's own clipboard is enough */ }
+    this.status(`Copied the ${this.selected.class}`);
+  }
+
+  /** Copies the selected widget and deletes it. */
+  cut() {
+    const node = this.selected;
+    if (node === this.root) { this.status('The root cannot be cut: start a New composite instead', 'error'); return; }
+    this.copy();
+    this.deleteSelected();
+    this.status(`Cut the ${node.class}`);
+  }
+
+  /** Adds a copy of the clipboard's widget inside the selection, or after it; selects the copy. */
+  paste() {
+    if (!clipboard) { this.status('Nothing to paste: copy or cut a widget first', 'error'); return; }
+    const { node, problem } = pasteNode(this.root, this.selected, clipboard);
+    if (problem) { this.status(problem, 'error'); return; }
+    this.selected = node;
+    this.status(`Pasted a ${node.class}`);
+    this.changed();
+  }
+
+  // ---- drag and drop
+
+  /**
+   * Drags a new widget of class cls (from the Palette) or the existing widget
+   * node (from the Preview or the Outline) to where it is let go: in the
+   * Preview or in the Outline. A marker shows the place; Escape cancels.
+   */
+  dragFrom(down, { cls = null, node = null, label }) {
+    const grip = this.preview.grip;
+    grip.style.pointerEvents = 'none';   // so the widget under the grip is what the pointer finds
+    trackDrag(down, {
+      label,
+      resolve: (x, y) => this.preview._dropTarget(x, y, node) ?? this._outlineTarget(x, y, node),
+      paint: (t) => {
+        this.preview.showMarker(t?.region === 'preview' ? t : null);
+        paintMarker(this.outlineMarker, t?.region === 'outline' ? t : null, this.outlineList.element);
+      },
+      drop: (t) => this.drop({ cls, node }, t),
+      miss: () => this.status('Drop it on the Preview or the Outline, on a place that can hold it', 'error'),
+      end: () => { grip.style.pointerEvents = ''; },
+    });
+  }
+
+  /**
+   * Where a widget dropped on the Outline at the pointer would go: on the
+   * upper quarter of a row, before that widget; on the lower quarter, after
+   * it; between, inside it if it can hold more. Null if not over a row, or the
+   * row is the widget being moved or something in it.
+   */
+  _outlineTarget(x, y, moving) {
+    const li = document.elementFromPoint(x, y)?.closest?.('li[data-index]');
+    if (!li || !this.outlineList.list.contains(li)) return null;
+    const node = outline(this.root)[Number(li.dataset.index)]?.node;
+    if (!node || (moving && isWithin(node, moving))) return null;
+    const r = li.getBoundingClientRect();
+    const f = (y - r.top) / Math.max(1, r.height);
+    let mode = f < 0.25 ? 'before' : f > 0.75 ? 'after' : 'into';
+    if (mode === 'into' && !canAdd(node)) mode = f < 0.5 ? 'before' : 'after';
+    if (mode === 'into') return { parent: node, rect: r, into: true, region: 'outline' };
+    const parent = parentOf(this.root, node);
+    if (!parent) return null;
+    let index;
+    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(parent.class)) {
+      index = childrenOf(parent).indexOf(node) + (mode === 'after' ? 1 : 0);
+    } else if (!canAdd(parent)) {
+      return null;
+    }
+    const line = 3;
+    const rect = { left: r.left, width: r.width, height: line, top: mode === 'before' ? r.top - line / 2 : r.bottom - line / 2 };
+    return { parent, index, rect, region: 'outline' };
   }
 
   // ---- editing

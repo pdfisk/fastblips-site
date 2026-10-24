@@ -112,6 +112,25 @@ export function addChild(parent, child) {
   return `a ${parent.class} cannot hold other widgets`;
 }
 
+/**
+ * Adds child to parent like addChild, but at position index of a list
+ * container (a number from 0; past the end, or undefined, is the end). Other
+ * parents take it where addChild would. Returns a message saying why not, or null.
+ */
+export function insertChild(parent, child, index) {
+  if (LIST_CONTAINERS.has(parent.class) && child.class !== 'Window') {
+    const list = (parent.children ??= []);
+    list.splice(index === undefined ? list.length : Math.max(0, Math.min(index, list.length)), 0, child);
+    return null;
+  }
+  return addChild(parent, child);
+}
+
+/** True when node is ancestor, or somewhere under it. */
+export function isWithin(node, ancestor) {
+  return node === ancestor || childrenOf(ancestor).some((c) => isWithin(node, c));
+}
+
 /** Where node sits in parent: { list, index } for lists, or { slot } for a named side. */
 function placeOf(parent, node) {
   if (LIST_CONTAINERS.has(parent.class)) return { list: parent.children, index: parent.children.indexOf(node) };
@@ -131,6 +150,30 @@ export function removeNode(root, node) {
   const place = placeOf(parent, node);
   if (place.list) place.list.splice(place.index, 1);
   else parent[place.slot] = null;
+  return null;
+}
+
+/**
+ * Moves node (with everything in it) under newParent, at position index if
+ * that is a list container (see insertChild). It can go to another parent or
+ * to another place under the same one. Returns a message saying why not, or
+ * null; nothing changes when there is a message.
+ */
+export function moveNodeTo(root, node, newParent, index) {
+  if (node === root) return 'the root cannot be moved';
+  if (isWithin(newParent, node)) return 'a widget cannot go inside itself';
+  const parent = parentOf(root, node);
+  if (!parent) return 'that widget is not in the design';
+  const place = placeOf(parent, node);
+  const removed = place.list ? place.list[place.index] : null;
+  if (place.list) place.list.splice(place.index, 1); else parent[place.slot] = null;
+  let at = index;
+  if (place.list && !place.tabs && parent === newParent && at !== undefined && place.index < at) at -= 1;
+  const problem = insertChild(newParent, node, at);
+  if (problem) {
+    if (place.list) place.list.splice(place.index, 0, removed); else parent[place.slot] = node;
+    return problem;
+  }
   return null;
 }
 
@@ -257,6 +300,8 @@ const FIELDS = {
   maximized: prop('maximized', 'Maximized', 'bool', false),
   flex: prop('flex', 'Flex', 'number'),
   padding: prop('padding', 'Padding', 'number'),
+  borderWidth: prop('borderWidth', 'Outline width', 'number', 2),
+  radius: prop('radius', 'Corner radius', 'number', 12),
   spacing: prop('spacing', 'Spacing', 'number'),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
@@ -330,6 +375,7 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     TextPanel: [f.textArea, f.readOnly], MonacoPanel: [f.textArea, f.language, f.readOnly],
     ListPanel: [f.listItems, f.selected, f.emptyText],
     HPanel: [f.padding, f.spacing], VPanel: [f.padding, f.spacing],
+    Ellipse: [f.borderWidth], RoundedRect: [f.borderWidth, f.radius],
     HSplitPanel: [f.position], VSplitPanel: [f.position],
     TabPanel: [f.tabLabels, f.selected],
     Window: [f.title, f.maximized],
@@ -362,3 +408,46 @@ export function toDoc(root) {
 
 /** A deep copy of a node (for undo and paste). */
 export const cloneNode = (node) => JSON.parse(JSON.stringify(node));
+
+const idsUnder = (node, ids = new Set()) => {
+  if (node.id) ids.add(node.id);
+  for (const c of childrenOf(node)) idsUnder(c, ids);
+  return ids;
+};
+
+/** Renames ids in node (a copy about to join the tree under root) that the tree already uses: save -> save2. */
+export function makeIdsUnique(root, node) {
+  const taken = idsUnder(root);
+  const walk = (n) => {
+    if (n.id) {
+      let id = n.id;
+      for (let i = 2; taken.has(id); i += 1) id = `${n.id}${i}`;
+      n.id = id;
+      taken.add(id);
+    }
+    for (const c of childrenOf(n)) walk(c);
+  };
+  walk(node);
+}
+
+/**
+ * Pastes a copy of `copied` into the tree under root: inside `selected` if that
+ * can hold it, else right after it in its parent. The copy gets ids no other
+ * widget has, and where it lands in a Panel it is offset a little so that it
+ * does not hide the original. Returns { node } (the copy that was added), or
+ * { problem } saying why not; nothing changes with a problem.
+ */
+export function pasteNode(root, selected, copied) {
+  const node = cloneNode(copied);
+  let parent = selected;
+  let after = null;
+  if (!canAdd(parent)) { after = parent; parent = parentOf(root, parent); }
+  if (!parent) return { problem: `a ${selected.class} cannot hold other widgets` };
+  makeIdsUnique(root, node);
+  const list = LIST_CONTAINERS.has(parent.class) ? parent.children : null;
+  const index = after && list ? list.indexOf(after) + 1 : undefined;
+  const problem = insertChild(parent, node, index);
+  if (problem) return { problem };
+  if (parent.class === 'Panel' && node.box) { node.box[0] += 12; node.box[1] += 12; }
+  return { node };
+}

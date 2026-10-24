@@ -185,6 +185,7 @@ label.setWidth(100)
 | `Button` | `New Button(text)` | A push button |
 | `Menu` | `New Menu(text)` | A button that opens a list of items |
 | `Spacer` | `New Spacer()` | Empty space; in a row or column it takes the space left over |
+| `Ellipse` / `RoundedRect` | `New Ellipse()` | A filled shape with an outline: an ellipse (a circle if square) / a rectangle with rounded corners |
 | `Panel` | `New Panel()` | A container whose children sit where the program puts them |
 | `HPanel` / `VPanel` | `New HPanel()` | A row / column that lays its children out |
 | `ButtonBar` | `New ButtonBar()` | A row of buttons, styled like a window's bottom bar |
@@ -234,6 +235,7 @@ size must be 0 or more.
 | `Window` | `setTitle(t)` `getTitle()` `setContent(w)` `getContent()` `getButtonBar()` `open()` `close()` `maximize()` `restore()` `isMaximized()` `onClose(sub)` |
 | `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
 | `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
+| `Ellipse` `RoundedRect` | `setBorderWidth(n)` `getBorderWidth()` `onClick(sub)`; RoundedRect also `setRadius(n)` `getRadius()`. The fill is `setBackground`, the outline `setColor`; an Ellipse as wide as it is high is a circle |
 | `Canvas` | see **The Canvas** below |
 | `Physics` | see **The Physics** below |
 | `Board` | `setSize(rows, columns)` `getRows()` `getColumns()` `setText(row, column, t)` `getText(row, column)` `setBackground(row, column, c)` `getBackground(row, column)` `setColor(row, column, c)` `getColor(row, column)` `setCheckered(b)` `isCheckered()` `setSquareCells(b)` `isSquareCells()` `select(row, column)` `clearSelection()` `getSelectedRow()` `getSelectedColumn()` `clear()` `onClick(sub)`; it has none of the methods every widget has |

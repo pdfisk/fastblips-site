@@ -123,6 +123,7 @@ const COMMON = [
 
 const TEXT = [method('setText', ['text']), method('getText', [], 'text')];
 const CLICK = [method('onClick', ['handler'])];
+const OUTLINE = [method('setBorderWidth', ['size']), method('getBorderWidth', [], 'int')];
 const CONTAINER = [
   method('add', ['widget']),
   method('getCount', [], 'int'),
@@ -350,6 +351,14 @@ export const WIDGET_CLASSES = Object.freeze([
     method('onClick', ['handler:int:int']),
     method('onCollide', ['handler:int:int']),
   ], { common: [] }),
+  // Shapes: the fill is the background and the outline the colour. An
+  // Ellipse that is as wide as it is high is a circle.
+  cls('Ellipse', [], [...CLICK, ...OUTLINE]),
+  cls('RoundedRect', [], [
+    ...CLICK, ...OUTLINE,
+    method('setRadius', ['size']),
+    method('getRadius', [], 'int'),
+  ]),
 ]);
 
 /** className -> class */

@@ -19,6 +19,8 @@ export const DEFAULT_BOXES = Object.freeze({
   TextPanel: [0, 0, 240, 120],
   MonacoPanel: [0, 0, 320, 200],
   ListPanel: [0, 0, 160, 160],
+  Ellipse: [0, 0, 120, 80],
+  RoundedRect: [0, 0, 120, 80],
 });
 
 /** A new Window's bounds (x, y, width, height). */
