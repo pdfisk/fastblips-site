@@ -15,6 +15,8 @@
 //        Enter         open a folder (.. goes up; so does Backspace)
 //        Insert, Space mark or unmark the file and move down
 //        +  -  *       mark all, unmark all, invert the marks
+//        Ctrl+A        mark all; Ctrl+Shift+A or Ctrl+D unmark all
+//        Select All    the button does the same: it marks all, or unmarks all if all are marked
 //        F5 Copy       the marked files, or the one under the cursor, to the other pane
 //        F6 Move       the same, deleting each once copied
 //        F7 New Folder in the active pane
@@ -143,6 +145,9 @@ class FilePane {
 
   get current() { return this.rows[this.cursor] ?? null; }
 
+  /** Whether there are entries and all are marked. */
+  get allMarked() { return this.entries.length > 0 && this.entries.every((e) => this.marked.has(e.name)); }
+
   /** The entries a command works on: the marked ones, else the one under the cursor. */
   targets() {
     if (this.marked.size) return this.entries.filter((e) => this.marked.has(e.name));
@@ -233,6 +238,7 @@ class FilePane {
 
   render() {
     this.element.classList.toggle('cr-fc-active', this.owner.active === this);
+    if (this.owner.active === this) queueMicrotask(() => this.owner._selectLabel());
     this.pathLabel.textContent = this.volume ? `/${this.path.join('/')}` : '';
     this.pathLabel.title = this.where;
     const rows = this.rows.map((entry, index) => {
@@ -334,6 +340,7 @@ export class FileCopyWindow extends Window {
     this.folderButton = this.buttonBar.addButton('F7 New Folder', () => this.makeFolder());
     this.deleteButton = this.buttonBar.addButton('F8 Delete', () => this.deleteSelected());
     this.buttonBar.addButton('F9 Refresh', () => this.refresh());
+    this.selectButton = this.buttonBar.addButton('Select All', () => this.toggleMarks());
     this.loginButton = this.buttonBar.addButton('F2 Sign In', () => this.toggleLogin());
     this._loginLabel();
 
@@ -494,6 +501,23 @@ export class FileCopyWindow extends Window {
     this.panel.statusLine.classList.toggle('cr-fc-error', Boolean(error));
   }
 
+  /** Marks every file of the active pane, or unmarks them all if they are all marked already. */
+  toggleMarks() {
+    const pane = this.active;
+    pane.markAll(!pane.allMarked);
+    pane.list.focus();
+    this._selectLabel();
+  }
+
+  /** The Select All button says what it will do to the active pane. */
+  _selectLabel() {
+    if (!this.selectButton) return;
+    const label = this.active.allMarked ? 'Unselect All' : 'Select All';
+    if (this.selectButton.label === label) return;
+    this.selectButton.label = label;
+    this.buttonBar.layout();
+  }
+
   /** Reads both panes again. */
   refresh() { return Promise.all([this.leftPane.reload(), this.rightPane.reload()]); }
 
@@ -561,6 +585,16 @@ export class FileCopyWindow extends Window {
     if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') {
       if (e.key === 'Escape' && this._asking) { e.preventDefault(); this._asking.cancel(); }
       return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      if (e.shiftKey) this.active.markAll(false); else this.active.markAll(true);
+      return undefined;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'd') {
+      e.preventDefault();
+      this.active.markAll(false);
+      return undefined;
     }
     const pane = this.active;
     const page = Math.max(1, Math.floor(pane.list.clientHeight / 18) - 1);
