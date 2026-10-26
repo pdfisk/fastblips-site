@@ -233,9 +233,22 @@ test('fields: margin, padding and border width are whole numbers of 0 or more; b
   setField(label, field(label, 'Border colour'), 'red');
   assert.equal(label.borderWidth, 2);
   assert.equal(label.borderColor, 'red');
-  assert.throws(() => setField(label, margin, '-1'), /Margin must be 0 or more/);
-  assert.throws(() => setField(label, margin, 'wide'), /Margin must be 0 or more/);
+  assert.throws(() => setField(label, margin, '-1'), /Margin must be 1 to 4 numbers of 0 or more/);
+  assert.throws(() => setField(label, margin, 'wide'), /Margin must be 1 to 4 numbers/);
+  assert.throws(() => setField(label, margin, '1 2 3 4 5'), /Margin must be 1 to 4 numbers/);
   assert.equal(label.margin, 4, 'a refused value changes nothing');
   for (const name of ['Margin', 'Padding', 'Border width', 'Border colour']) setField(label, field(label, name), '');
   assert.deepEqual(label, { class: 'Label', text: 'Label', box: [0, 0, 100, 24] });
+});
+
+test('fields: sides are written as in CSS and kept as one number when alike', () => {
+  const label = newNode('Label');
+  const margin = field(label, 'Margin');
+  const kept = (text) => { setField(label, margin, text); return [label.margin, getField(label, margin)]; };
+  assert.deepEqual(kept('4'), [4, '4']);
+  assert.deepEqual(kept('1 2'), [[1, 2, 1, 2], '1 2 1 2'], 'top and bottom, then left and right');
+  assert.deepEqual(kept('1 2 3'), [[1, 2, 3, 2], '1 2 3 2'], 'top, left and right, bottom');
+  assert.deepEqual(kept('1, 2, 3, 4'), [[1, 2, 3, 4], '1 2 3 4'], 'top, right, bottom, left');
+  assert.deepEqual(kept('0 0 6 0'), [[0, 0, 6, 0], '0 0 6 0'], 'only the bottom');
+  assert.deepEqual(kept('3 3'), [3, '3']);
 });

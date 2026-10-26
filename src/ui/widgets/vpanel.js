@@ -19,19 +19,20 @@ export class VPanel extends Panel {
 
   layout() {
     const height = this.innerHeight;
+    const [pt, pr, pb, pl] = this.padding;
     const kids = this._children.filter((c) => c.visible);
-    const inner = this.innerWidth - 2 * this.padding;
+    const inner = Math.max(0, this.innerWidth - pl - pr);
     // Each child is given its height and its margin above and below.
-    const heights = kids.map((c) => (c.fixedHeight ?? (c.flex ? 0 : c.preferredHeight())) + 2 * c.margin);
+    const heights = kids.map((c) => (c.fixedHeight ?? (c.flex ? 0 : c.preferredHeight())) + c.margin[0] + c.margin[2]);
     const used = heights.reduce((a, b) => a + b, 0)
-      + this.spacing * Math.max(0, kids.length - 1) + 2 * this.padding;
+      + this.spacing * Math.max(0, kids.length - 1) + pt + pb;
     const totalFlex = kids.reduce((a, c) => a + (c.fixedHeight == null && c.flex ? c.flex : 0), 0);
     const free = Math.max(0, height - used);
-    let y = this.padding;
+    let y = pt;
     kids.forEach((child, i) => {
       let h = heights[i];
       if (child.fixedHeight == null && child.flex) h = free * (child.flex / totalFlex);
-      child.setBounds(this.padding, Math.round(y), inner, Math.round(h));
+      child.setBounds(pl, Math.round(y), inner, Math.round(h));
       y += h + this.spacing;
     });
     super.layout();

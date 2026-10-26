@@ -44,7 +44,7 @@ function bigDesign() {
 
   const split = add(win, made('VSplitPanel', { Id: 'main', 'Divider (0-1)': '0.3' }, { parent: win }));
   const free = add(split, newNode('Panel'));
-  add(free, made('Label', { Id: 'caption', Text: 'Name:', Left: '10', Top: '20', Margin: '4', 'Border width': '1', 'Border colour': 'gray', Padding: '3' }, { parent: free }));
+  add(free, made('Label', { Id: 'caption', Text: 'Name:', Left: '10', Top: '20', Margin: '4', 'Border width': '1', 'Border colour': 'gray', Padding: '3 6' }, { parent: free }));
   add(free, made('TextPanel', { Id: 'name', Text: 'line one\nline "two"\tend', Left: '10', Top: '50', Width: '200', Height: '60' }, { parent: free }));
 
   const tabs = add(split, newNode('TabPanel'));
@@ -62,7 +62,7 @@ function bigDesign() {
   set(tabs, 'Selected', '1');
 
   add(win, made('Button', { Id: 'ok', Text: 'OK', onClick: 'LoggedIn' }, { parent: win }));
-  add(win, made('Button', { Text: 'Cancel', Margin: '1', Padding: '5' }, { parent: win }));
+  add(win, made('Button', { Text: 'Cancel', Margin: '1 2 3 4', Padding: '5' }, { parent: win }));
   add(win, made('Label', { Text: 'ready' }, { parent: win }));
   return win;
 }
@@ -512,4 +512,14 @@ test('the box: a Window has none, and a shape writes its outline width once', ()
   assert.match(crumb, /\.setBorderColor\("red"\)/);
   assert.match(crumb, /\.setMargin\(5\)/);
   assert.doesNotMatch(crumb, /win\d*\.set(Margin|Padding|Border)/);
+});
+
+test('the box: sides that differ are written with the Sides methods', () => {
+  const root = made('VPanel', { Margin: '1 2 3 4', 'Border width': '0 0 2 0', Padding: '5 5' }, { isRoot: true });
+  assert.deepEqual([root.margin, root.borderWidth, root.padding], [[1, 2, 3, 4], [0, 0, 2, 0], 5]);
+  const crumb = generateCode(root, { language: 'basic' });
+  assert.match(crumb, /\.setMarginSides\(1, 2, 3, 4\)/);
+  assert.match(crumb, /\.setBorderWidthSides\(0, 0, 2, 0\)/);
+  assert.match(crumb, /\.setPadding\(5\)/, 'alike sides are one number');
+  assert.match(generateCode(root, { language: 'python' }), /\.set_border_width_sides\(0, 0, 2, 0\)/);
 });

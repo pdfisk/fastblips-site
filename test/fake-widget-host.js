@@ -283,6 +283,8 @@ export class FakeHost {
         w.props.state = method; return undefined;
       default: break;
     }
+    const sides = /^set(Margin|Padding|BorderWidth)Sides$/.exec(method);
+    if (sides) { w.props[sides[1][0].toLowerCase() + sides[1].slice(1)] = [...args]; return undefined; }   // four sides: [top, right, bottom, left]
     const set = /^set([A-Z]\w*)$/.exec(method);
     if (set) { w.props[set[1][0].toLowerCase() + set[1].slice(1)] = args[0]; return undefined; }
     const get = /^(?:get|is)([A-Z]\w*)$/.exec(method);

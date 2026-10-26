@@ -279,14 +279,22 @@ class Generator {
     if (node.fill === true) this.call(v, 'fill');
   }
 
+  /** setMargin(n) when the sides are alike, else setMarginSides(top, right, bottom, left); nothing when not set. */
+  sides(v, what, value) {
+    if (Number.isFinite(value)) this.call(v, `set${what}`, [num(value)]);
+    else if (Array.isArray(value) && value.length === 4 && value.every(Number.isFinite)) {
+      this.call(v, `set${what}Sides`, value.map(num));
+    }
+  }
+
   /** The box, from the outside in: margin, border, padding, as set. A shape's outline width is written with the shape. */
   box(v, node) {
     if (node.class === 'Window') return;
     const shape = node.class === 'Ellipse' || node.class === 'RoundedRect';
-    if (Number.isFinite(node.margin)) this.call(v, 'setMargin', [num(node.margin)]);
-    if (!shape && Number.isFinite(node.borderWidth)) this.call(v, 'setBorderWidth', [num(node.borderWidth)]);
+    this.sides(v, 'Margin', node.margin);
+    if (!shape) this.sides(v, 'BorderWidth', node.borderWidth);
     if (node.borderColor) this.call(v, 'setBorderColor', [this.str(node.borderColor)]);
-    if (Number.isFinite(node.padding)) this.call(v, 'setPadding', [num(node.padding)]);
+    this.sides(v, 'Padding', node.padding);
   }
 
   /** What only some classes have: items, the divider, ... */
@@ -311,7 +319,7 @@ class Generator {
         break;
       }
       case 'Ellipse': case 'RoundedRect':
-        if (Number.isFinite(node.borderWidth)) this.call(v, 'setBorderWidth', [num(node.borderWidth)]);
+        this.sides(v, 'BorderWidth', node.borderWidth);
         if (node.class === 'RoundedRect' && Number.isFinite(node.radius)) this.call(v, 'setRadius', [num(node.radius)]);
         break;
       case 'Menu': this.menuItems(v, node); break;

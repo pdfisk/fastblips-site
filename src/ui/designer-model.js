@@ -285,15 +285,29 @@ const prop = (key, label, type, dflt) => ({
   },
 });
 
-/** A size in pixels (margin, padding, border): 0 or more; '' clears it. */
-const size = (key, label) => ({
-  key, label, type: 'number',
-  get: (n) => n[key] ?? '',
+/**
+ * A size on the sides of a widget (margin, padding, border width), written as in
+ * CSS: one number for all four sides, two for top and bottom then left and
+ * right, three for top, left and right, then bottom, or four for top, right,
+ * bottom and left. It is kept as one number when the sides are alike, else as
+ * [top, right, bottom, left]. '' clears it.
+ */
+const sidesField = (key, label) => ({
+  key, label, type: 'text',
+  get: (n) => (n[key] === undefined ? '' : [].concat(n[key]).join(' ')),
   set: (n, v) => {
-    const value = num(v);
-    if (value === undefined) { delete n[key]; return; }
-    if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be 0 or more`);
-    n[key] = Math.round(value);
+    const words = String(v).split(/[\s,]+/).filter(Boolean);
+    if (words.length === 0) { delete n[key]; return; }
+    const values = words.map(Number);
+    if (words.length > 4 || values.some((x) => !Number.isFinite(x) || x < 0)) {
+      throw new Error(`${label} must be 1 to 4 numbers of 0 or more (all sides; top/bottom left/right; top left/right bottom; top right bottom left)`);
+    }
+    const [a, b = a, c = a, d = b] = values.map(Math.round);
+    const sides = words.length === 1 ? [a, a, a, a]
+      : words.length === 2 ? [a, b, a, b]
+        : words.length === 3 ? [a, b, c, b]
+          : [a, b, c, d];
+    n[key] = sides.every((x) => x === sides[0]) ? sides[0] : sides;
   },
 });
 
@@ -311,9 +325,9 @@ const FIELDS = {
   fill: prop('fill', 'Fill its area', 'bool', false),
   maximized: prop('maximized', 'Maximized', 'bool', false),
   flex: prop('flex', 'Flex', 'number'),
-  margin: size('margin', 'Margin'),
-  padding: size('padding', 'Padding'),
-  border: size('borderWidth', 'Border width'),
+  margin: sidesField('margin', 'Margin'),
+  padding: sidesField('padding', 'Padding'),
+  border: sidesField('borderWidth', 'Border width'),
   borderColor: prop('borderColor', 'Border colour', 'text'),
   borderWidth: prop('borderWidth', 'Outline width', 'number', 2),
   outlineColor: prop('borderColor', 'Outline colour', 'text'),

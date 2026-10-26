@@ -3,6 +3,13 @@
 /** A size in pixels: a whole number, 0 or more. */
 const pixels = (value) => Math.max(0, Math.round(Number(value) || 0));
 
+/** The four sides [top, right, bottom, left] of a size: one number for all of them, or an array of four. */
+const sides = (value) => (Array.isArray(value)
+  ? [0, 1, 2, 3].map((i) => pixels(value[i]))
+  : Array(4).fill(pixels(value)));
+
+const css = (s) => s.map((n) => `${n}px`).join(' ');
+
 export class Widget {
   constructor(tag = 'div') {
     if (new.target === Widget) {
@@ -15,9 +22,9 @@ export class Widget {
     this._visible = true;
     /** A name to find the widget by (findById); '' for none. */
     this.id = '';
-    this._margin = 0;
-    this._padding = null;      // null: left to the widget's own style
-    this._borderWidth = 0;
+    this._margin = [0, 0, 0, 0];     // top, right, bottom, left
+    this._padding = null;            // null: left to the widget's own style
+    this._border = [0, 0, 0, 0];
     this._borderColor = '';
   }
 
@@ -25,43 +32,52 @@ export class Widget {
   //
   // From the outside in: the margin is clear space between the widget and the
   // edge of the area its parent gives it; then the border; then the padding
-  // between the border and the contents. Sizes are in pixels, whole, 0 or more.
+  // between the border and the contents. Sizes are whole pixels, 0 or more,
+  // for each side: [top, right, bottom, left]. Each is set from one number (all
+  // four sides) or an array of four, and read back as an array of four.
 
   /** Clear space around the widget, inside the area its parent gives it. */
-  get margin() { return this._margin; }
-  set margin(value) { this._margin = pixels(value); this._replace(); }
+  get margin() { return [...this._margin]; }
+  set margin(value) { this._margin = sides(value); this._replace(); }
 
-  /** Space between the border and the contents; 0 when none was set. */
-  get padding() { return this._padding ?? 0; }
-  set padding(value) { this._padding = pixels(value); this._applyPadding(); }
+  /** Space between the border and the contents; all 0 when none was set. */
+  get padding() { return [...(this._padding ?? [0, 0, 0, 0])]; }
+  set padding(value) { this._padding = sides(value); this._applyPadding(); }
 
-  /** Width of the border (0 for none), drawn in borderColor. */
-  get borderWidth() { return this._borderWidth; }
-  set borderWidth(value) { this._borderWidth = pixels(value); this._applyBorder(); }
+  /** Width of the border on each side (0 for none), drawn in borderColor. */
+  get borderWidth() { return [...this._border]; }
+  set borderWidth(value) { this._border = sides(value); this._applyBorder(); }
 
   /** Colour of the border (any CSS colour); '' for the widget's text colour. */
   get borderColor() { return this._borderColor; }
   set borderColor(color) { this._borderColor = String(color ?? ''); this._applyBorder(); }
 
   /** Width of the widget's own area: its box less margin and border. */
-  get innerWidth() { return Math.max(0, this.bounds.width - 2 * (this._margin + this._borderWidth)); }
+  get innerWidth() {
+    const [, mr, , ml] = this._margin, [, br, , bl] = this._border;
+    return Math.max(0, this.bounds.width - mr - ml - br - bl);
+  }
 
   /** Height of the widget's own area: its box less margin and border. */
-  get innerHeight() { return Math.max(0, this.bounds.height - 2 * (this._margin + this._borderWidth)); }
+  get innerHeight() {
+    const [mt, , mb] = this._margin, [bt, , bb] = this._border;
+    return Math.max(0, this.bounds.height - mt - mb - bt - bb);
+  }
 
   /** Draws the border. Subclasses with a border of their own override this. */
   _applyBorder() {
     const s = this.element.style;
-    if (!this._borderWidth) { s.border = ''; return; }
+    if (this._border.every((n) => n === 0)) { s.border = ''; return; }
     s.boxSizing = 'border-box';
-    s.border = `${this._borderWidth}px solid ${this._borderColor || 'currentColor'}`;
+    s.border = `solid ${this._borderColor || 'currentColor'}`;
+    s.borderWidth = css(this._border);
   }
 
   /** Applies the padding. Panels lay their children out themselves and do nothing. */
   _applyPadding() {
     if (this._padding === null) return;
     this.element.style.boxSizing = 'border-box';
-    this.element.style.padding = `${this._padding}px`;
+    this.element.style.padding = css(this._padding);
   }
 
   /** Puts the widget in its box again, after the margin changed. */
@@ -114,12 +130,12 @@ export class Widget {
   setBounds(x, y, width, height) {
     this.bounds = { x, y, width, height };
     const s = this.element.style;
-    const m = this._margin;
+    const [mt, mr, mb, ml] = this._margin;
     s.position = 'absolute';
-    s.left = `${x + m}px`;
-    s.top = `${y + m}px`;
-    s.width = `${Math.max(0, width - 2 * m)}px`;
-    s.height = `${Math.max(0, height - 2 * m)}px`;
+    s.left = `${x + ml}px`;
+    s.top = `${y + mt}px`;
+    s.width = `${Math.max(0, width - ml - mr)}px`;
+    s.height = `${Math.max(0, height - mt - mb)}px`;
   }
 
   /** Natural width, used by HPanel for children without a fixed size. */

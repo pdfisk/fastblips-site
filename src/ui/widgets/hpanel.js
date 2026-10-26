@@ -19,19 +19,20 @@ export class HPanel extends Panel {
 
   layout() {
     const width = this.innerWidth;
+    const [pt, pr, pb, pl] = this.padding;
     const kids = this._children.filter((c) => c.visible);
-    const inner = this.innerHeight - 2 * this.padding;
+    const inner = Math.max(0, this.innerHeight - pt - pb);
     // Each child is given its width and its margin on both sides.
-    const widths = kids.map((c) => (c.fixedWidth ?? (c.flex ? 0 : c.preferredWidth())) + 2 * c.margin);
+    const widths = kids.map((c) => (c.fixedWidth ?? (c.flex ? 0 : c.preferredWidth())) + c.margin[1] + c.margin[3]);
     const used = widths.reduce((a, b) => a + b, 0)
-      + this.spacing * Math.max(0, kids.length - 1) + 2 * this.padding;
+      + this.spacing * Math.max(0, kids.length - 1) + pl + pr;
     const totalFlex = kids.reduce((a, c) => a + (c.fixedWidth == null && c.flex ? c.flex : 0), 0);
     const free = Math.max(0, width - used);
-    let x = this.padding;
+    let x = pl;
     kids.forEach((child, i) => {
       let w = widths[i];
       if (child.fixedWidth == null && child.flex) w = free * (child.flex / totalFlex);
-      child.setBounds(Math.round(x), this.padding, Math.round(w), inner);
+      child.setBounds(Math.round(x), pt, Math.round(w), inner);
       x += w + this.spacing;
     });
     super.layout();

@@ -213,7 +213,7 @@ size must be 0 or more.
 | `fill()` | Fill the screen or `Panel` it is in (a `Window`: maximize) |
 | `setVisible(b)` / `isVisible()` | Show or hide it |
 | `setBackground(color)` / `setColor(color)` | Background and text colour, any CSS colour (`"red"`, `"#336"`) |
-| `setMargin(n)` `setPadding(n)` `setBorderWidth(n)` `setBorderColor(color)` and the matching `get`s | The box, outside in: margin (clear space in the area the parent gives the widget), border, padding (inside the border; drawn by Labels and Buttons and used by `HPanel`/`VPanel`). Whole pixels, 0 or more; not on a `Window` |
+| `setMargin(n)` `setPadding(n)` `setBorderWidth(n)` `setBorderColor(color)`, `setMarginSides(top, right, bottom, left)` `setPaddingSides(...)` `setBorderWidthSides(...)` for each side, and `getMargin()` `getPadding()` `getBorderWidth()` `getBorderColor()` (the top side) | The box, outside in: margin (clear space in the area the parent gives the widget), border, padding (inside the border; drawn by Labels and Buttons and used by `HPanel`/`VPanel`). Whole pixels, 0 or more; not on a `Window` |
 | `getParent()` | The container it is in (the `Viewport` for a widget on the screen), or `Nothing` once removed |
 | `remove()` | Take it out of its container (it can be added again) |
 | `setId(name)` / `getId()` | A name to find the widget by; `""` for none |

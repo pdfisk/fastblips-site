@@ -123,7 +123,11 @@ subclasses decide how the children are arranged.
   - Every widget has a box, from the outside in: a margin (clear space
     inside the area its parent gives it), a border (borderWidth pixels, in
     borderColor, or the widget's colour when none is set) and padding
-    (between the border and the contents). All are whole pixels, 0 or more.
+    (between the border and the contents). All are whole pixels, 0 or more,
+    and can differ by side: setMargin(n) sets all four sides, and
+    setMarginSides(top, right, bottom, left) sets each (likewise padding and
+    border width). getMargin() and the like read the top side. A saved design
+    holds one number when the sides are alike, else [top, right, bottom, left].
     A row or column counts a child's margin in the space it asks for, and
     keeps its own children inside its border and padding. A Panel's
     children are placed by box, inside its border; padding is drawn by
@@ -967,7 +971,11 @@ subclasses decide how the children are arranged.
   - Every widget has a box, from the outside in: a margin (clear space
     inside the area its parent gives it), a border (borderWidth pixels, in
     borderColor, or the widget's colour when none is set) and padding
-    (between the border and the contents). All are whole pixels, 0 or more.
+    (between the border and the contents). All are whole pixels, 0 or more,
+    and can differ by side: setMargin(n) sets all four sides, and
+    setMarginSides(top, right, bottom, left) sets each (likewise padding and
+    border width). getMargin() and the like read the top side. A saved design
+    holds one number when the sides are alike, else [top, right, bottom, left].
     A row or column counts a child's margin in the space it asks for, and
     keeps its own children inside its border and padding. A Panel's
     children are placed by box, inside its border; padding is drawn by
@@ -2186,7 +2194,9 @@ Designer button opens one.
     (in a split panel, they swap the sides).
   - Properties are grouped: Widget (id and what the class shows: text,
     title, items, tab labels, ...), Place, Box (margin, border width and
-    colour, padding: each only on the classes that draw it), Look (visible,
+    colour, padding: each only on the classes that draw it; written as in CSS,
+    one to four numbers: "4" all sides, "2 8" top and bottom then left and
+    right, "1 2 3" top, left and right, bottom, "1 2 3 4" top, right, bottom, left), Look (visible,
     colours) and
     Events: the name of the handler for each event the class has - a Sub
     in Crumb, a module-level function in MiniPy - which is looked up in

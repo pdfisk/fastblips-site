@@ -511,9 +511,11 @@ export class ProgramWidgetHost {
     put('color', w._color || undefined);
     if (cls !== 'Window') {
       // The box: margin, padding and border (a shape's outline is its border, 2 wide unless set).
-      put('margin', w.margin, 0);
-      put('padding', w._padding ?? undefined);
-      put('borderWidth', w.borderWidth, cls === 'Ellipse' || cls === 'RoundedRect' ? DEFAULT_BORDER_WIDTH : 0);
+      // Each is one number when its four sides are alike, else [top, right, bottom, left].
+      const pack = (a) => (a.every((n) => n === a[0]) ? a[0] : [...a]);
+      put('margin', pack(w.margin), 0);
+      put('padding', w._padding ? pack(w._padding) : undefined);
+      put('borderWidth', pack(w.borderWidth), cls === 'Ellipse' || cls === 'RoundedRect' ? DEFAULT_BORDER_WIDTH : 0);
       put('borderColor', w.borderColor || undefined);
     }
     const events = (w._events ?? []).filter((e) => e.handler);
@@ -641,9 +643,11 @@ export class ProgramWidgetHost {
     if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
     if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
     if (cls !== 'Window') {
-      if (num(node.margin) !== undefined) w.margin = node.margin;
-      if (num(node.padding) !== undefined) w.padding = node.padding;
-      if (num(node.borderWidth) !== undefined) w.borderWidth = node.borderWidth;
+      // A number (all four sides) or [top, right, bottom, left].
+      const boxed = (v) => (Number.isFinite(v) || (Array.isArray(v) && v.length === 4 && v.every(Number.isFinite)) ? v : undefined);
+      if (boxed(node.margin) !== undefined) w.margin = node.margin;
+      if (boxed(node.padding) !== undefined) w.padding = node.padding;
+      if (boxed(node.borderWidth) !== undefined) w.borderWidth = node.borderWidth;
       if (typeof node.borderColor === 'string') w.borderColor = node.borderColor;
     }
     const child = (n) => this._build(n, pending, onBuilt);
@@ -739,13 +743,16 @@ export class ProgramWidgetHost {
       case 'isVisible': return w.visible;
       case 'setBackground': w._background = a; this._surface(w).style.background = a; return undefined;
       case 'setColor': w._color = a; this._surface(w).style.color = a; return undefined;
-      case 'setMargin': case 'setPadding': case 'setBorderWidth': case 'setBorderColor': {
+      case 'setMargin': case 'setPadding': case 'setBorderWidth': case 'setBorderColor':
+      case 'setMarginSides': case 'setPaddingSides': case 'setBorderWidthSides': {
         if (w instanceof Window) throw new WidgetError('a Window has no margin, padding or border');
-        w[method.slice(3).replace(/^./, (c) => c.toLowerCase())] = a;
+        const property = method.slice(3).replace('Sides', '').replace(/^./, (c) => c.toLowerCase());
+        w[property] = method.endsWith('Sides') ? args.slice(0, 4) : a;
         return this._relayout(w);
       }
-      case 'getMargin': case 'getPadding': case 'getBorderWidth': case 'getBorderColor':
-        return w[method.slice(3).replace(/^./, (c) => c.toLowerCase())];
+      // A box of four sides reads back as its top side; the sides themselves are set, not read.
+      case 'getMargin': case 'getPadding': case 'getBorderWidth': return w[method.slice(3).replace(/^./, (c) => c.toLowerCase())][0];
+      case 'getBorderColor': return w.borderColor;
       case 'getParent': return this._idOf(w.parent);
       case 'remove': {
         const parent = w.parent;

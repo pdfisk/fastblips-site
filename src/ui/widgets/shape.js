@@ -33,10 +33,11 @@ class Shape extends Widget {
     this.borderWidth = DEFAULT_BORDER_WIDTH;
   }
 
-  // The outline is the border: its width is borderWidth (0 for none), and it is
+  // The outline is the border: its width is borderWidth (0 for none, per side), and it is
   // drawn in borderColor, or the widget's colour when none was set.
   _applyBorder() {
-    this.element.style.border = `${this._borderWidth}px solid ${this._borderColor || 'currentColor'}`;
+    this.element.style.border = `solid ${this._borderColor || 'currentColor'}`;
+    this.element.style.borderWidth = this._border.map((n) => `${n}px`).join(' ');
   }
 
   // A shape has no text, so it has no natural size: it is as big as its box.
