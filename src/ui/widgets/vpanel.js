@@ -13,15 +13,16 @@ export class VPanel extends Panel {
   constructor({ padding = 0, spacing = 0 } = {}) {
     super();
     this.element.classList.add('cr-vpanel');
-    this.padding = padding;
+    if (padding) this.padding = padding;
     this.spacing = spacing;
   }
 
   layout() {
-    const { width, height } = this.bounds;
+    const height = this.innerHeight;
     const kids = this._children.filter((c) => c.visible);
-    const inner = width - 2 * this.padding;
-    const heights = kids.map((c) => (c.fixedHeight ?? (c.flex ? 0 : c.preferredHeight())));
+    const inner = this.innerWidth - 2 * this.padding;
+    // Each child is given its height and its margin above and below.
+    const heights = kids.map((c) => (c.fixedHeight ?? (c.flex ? 0 : c.preferredHeight())) + 2 * c.margin);
     const used = heights.reduce((a, b) => a + b, 0)
       + this.spacing * Math.max(0, kids.length - 1) + 2 * this.padding;
     const totalFlex = kids.reduce((a, c) => a + (c.fixedHeight == null && c.flex ? c.flex : 0), 0);

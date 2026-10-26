@@ -32,7 +32,7 @@ import { Button } from './widgets/button.js';
 import { Label } from './widgets/label.js';
 import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
-import { Ellipse, RoundedRect } from './widgets/shape.js';
+import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
@@ -479,11 +479,9 @@ export class ProgramWidgetHost {
         put('emptyText', w.emptyText, '');
         break;
       case 'Ellipse': case 'RoundedRect':
-        put('borderWidth', w.borderWidth, 2);
         if (cls === 'RoundedRect') put('radius', w.radius, 12);
         break;
       case 'HPanel': case 'VPanel':
-        put('padding', w.padding, 0);
         put('spacing', w.spacing, 0);
         break;
       case 'HSplitPanel': case 'VSplitPanel':
@@ -511,6 +509,13 @@ export class ProgramWidgetHost {
     if (!(w.parent instanceof TabPanel)) put('visible', w.visible, true);   // tabs show their own page
     put('background', w._background || undefined);
     put('color', w._color || undefined);
+    if (cls !== 'Window') {
+      // The box: margin, padding and border (a shape's outline is its border, 2 wide unless set).
+      put('margin', w.margin, 0);
+      put('padding', w._padding ?? undefined);
+      put('borderWidth', w.borderWidth, cls === 'Ellipse' || cls === 'RoundedRect' ? DEFAULT_BORDER_WIDTH : 0);
+      put('borderColor', w.borderColor || undefined);
+    }
     const events = (w._events ?? []).filter((e) => e.handler);
     if (events.length) node.events = events.map((e) => ({ ...e }));
     return node;
@@ -635,14 +640,17 @@ export class ProgramWidgetHost {
     if (node.visible === false) w.visible = false;
     if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
     if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
+    if (cls !== 'Window') {
+      if (num(node.margin) !== undefined) w.margin = node.margin;
+      if (num(node.padding) !== undefined) w.padding = node.padding;
+      if (num(node.borderWidth) !== undefined) w.borderWidth = node.borderWidth;
+      if (typeof node.borderColor === 'string') w.borderColor = node.borderColor;
+    }
     const child = (n) => this._build(n, pending, onBuilt);
 
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
-      case 'Ellipse': case 'RoundedRect':
-        if (num(node.borderWidth) !== undefined) w.borderWidth = node.borderWidth;
-        if (cls === 'RoundedRect' && num(node.radius) !== undefined) w.radius = node.radius;
-        break;
+      case 'RoundedRect': if (num(node.radius) !== undefined) w.radius = node.radius; break;
       case 'Menu':
         w._items = [];
         for (const item of node.items ?? []) {
@@ -670,7 +678,6 @@ export class ProgramWidgetHost {
         if (Number.isInteger(node.selected) && node.selected >= 0 && node.selected < w.items.length) w.select(node.selected);
         break;
       case 'HPanel': case 'VPanel':
-        if (num(node.padding) !== undefined) w.padding = node.padding;
         if (num(node.spacing) !== undefined) w.spacing = node.spacing;
         break;
       case 'HSplitPanel': case 'VSplitPanel':
@@ -732,6 +739,13 @@ export class ProgramWidgetHost {
       case 'isVisible': return w.visible;
       case 'setBackground': w._background = a; this._surface(w).style.background = a; return undefined;
       case 'setColor': w._color = a; this._surface(w).style.color = a; return undefined;
+      case 'setMargin': case 'setPadding': case 'setBorderWidth': case 'setBorderColor': {
+        if (w instanceof Window) throw new WidgetError('a Window has no margin, padding or border');
+        w[method.slice(3).replace(/^./, (c) => c.toLowerCase())] = a;
+        return this._relayout(w);
+      }
+      case 'getMargin': case 'getPadding': case 'getBorderWidth': case 'getBorderColor':
+        return w[method.slice(3).replace(/^./, (c) => c.toLowerCase())];
       case 'getParent': return this._idOf(w.parent);
       case 'remove': {
         const parent = w.parent;
@@ -755,8 +769,6 @@ export class ProgramWidgetHost {
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
 
-      case 'Ellipse.setBorderWidth': case 'RoundedRect.setBorderWidth': w.borderWidth = a; return undefined;
-      case 'Ellipse.getBorderWidth': case 'RoundedRect.getBorderWidth': return w.borderWidth;
       case 'RoundedRect.setRadius': w.radius = a; return undefined;
       case 'RoundedRect.getRadius': return w.radius;
 
@@ -800,7 +812,6 @@ export class ProgramWidgetHost {
         for (const child of w.children) w.remove(child);
         w.layout();
         return undefined;
-      case 'HPanel.setPadding': case 'VPanel.setPadding': w.padding = a; w.layout(); return undefined;
       case 'HPanel.setSpacing': case 'VPanel.setSpacing': w.spacing = a; w.layout(); return undefined;
       case 'ButtonBar.addButton': {
         const button = new Button(a);

@@ -213,6 +213,7 @@ size must be 0 or more.
 | `fill()` | Fill the screen or `Panel` it is in (a `Window`: maximize) |
 | `setVisible(b)` / `isVisible()` | Show or hide it |
 | `setBackground(color)` / `setColor(color)` | Background and text colour, any CSS colour (`"red"`, `"#336"`) |
+| `setMargin(n)` `setPadding(n)` `setBorderWidth(n)` `setBorderColor(color)` and the matching `get`s | The box, outside in: margin (clear space in the area the parent gives the widget), border, padding (inside the border; drawn by Labels and Buttons and used by `HPanel`/`VPanel`). Whole pixels, 0 or more; not on a `Window` |
 | `getParent()` | The container it is in (the `Viewport` for a widget on the screen), or `Nothing` once removed |
 | `remove()` | Take it out of its container (it can be added again) |
 | `setId(name)` / `getId()` | A name to find the widget by; `""` for none |
@@ -229,13 +230,13 @@ size must be 0 or more.
 | `Label` | `setText(t)` `getText()` `onClick(sub)` |
 | `Button` | `setText(t)` `getText()` `setEnabled(b)` `isEnabled()` `onClick(sub)` |
 | `Menu` | `setText(t)` `getText()` `addItem(label, sub)` `addSeparator()` `clear()` |
-| `Panel` `HPanel` `VPanel` `ButtonBar` | `add(w)` `getCount()` `getChild(i)` `clear()`; `HPanel` and `VPanel` also `setPadding(n)` `setSpacing(n)`; `ButtonBar` also `addButton(text)`, which returns the new `Button` |
+| `Panel` `HPanel` `VPanel` `ButtonBar` | `add(w)` `getCount()` `getChild(i)` `clear()`; `HPanel` and `VPanel` also `setSpacing(n)`; `ButtonBar` also `addButton(text)`, which returns the new `Button` |
 | `HSplitPanel` `VSplitPanel` | `setFirst(w)` `setSecond(w)` `getFirst()` `getSecond()` `setPosition(f)` `getPosition()` (the fraction, 0 to 1, given to the first pane) `onChange(sub)` |
 | `TabPanel` | `addTab(label, w)` `select(i)` `getSelectedIndex()` `getSelectedText()` `getCount()` `onSelect(sub)` |
 | `Window` | `setTitle(t)` `getTitle()` `setContent(w)` `getContent()` `getButtonBar()` `open()` `close()` `maximize()` `restore()` `isMaximized()` `onClose(sub)` |
 | `TextPanel` `MonacoPanel` | `setText(t)` `getText()` `append(t)` `setReadOnly(b)` `isReadOnly()` `focus()` `onChange(sub)` `onSubmit(sub)` (Ctrl+Enter) |
 | `ListPanel` | `addItem(t)` `removeItem(i)` `setItem(i, t)` `getItem(i)` `getCount()` `clear()` `select(i)` `getSelectedIndex()` `getSelectedText()` `setEmptyText(t)` `onSelect(sub)` |
-| `Ellipse` `RoundedRect` | `setBorderWidth(n)` `getBorderWidth()` `onClick(sub)`; RoundedRect also `setRadius(n)` `getRadius()`. The fill is `setBackground`, the outline `setColor`; an Ellipse as wide as it is high is a circle |
+| `Ellipse` `RoundedRect` | `onClick(sub)`; the outline is the border (`setBorderWidth`, 2 by default; `setBorderColor`); RoundedRect also `setRadius(n)` `getRadius()`. The fill is `setBackground`, the outline `setColor`; an Ellipse as wide as it is high is a circle |
 | `Canvas` | see **The Canvas** below |
 | `Physics` | see **The Physics** below |
 | `Board` | `setSize(rows, columns)` `getRows()` `getColumns()` `setText(row, column, t)` `getText(row, column)` `setBackground(row, column, c)` `getBackground(row, column)` `setColor(row, column, c)` `getColor(row, column)` `setCheckered(b)` `isCheckered()` `setSquareCells(b)` `isSquareCells()` `select(row, column)` `clearSelection()` `getSelectedRow()` `getSelectedColumn()` `clear()` `onClick(sub)`; it has none of the methods every widget has |

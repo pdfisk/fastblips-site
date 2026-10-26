@@ -120,6 +120,15 @@ subclasses decide how the children are arranged.
   - Subclasses implement layout() to place their children, then ask each
     child to lay itself out.
   - Optional padding around the children and spacing between them.
+  - Every widget has a box, from the outside in: a margin (clear space
+    inside the area its parent gives it), a border (borderWidth pixels, in
+    borderColor, or the widget's colour when none is set) and padding
+    (between the border and the contents). All are whole pixels, 0 or more.
+    A row or column counts a child's margin in the space it asks for, and
+    keeps its own children inside its border and padding. A Panel's
+    children are placed by box, inside its border; padding is drawn by
+    Labels and Buttons and used by rows and columns (other classes ignore it).
+    A Window has no box.
 
 
 HPanel and VPanel
@@ -955,6 +964,15 @@ subclasses decide how the children are arranged.
   - Subclasses implement layout() to place their children, then ask each
     child to lay itself out.
   - Optional padding around the children and spacing between them.
+  - Every widget has a box, from the outside in: a margin (clear space
+    inside the area its parent gives it), a border (borderWidth pixels, in
+    borderColor, or the widget's colour when none is set) and padding
+    (between the border and the contents). All are whole pixels, 0 or more.
+    A row or column counts a child's margin in the space it asks for, and
+    keeps its own children inside its border and padding. A Panel's
+    children are placed by box, inside its border; padding is drawn by
+    Labels and Buttons and used by rows and columns (other classes ignore it).
+    A Window has no box.
 
 
 HPanel and VPanel
@@ -1832,7 +1850,8 @@ Ellipse, RoundedRect
 --------------------
 Filled shapes (src/ui/widgets/shape.js). The fill is the widget's background
 (the theme's accent until set) and the outline its colour, drawn borderWidth
-pixels wide (2 by default, 0 for none). An Ellipse as wide as it is high is a
+pixels wide (2 by default, 0 for none; it is the shape's border, so
+borderColor sets its colour apart from the text colour). An Ellipse as wide as it is high is a
 circle. A RoundedRect has corners of radius pixels (12 by default; 0 is a
 plain rectangle). They have no text, so in a row or column they are as big as
 their width and height say (120 by 80 by default). Both take onClick.
@@ -2166,7 +2185,9 @@ Designer button opens one.
     selection (not the root), Up and Down reorder it among its siblings
     (in a split panel, they swap the sides).
   - Properties are grouped: Widget (id and what the class shows: text,
-    title, items, tab labels, ...), Place, Look (visible, colours) and
+    title, items, tab labels, ...), Place, Box (margin, border width and
+    colour, padding: each only on the classes that draw it), Look (visible,
+    colours) and
     Events: the name of the handler for each event the class has - a Sub
     in Crumb, a module-level function in MiniPy - which is looked up in
     the program that loads the composite. Menu items are written one to a

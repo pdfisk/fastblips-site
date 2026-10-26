@@ -79,7 +79,7 @@ test('fields: place and size follow the widget\'s parent; a width set is a fixed
   const root = newNode('VPanel');
   const label = newNode('Label');
   addChild(root, label);
-  assert.deepEqual(fieldsFor(label, { parent: root }).map(([title]) => title), ['Widget', 'Place', 'Look', 'Events (handler names)']);
+  assert.deepEqual(fieldsFor(label, { parent: root }).map(([title]) => title), ['Widget', 'Place', 'Box (margin, border, padding)', 'Look', 'Events (handler names)']);
   assert.deepEqual(fieldsFor(label, { parent: root })[1][1].map((f) => f.label), ['Width', 'Height', 'Flex']);
   assert.deepEqual(fieldsFor(root, { isRoot: true })[1][1].map((f) => f.label), ['Left', 'Top', 'Width', 'Height', 'Fill its area']);
 
@@ -204,4 +204,38 @@ test('pasteNode offsets a copy in a Panel, copies whole subtrees and says why it
   assert.equal(node.children[0].id, 'form3', 'ids inside the copy stay unique too');
   assert.match(pasteNode(root, root, newNode('Window')).problem, /only be the root/);
   assert.match(pasteNode(newNode('Label'), newNode('Label'), box).problem, /cannot hold/);
+});
+
+test('fields: the box (margin, border, padding) is offered where the widget can draw it', () => {
+  const labels = (cls) => (fieldsFor(newNode(cls)).find(([title]) => title.startsWith('Box'))?.[1] ?? []).map((f) => f.label);
+  assert.deepEqual(labels('Label'), ['Margin', 'Border width', 'Border colour', 'Padding']);
+  assert.deepEqual(labels('Button'), ['Margin', 'Border width', 'Border colour', 'Padding']);
+  assert.deepEqual(labels('VPanel'), ['Margin', 'Border width', 'Border colour', 'Padding']);
+  assert.deepEqual(labels('Panel'), ['Margin', 'Border width', 'Border colour']);
+  assert.deepEqual(labels('ListPanel'), ['Margin', 'Border width', 'Border colour']);
+  assert.deepEqual(labels('HSplitPanel'), ['Margin']);
+  assert.deepEqual(labels('Ellipse'), ['Margin'], 'a shape\'s outline is its own field');
+  assert.deepEqual(labels('Spacer'), []);
+  assert.deepEqual(labels('Window'), []);
+  assert.ok(field(newNode('RoundedRect'), 'Outline colour'));
+  assert.equal(field(newNode('VPanel'), 'Spacing') !== undefined, true);
+});
+
+test('fields: margin, padding and border width are whole numbers of 0 or more; blank clears them', () => {
+  const label = newNode('Label');
+  const margin = field(label, 'Margin');
+  assert.equal(getField(label, margin), '');
+  setField(label, margin, '4.4');
+  assert.equal(label.margin, 4);
+  setField(label, field(label, 'Padding'), '0');
+  assert.equal(label.padding, 0, 'an explicit 0 is kept: it is not the same as not set');
+  setField(label, field(label, 'Border width'), '2');
+  setField(label, field(label, 'Border colour'), 'red');
+  assert.equal(label.borderWidth, 2);
+  assert.equal(label.borderColor, 'red');
+  assert.throws(() => setField(label, margin, '-1'), /Margin must be 0 or more/);
+  assert.throws(() => setField(label, margin, 'wide'), /Margin must be 0 or more/);
+  assert.equal(label.margin, 4, 'a refused value changes nothing');
+  for (const name of ['Margin', 'Padding', 'Border width', 'Border colour']) setField(label, field(label, name), '');
+  assert.deepEqual(label, { class: 'Label', text: 'Label', box: [0, 0, 100, 24] });
 });

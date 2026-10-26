@@ -249,6 +249,7 @@ class Generator {
     if (node.visible === false && parent?.class !== 'TabPanel') this.call(v, 'setVisible', [L.bool(false)]);
     if (node.background) this.call(v, 'setBackground', [this.str(node.background)]);
     if (node.color) this.call(v, 'setColor', [this.str(node.color)]);
+    this.box(v, node);
 
     this.specifics(v, node);
     this.events(v, node);
@@ -278,14 +279,23 @@ class Generator {
     if (node.fill === true) this.call(v, 'fill');
   }
 
-  /** What only some classes have: padding, items, the divider, ... */
+  /** The box, from the outside in: margin, border, padding, as set. A shape's outline width is written with the shape. */
+  box(v, node) {
+    if (node.class === 'Window') return;
+    const shape = node.class === 'Ellipse' || node.class === 'RoundedRect';
+    if (Number.isFinite(node.margin)) this.call(v, 'setMargin', [num(node.margin)]);
+    if (!shape && Number.isFinite(node.borderWidth)) this.call(v, 'setBorderWidth', [num(node.borderWidth)]);
+    if (node.borderColor) this.call(v, 'setBorderColor', [this.str(node.borderColor)]);
+    if (Number.isFinite(node.padding)) this.call(v, 'setPadding', [num(node.padding)]);
+  }
+
+  /** What only some classes have: items, the divider, ... */
   specifics(v, node) {
     const L = this.lang;
     switch (node.class) {
       case 'Button': if (node.enabled === false) this.call(v, 'setEnabled', [L.bool(false)]); break;
       case 'TextPanel': case 'MonacoPanel': if (node.readOnly) this.call(v, 'setReadOnly', [L.bool(true)]); break;
       case 'HPanel': case 'VPanel':
-        if (Number.isFinite(node.padding)) this.call(v, 'setPadding', [num(node.padding)]);
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
       case 'HSplitPanel': case 'VSplitPanel':

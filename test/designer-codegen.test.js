@@ -44,12 +44,12 @@ function bigDesign() {
 
   const split = add(win, made('VSplitPanel', { Id: 'main', 'Divider (0-1)': '0.3' }, { parent: win }));
   const free = add(split, newNode('Panel'));
-  add(free, made('Label', { Id: 'caption', Text: 'Name:', Left: '10', Top: '20' }, { parent: free }));
+  add(free, made('Label', { Id: 'caption', Text: 'Name:', Left: '10', Top: '20', Margin: '4', 'Border width': '1', 'Border colour': 'gray', Padding: '3' }, { parent: free }));
   add(free, made('TextPanel', { Id: 'name', Text: 'line one\nline "two"\tend', Left: '10', Top: '50', Width: '200', Height: '60' }, { parent: free }));
 
   const tabs = add(split, newNode('TabPanel'));
   const row = add(tabs, made('HPanel', { Padding: '4', Spacing: '2' }, { parent: tabs }));
-  add(row, made('Label', { Text: 'Pick:', Width: '60' }, { parent: row }));
+  add(row, made('Label', { Text: 'Pick:', Width: '60', Margin: '2' }, { parent: row }));
   add(row, made('Spacer', { Flex: '1' }, { parent: row }));
   add(row, made('Button', { Id: 'go', Text: 'Go', Enabled: false, onClick: 'Go' }, { parent: row }));
   const menu = add(row, made('Menu', { Text: 'File' }, { parent: row }));
@@ -62,7 +62,7 @@ function bigDesign() {
   set(tabs, 'Selected', '1');
 
   add(win, made('Button', { Id: 'ok', Text: 'OK', onClick: 'LoggedIn' }, { parent: win }));
-  add(win, made('Button', { Text: 'Cancel' }, { parent: win }));
+  add(win, made('Button', { Text: 'Cancel', Margin: '1', Padding: '5' }, { parent: win }));
   add(win, made('Label', { Text: 'ready' }, { parent: win }));
   return win;
 }
@@ -122,6 +122,9 @@ function expectedProps(node, parent) {
   if (node.fill) p.fill = true;
   if (node.readOnly) p.readOnly = true;
   if (node.padding !== undefined) p.padding = node.padding;
+  if (node.margin !== undefined) p.margin = node.margin;
+  if (node.borderWidth !== undefined) p.borderWidth = node.borderWidth;
+  if (node.borderColor) p.borderColor = node.borderColor;
   if (node.spacing !== undefined) p.spacing = node.spacing;
   if (node.position !== undefined && /Split/.test(cls)) p.position = node.position;
   if (node.emptyText) p.emptyText = node.emptyText;
@@ -478,4 +481,35 @@ test('shapes: the generated programs set the outline width and the corner radius
   assert.match(python, /RoundedRect\(\)/);
   assert.match(python, /set_radius\(20\)/);
   assert.doesNotMatch(crumb, /setRadius.*\n.*setRadius/, 'only the RoundedRect has a radius');
+});
+
+test('the box: margin, border and padding are written after the colours, in both languages', () => {
+  const root = made('VPanel', { Id: 'form', Margin: '6', 'Border width': '2', 'Border colour': 'navy', Padding: '8', Spacing: '4' }, { isRoot: true });
+  add(root, made('Button', { Text: 'OK', Background: 'red', Margin: '3' }, { parent: root }));
+  add(root, newNode('Label'));
+  const crumb = generateCode(root, { language: 'basic' });
+  const python = generateCode(root, { language: 'python' });
+  const lines = crumb.split('\n');
+  const at = (text) => lines.indexOf(text);
+  assert.ok(at('form.setMargin(6)') > at('form.setId("form")'));
+  assert.ok(at('form.setBorderWidth(2)') > at('form.setMargin(6)'));
+  assert.ok(at('form.setBorderColor("navy")') > at('form.setBorderWidth(2)'));
+  assert.ok(at('form.setPadding(8)') > at('form.setBorderColor("navy")'));
+  assert.ok(at('form.setSpacing(4)') > at('form.setPadding(8)'), 'spacing is a class-specific setting, after the box');
+  assert.ok(at('button1.setMargin(3)') > at('button1.setBackground("red")'));
+  assert.match(python, /form\.set_border_width\(2\)/);
+  assert.match(python, /form\.set_border_colour|form\.set_border_color\("navy"\)/);
+  assert.match(python, /button1\.set_margin\(3\)/);
+  assert.doesNotMatch(crumb, /label1\.set(Margin|Padding|Border)/, 'nothing is written for what was not set');
+});
+
+test('the box: a Window has none, and a shape writes its outline width once', () => {
+  const win = made('Window', { Title: 'W' }, { isRoot: true });
+  const shape = add(win, made('Ellipse', { 'Outline width': '3', 'Outline colour': 'red', Margin: '5' }, { parent: win }));
+  assert.equal(shape.borderColor, 'red');
+  const crumb = generateCode(win, { language: 'basic' });
+  assert.equal(crumb.match(/setBorderWidth/g).length, 1);
+  assert.match(crumb, /\.setBorderColor\("red"\)/);
+  assert.match(crumb, /\.setMargin\(5\)/);
+  assert.doesNotMatch(crumb, /win\d*\.set(Margin|Padding|Border)/);
 });

@@ -285,6 +285,18 @@ const prop = (key, label, type, dflt) => ({
   },
 });
 
+/** A size in pixels (margin, padding, border): 0 or more; '' clears it. */
+const size = (key, label) => ({
+  key, label, type: 'number',
+  get: (n) => n[key] ?? '',
+  set: (n, v) => {
+    const value = num(v);
+    if (value === undefined) { delete n[key]; return; }
+    if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be 0 or more`);
+    n[key] = Math.round(value);
+  },
+});
+
 const lines = (text) => String(text).split('\n').map((l) => l.replace(/\r$/, ''));
 
 const FIELDS = {
@@ -299,8 +311,12 @@ const FIELDS = {
   fill: prop('fill', 'Fill its area', 'bool', false),
   maximized: prop('maximized', 'Maximized', 'bool', false),
   flex: prop('flex', 'Flex', 'number'),
-  padding: prop('padding', 'Padding', 'number'),
+  margin: size('margin', 'Margin'),
+  padding: size('padding', 'Padding'),
+  border: size('borderWidth', 'Border width'),
+  borderColor: prop('borderColor', 'Border colour', 'text'),
   borderWidth: prop('borderWidth', 'Outline width', 'number', 2),
+  outlineColor: prop('borderColor', 'Outline colour', 'text'),
   radius: prop('radius', 'Corner radius', 'number', 12),
   spacing: prop('spacing', 'Spacing', 'number'),
   position: prop('position', 'Divider (0-1)', 'number'),
@@ -366,6 +382,24 @@ export function eventsOf(cls) {
     .map((m) => m.name);
 }
 
+// Which classes have which of the box fields. A margin works on any widget
+// but a Window and a Spacer. A border and padding are drawn by the widget
+// itself, so only on those whose contents sit inside them: a Panel's children
+// are placed by its box (a border pushes them in), but only a row, a column, a
+// Label or a Button have padding. A shape's outline is its border (see above).
+const NO_MARGIN = new Set(['Window', 'Spacer']);
+const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel']);
+const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel']);
+
+function boxFields(cls) {
+  const f = FIELDS;
+  return [
+    ...(NO_MARGIN.has(cls) ? [] : [f.margin]),
+    ...(BORDERED.has(cls) ? [f.border, f.borderColor] : []),
+    ...(PADDED.has(cls) ? [f.padding] : []),
+  ];
+}
+
 /** The fields the inspector shows for a node, in groups: [[title, fields]]. */
 export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
   const f = FIELDS;
@@ -374,8 +408,8 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     Label: [f.text], Button: [f.text, f.enabled], Menu: [f.text, f.menuItems],
     TextPanel: [f.textArea, f.readOnly], MonacoPanel: [f.textArea, f.language, f.readOnly],
     ListPanel: [f.listItems, f.selected, f.emptyText],
-    HPanel: [f.padding, f.spacing], VPanel: [f.padding, f.spacing],
-    Ellipse: [f.borderWidth], RoundedRect: [f.borderWidth, f.radius],
+    HPanel: [f.spacing], VPanel: [f.spacing],
+    Ellipse: [f.borderWidth, f.outlineColor], RoundedRect: [f.borderWidth, f.outlineColor, f.radius],
     HSplitPanel: [f.position], VSplitPanel: [f.position],
     TabPanel: [f.tabLabels, f.selected],
     Window: [f.title, f.maximized],
@@ -389,6 +423,8 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
       ? [f.left, f.top, f.width, f.height, f.fill]
       : [f.width, f.height, f.flex]]);
   }
+  const box = boxFields(cls);
+  if (box.length) groups.push(['Box (margin, border, padding)', box]);
   groups.push(['Look', [f.visible, f.background, f.color]]);
   const events = eventsOf(cls).map(eventField);
   if (events.length) groups.push(['Events (handler names)', events]);

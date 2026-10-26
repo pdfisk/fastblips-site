@@ -13,15 +13,16 @@ export class HPanel extends Panel {
   constructor({ padding = 0, spacing = 0 } = {}) {
     super();
     this.element.classList.add('cr-hpanel');
-    this.padding = padding;
+    if (padding) this.padding = padding;
     this.spacing = spacing;
   }
 
   layout() {
-    const { width, height } = this.bounds;
+    const width = this.innerWidth;
     const kids = this._children.filter((c) => c.visible);
-    const inner = height - 2 * this.padding;
-    const widths = kids.map((c) => (c.fixedWidth ?? (c.flex ? 0 : c.preferredWidth())));
+    const inner = this.innerHeight - 2 * this.padding;
+    // Each child is given its width and its margin on both sides.
+    const widths = kids.map((c) => (c.fixedWidth ?? (c.flex ? 0 : c.preferredWidth())) + 2 * c.margin);
     const used = widths.reduce((a, b) => a + b, 0)
       + this.spacing * Math.max(0, kids.length - 1) + 2 * this.padding;
     const totalFlex = kids.reduce((a, c) => a + (c.fixedWidth == null && c.flex ? c.flex : 0), 0);

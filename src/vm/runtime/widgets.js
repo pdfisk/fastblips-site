@@ -117,20 +117,27 @@ const COMMON = [
   method('isVisible', [], 'boolean'),
   method('setBackground', ['text']),
   method('setColor', ['text']),
+  method('setMargin', ['size']),
+  method('getMargin', [], 'int'),
+  method('setPadding', ['size']),
+  method('getPadding', [], 'int'),
+  method('setBorderWidth', ['size']),
+  method('getBorderWidth', [], 'int'),
+  method('setBorderColor', ['text']),
+  method('getBorderColor', [], 'text'),
   method('getParent', [], 'widget'),
   method('remove'),
 ];
 
 const TEXT = [method('setText', ['text']), method('getText', [], 'text')];
 const CLICK = [method('onClick', ['handler'])];
-const OUTLINE = [method('setBorderWidth', ['size']), method('getBorderWidth', [], 'int')];
 const CONTAINER = [
   method('add', ['widget']),
   method('getCount', [], 'int'),
   method('getChild', ['index'], 'widget'),
   method('clear'),
 ];
-const ROW = [...CONTAINER, method('setPadding', ['size']), method('setSpacing', ['size'])];
+const ROW = [...CONTAINER, method('setSpacing', ['size'])];
 const SPLIT = [
   method('setFirst', ['widget']),
   method('setSecond', ['widget']),
@@ -353,9 +360,9 @@ export const WIDGET_CLASSES = Object.freeze([
   ], { common: [] }),
   // Shapes: the fill is the background and the outline the colour. An
   // Ellipse that is as wide as it is high is a circle.
-  cls('Ellipse', [], [...CLICK, ...OUTLINE]),
+  cls('Ellipse', [], [...CLICK]),
   cls('RoundedRect', [], [
-    ...CLICK, ...OUTLINE,
+    ...CLICK,
     method('setRadius', ['size']),
     method('getRadius', [], 'int'),
   ]),

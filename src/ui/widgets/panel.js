@@ -33,6 +33,9 @@ export class Panel extends Widget {
     child.element.remove();
   }
 
+  /** A panel's children are placed by its layout, not by CSS: its padding is the layout's. */
+  _applyPadding() {}
+
   /** Subclasses place their children, then call super.layout(). */
   layout() {
     for (const child of this._children) child.layout();
