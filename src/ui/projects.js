@@ -87,6 +87,18 @@ export function sharedProjects(records) {
 }
 
 /**
+ * The Libraries list: the shared projects among records that belong to other
+ * users, by name. The signed-in user's own are left out (they are in My
+ * Projects); with nobody signed in, every shared project is listed.
+ * @param {object[]} records - the projects read from the server
+ * @param {string} [user] - the signed-in user's name, '' if none
+ */
+export function libraryProjects(records, user = '') {
+  const me = String(user ?? '').trim().toLowerCase();
+  return sharedProjects(records).filter((p) => !me || String(p.owner ?? '').trim().toLowerCase() !== me);
+}
+
+/**
  * The projects anyone has shared and that have scripts to run, by name.
  * @param {{store?: SourceStore}} [options] - the store to read (tests); by default every space
  */

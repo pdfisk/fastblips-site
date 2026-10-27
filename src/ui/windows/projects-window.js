@@ -4,7 +4,7 @@
 // its name, its description and its scripts, in order. Add puts a script in
 // it, chosen from the user's own and those others have shared; Edit opens the
 // selected one in an edit window; Remove takes it out; Up and Down move it. Projects can be created, edited
-// and deleted. Opened from the Views menu.
+// and deleted. Opened from the Navbar's My Projects button.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { ListPanel } from '../widgets/list-panel.js';
@@ -105,7 +105,7 @@ export class ProjectsWindow extends HSplitWindow {
     this._onSourceChange = () => { if (this.isOpen) this.refresh(); };
     document.addEventListener('cr-dbserverchange', this._onSourceChange);
     document.addEventListener('cr-userchange', this._onSourceChange);
-    // A project was copied here from Community Projects.
+    // A project was copied here from Libraries.
     document.addEventListener('cr-projectscopied', this._onSourceChange);
     this.updateButtons();
   }

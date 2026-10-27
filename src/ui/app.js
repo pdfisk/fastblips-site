@@ -56,7 +56,8 @@ export function startDesktop() {
   navbar.add(viewsMenu(viewport, transcript));
   navbar.add(settingsMenu());
   navbar.add(windowsMenu(viewport, transcript));
-  navbar.add(communityProjectsButton(viewport));
+  navbar.add(myProjectsButton(viewport));
+  navbar.add(librariesButton(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
   navbar.add(buildLabel());
@@ -226,9 +227,9 @@ function changeUser() {
 // The Views menu, second on the Navbar, opens the tools: the Transcript, a new console for
 // either language, the browser for each table on the database server
 // (rails/server), the Process Browser, a new Designer and, last after a separator,
-// Projects. There is
-// one database browser per table, one Projects window and one Process
-// Browser; choosing one again brings it to the front.
+// Designer. There is
+// one database browser per table and one Process Browser; choosing one
+// again brings it to the front. My Projects is a Navbar button, not a Views item.
 function viewsMenu(viewport, transcript) {
   const menu = new Menu('Views');
   menu.addItem('Transcript', () => transcript.open(viewport));
@@ -241,8 +242,6 @@ function viewsMenu(viewport, transcript) {
   menu.addSeparator();
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));
   menu.addItem('Designer', () => new DesignerWindow().open(viewport));
-  menu.addSeparator();
-  menu.addItem('My Projects', () => ProjectsWindow.instance.open(viewport));
   return menu;
 }
 
@@ -277,10 +276,18 @@ function windowsMenu(viewport, transcript) {
   return menu;
 }
 
-// The Community Projects button, after Windows, opens the Community Projects
-// window: the projects that have been shared, whoever owns them, from which
-// one is launched in a Desktop launch window. There is one Community Projects
-// window; choosing the button again brings it to the front.
-function communityProjectsButton(viewport) {
-  return new Button('Community Projects', () => CommunityProjectsWindow.instance.open(viewport));
+// The My Projects button, after Windows, opens the My Projects window: the
+// signed-in user's own projects, which can be created, edited and deleted.
+// There is one My Projects window; choosing the button again brings it to the front.
+function myProjectsButton(viewport) {
+  return new Button('My Projects', () => ProjectsWindow.instance.open(viewport));
+}
+
+// The Libraries button, after My Projects, opens the Libraries window: the
+// projects other users have shared (not the signed-in user's own), from which
+// one is launched in a Desktop launch window or copied into My Projects. They
+// cannot be modified. There is one Libraries window; choosing the button again
+// brings it to the front.
+function librariesButton(viewport) {
+  return new Button('Libraries', () => CommunityProjectsWindow.instance.open(viewport));
 }

@@ -1,11 +1,13 @@
-// CommunityProjectsWindow: the singleton window, opened by the Navbar's
-// Community Projects button, that lists every project that has been shared
-// (the "shared" flag of a project), whoever owns it, in a grid with the
+// CommunityProjectsWindow: the Libraries window, a singleton opened by the
+// Navbar's Libraries button, that lists every project other users have shared
+// (the "shared" flag of a project; the signed-in user's own are in My Projects
+// and are left out), in a grid with the
 // columns Name, Owner, Scripts and Updated, so they can be launched. The
 // window is split by a vertical divider: the grid on the left, and on the
 // right a tabbed detail panel for the selected project - Details (name,
 // owner, description), Scripts (its scripts, in order) and Source (the
-// selected script's source, read only). Choosing
+// selected script's source, read only). Library projects can be launched and
+// copied but never modified. Choosing
 // a project and pressing Launch (or double-clicking it, or pressing Enter)
 // runs the project as it was last saved in a new Desktop launch window. Copy
 // stores a copy of the chosen project in My Projects, under a name that can be
@@ -20,10 +22,10 @@ import { GridPanel } from '../widgets/grid-panel.js';
 import { TabPanel } from '../widgets/tab-panel.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { ListPanel } from '../widgets/list-panel.js';
-import { allProjectStore, sharedProjects, projectScript, scriptLabel, projectDetails } from '../projects.js';
+import { allProjectStore, libraryProjects, projectScript, scriptLabel, projectDetails } from '../projects.js';
 import { RUN_TABLES } from '../run-app.js';
 import { CopyProjectWindow } from './copy-project-window.js';
-import { spaceName } from '../db-client.js';
+import { spaceName, userName } from '../db-client.js';
 import { Toast } from '../toast.js';
 
 let instance = null;
@@ -64,9 +66,9 @@ export class CommunityProjectsWindow extends HSplitWindow {
    */
   constructor({ list, get } = {}) {
     if (instance) throw new Error('CommunityProjectsWindow is a singleton; use CommunityProjectsWindow.instance');
-    super({ title: 'Community Projects', x: 220, y: 90, width: 760, height: 380, minWidth: 480, minHeight: 220, position: 0.5 });
+    super({ title: 'Libraries', x: 220, y: 90, width: 760, height: 380, minWidth: 480, minHeight: 220, position: 0.5 });
     instance = this;
-    this.element.classList.add('cr-community-projects-window');
+    this.element.classList.add('cr-libraries-window');
     this._read = list ?? (() => allProjectStore().list());
     this._get = get ?? ((id) => allProjectStore().get(id));
     this._languages = Object.fromEntries(RUN_TABLES);
@@ -124,8 +126,8 @@ export class CommunityProjectsWindow extends HSplitWindow {
     this._stale = false;
     this._loading ??= Promise.resolve().then(() => this._read()).then(
       (records) => {
-        this.projects = sharedProjects(records);
-        this._show(this.projects.length ? '' : 'No shared projects: tick Shared on a project in My Projects');
+        this.projects = libraryProjects(records, userName());
+        this._show(this.projects.length ? '' : 'No projects shared by other users yet');
       },
       (err) => { this.projects = []; this._show(`Cannot read the database: ${err.message}`); },
     ).finally(() => { this._loading = null; });
@@ -180,7 +182,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     const project = this.selectedProject;
     if (!project || !this.parent) return null;
     if (!spaceName()) {
-      Toast.show(this.parent, { kind: 'error', message: 'Sign in (File > Sign In) to copy a project to My Projects' });
+      Toast.show(this.parent, { kind: 'error', message: 'Sign in (File > Sign In) to copy a library project to My Projects' });
       return null;
     }
     let full;

@@ -550,7 +550,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     hidden) and brings it to the front.
   - The TranscriptWindow is always listed, so choosing it reopens it after
     it has been closed.
-  - The Community Projects button, after Windows, opens the CommunityProjectsWindow
+  - The My Projects button, after Windows, opens the ProjectsWindow; the Libraries button, after it, opens the CommunityProjectsWindow
     (or brings it to the front).
 
 
@@ -804,9 +804,9 @@ no buttons and never covers the menus. Clicking it dismisses it.
 
 CommunityProjectsWindow (singleton)
 -----------------------------------
-A Window listing every shared project, so they can be launched.
+A Window listing the projects other users have shared (not the signed-in user's own), so they can be launched or copied, never modified.
 
-  - Its title is "Community Projects", matching the Navbar button that opens it.
+  - Its title is "Libraries", matching the Navbar button that opens it.
   - There is only one; CommunityProjectsWindow.instance creates it on first use,
     and constructing a second one throws.
   - It is an HSplitWindow: a vertical divider splits it, with the project grid on
@@ -818,7 +818,7 @@ A Window listing every shared project, so they can be launched.
                and '· owner' for another user's script); the first is selected.
       Source   the source of the script selected in Scripts (a read-only
                TextPanel), as the project last saved it.
-  - The left side is a GridPanel with one row per project that has been shared
+  - The left side is a GridPanel with one row per project another user has shared
     (the Shared box of the project in My Projects), whoever owns it, and the
     columns Name, Owner, Scripts and Updated. Owner is the user whose space the
     project is in, or "(shared)"; Scripts is how many scripts it has; Updated is
@@ -1398,7 +1398,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
     hidden) and brings it to the front.
   - The TranscriptWindow is always listed, so choosing it reopens it after
     it has been closed.
-  - The Community Projects button, after Windows, opens the CommunityProjectsWindow
+  - The My Projects button, after Windows, opens the ProjectsWindow; the Libraries button, after it, opens the CommunityProjectsWindow
     (or brings it to the front).
 
 
@@ -1741,7 +1741,7 @@ Python ones (Python highlighting, opens a PythonConsoleWindow).
 ProjectsWindow (singleton)
 --------------------------
 An HSplitWindow for the projects on the database server (rails/server),
-opened with Views > My Projects. A project is a named group of scripts in one
+opened with the My Projects button. A project is a named group of scripts in one
 space, with a description. The projects of the page's space (Settings >
 User; the shared space with no user) are listed on the left, by name
 ignoring case, each with the number of scripts in it; the selected one is
