@@ -168,7 +168,7 @@ Print "go"
 A program builds its screen from the same widgets the FastBlips IDE is made of — labels,
 buttons, menus, rows and columns, split and tab panels, text and code editors, lists and
 floating windows. It runs on a screen: in the playground, a launch window (a console's
-Launch menu) or a `?run=` page. A widget is an **object**: `New` creates it, and its
+Launch menu) or a `?app=` page. A widget is an **object**: `New` creates it, and its
 properties are set and read by calling its **methods** with a dot.
 
 ```vb
@@ -428,7 +428,7 @@ End While
 
 **The Physics.** `New Physics()` is the program's physics world: shapes that fall under
 gravity, bounce, spin and push each other. It can be made in a console, whose output has a
-Physics tab that shows it, and in a launch window or a `?run=` page (desktop or mobile),
+Physics tab that shows it, and in a launch window or a `?app=` page (desktop or mobile),
 where it covers the printed text, as the Board and the Canvas do; widgets the program
 makes still float above it. Each Go starts with it empty, and Reset puts it away. It has none of the methods every widget has.
 

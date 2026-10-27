@@ -27,7 +27,7 @@ export function addLaunchItems(menu, launch, enabled) {
 
 /**
  * Opens the app called name (in the space of owner, '' for shared) as a
- * full-page app in a new browser tab: this page with ?run=<name>, or for a
+ * full-page app in a new browser tab: this page with ?app=<name>, or for a
  * project (project: true) ?project=<owner>/<name>. Returns the address
  * opened.
  */

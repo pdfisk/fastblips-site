@@ -6,7 +6,7 @@
 
 import { SourceStore, TABLES } from './db-client.js';
 
-/** The tables searched, in order: the same order ?run= uses (run-app.js). */
+/** The tables searched, in order: the same order ?app= uses (run-app.js). */
 export const APP_TABLES = ['basic', 'python'];
 
 /** True if record has compiled code saved with it. */
@@ -45,11 +45,11 @@ export async function listApps({ stores } = {}) {
 
 /**
  * The address that runs the app called name as a full page: this page with
- * ?run=<name>, or ?run=<owner>/<name> for an app in a user's space, keeping
+ * ?app=<name>, or ?app=<owner>/<name> for an app in a user's space, keeping
  * a db= choice of server and dropping anything else.
  */
 export function runUrl(name, href = globalThis.location?.href ?? 'http://localhost/', owner = '') {
-  return pageUrl('run', name, href, owner);
+  return pageUrl('app', name, href, owner);
 }
 
 /**
@@ -57,7 +57,7 @@ export function runUrl(name, href = globalThis.location?.href ?? 'http://localho
  * with ?project=<owner>/<name>, as runUrl does for an app.
  */
 export function projectUrl(name, href = globalThis.location?.href ?? 'http://localhost/', owner = '') {
-  return pageUrl('project', name, href, owner);
+  return pageUrl('app', name, href, owner);
 }
 
 function pageUrl(param, name, href, owner) {
@@ -67,5 +67,5 @@ function pageUrl(param, name, href, owner) {
   url.hash = '';
   url.searchParams.set(param, owner ? `${owner}/${name}` : name);
   if (db) url.searchParams.set('db', db);
-  return url.href;
+  return param === 'app' ? url.href.replace('%2F', '/') : url.href;
 }

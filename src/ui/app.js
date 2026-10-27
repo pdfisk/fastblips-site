@@ -26,20 +26,20 @@ import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, s
 import { BUILD_STAMP } from './build-info.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
-import { runParameter, projectParameter, startRuntime, startProjectRuntime } from './run-app.js';
+import { runParameter, projectParameter, startAppRuntime, startProjectRuntime } from './run-app.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { FileCopyWindow } from './windows/file-copy-window.js';
 
 /**
- * Starts the UI the page calls for: with ?run=<program name>, that program
- * from the database as a full-page app (on any device), and with
- * ?project=<owner>/<name> every script of that project, together; otherwise the mobile
+ * Starts the UI the page calls for: with ?app=<owner>/<name>, that project (or
+ * single program) from the database as a full-page app (on any device), and
+ * with ?project=<owner>/<name> just the project; otherwise the mobile
  * landing page on a phone, else the full UI. ?ui=mobile or ?ui=desktop
  * overrides the device detection.
  */
 export function start() {
-  const program = runParameter();
-  if (program) return startRuntime(program);
+  const app = runParameter();
+  if (app) return startAppRuntime(app);
   const project = projectParameter();
   if (project) return startProjectRuntime(project);
   return isMobileDevice() ? startMobile() : startDesktop();

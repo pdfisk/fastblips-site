@@ -18,7 +18,7 @@ Names belong to a user's space (Settings > User): the client adds
 shared space, the records with no owner) and `"owner"` to the records it
 creates. A name is unique within a space. `vp.load` and `vp.loadComposite`
 look in the page's space, then in the shared one; `vp.save` and
-`saveComposite` write to the page's space. On a `?run=peter/abc` page the
+`saveComposite` write to the page's space. On a `?app=peter/abc` page the
 space is the app owner's, `peter`, whoever is looking.
 
 A record is `{ id, name, owner, content, created_at, updated_at }`. `content` is the

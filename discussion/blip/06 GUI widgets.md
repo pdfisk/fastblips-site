@@ -17,7 +17,7 @@ A program's widgets live on its **AppScreen**: a text panel that receives
 the program's `Print` output, with a transparent layer on top holding the
 widgets. An AppScreen is the content of a **Launch window** (a console's
 *Launch → Desktop / Mobile* menu; Mobile is a fixed 360 × 640 phone screen)
-and of the full-page **`?run=<name>`** app. In a plain console or at the
+and of the full-page **`?app=<name>`** app. In a plain console or at the
 command line there is no screen, and making a widget reports a clear
 runtime error instead.
 
@@ -188,7 +188,7 @@ Crumb spelling is shown below.
 | Container | Behaviour |
 |---|---|
 | **ScrollPanel** | A scrollable area larger than the screen — long forms, lists of cards, maps. |
-| **Navbar / StatusBar for apps** | App-level chrome on a `?run=` page: a title and menus at the top, messages at the bottom. |
+| **Navbar / StatusBar for apps** | App-level chrome on a `?app=` page: a title and menus at the top, messages at the bottom. |
 | **Modal dialogs** | A Window that blocks the rest of the screen until closed. |
 
 ### Phase 4 — graphics
@@ -218,4 +218,4 @@ Crumb spelling is shown below.
 4. **Theme-aware.** Widgets use the `--cr-*` theme variables, so a BLIP looks
    right in the Classic, Smalltalk and Apple themes without extra code.
 5. **Mobile first.** Touch-sized defaults and automatic layout, so the same
-   BLIP works at `?run=` on a phone and in a desktop window.
+   BLIP works at `?app=` on a phone and in a desktop window.

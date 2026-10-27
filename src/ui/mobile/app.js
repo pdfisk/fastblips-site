@@ -1,4 +1,4 @@
-// The mobile UI, shown on a phone when the address names no app (no ?run=):
+// The mobile UI, shown on a phone when the address names no app (no ?app=):
 // the list of shared projects, each a link that runs it full-page, and a link
 // to the full playground. It uses plain DOM rather than the desktop widgets
 // (Viewport, Window, ...), which are built for a mouse and a large screen.

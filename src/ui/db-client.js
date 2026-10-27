@@ -111,7 +111,7 @@ export function setUser(name) {
 
 /**
  * The space this page reads and saves in: the user's, or '' for the shared
- * one. A ?run= page sets it to the space of the app it runs (setSpace), so
+ * one. A ?app= page sets it to the space of the app it runs (setSpace), so
  * the screens the app loads by name are its owner's, whoever is looking.
  */
 export function spaceName() { return pageSpace ?? userName(); }

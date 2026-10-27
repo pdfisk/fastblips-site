@@ -77,7 +77,7 @@ compiler emits only core plus its own section.
 | Transcript | `Transcript` and `transcript()` write to the same log window. |
 | Widgets | Both make the same widget objects with the same methods (`New Label("Hi")` ≡ `Label("Hi")`, `label.setWidth(100)` ≡ `label.set_width(100)`, …). |
 | Fetch | One implementation; Crumb receives a String and reads it with `JsonGet`, MiniPy receives dicts and lists. |
-| Database and `?run=` | Both languages have a source table; a `?run=` URL finds a program in either. |
+| Database and `?app=` | Both languages have a source table; a `?app=` URL finds a program in either. |
 | Tools | One disassembler, one fault system (with per-language wording), one runtime value model. |
 
 **What they do not share (yet):** a Crumb program cannot import a MiniPy

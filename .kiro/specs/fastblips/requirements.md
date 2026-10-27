@@ -17,7 +17,7 @@ complete, deployable platform. The three headline capabilities are:
 3. **Library support** — apps can import and reuse shared FastBlips libraries stored in the
    database.
 
-The existing foundation (VM, scheduler, widget toolkit, `?run=` deployment, database API)
+The existing foundation (VM, scheduler, widget toolkit, `?app=` deployment, database API)
 is taken as implemented; these requirements cover the extensions and gaps needed to make
 the platform complete.
 
@@ -33,7 +33,7 @@ the platform complete.
   runtime and one BLIP's compiled code, runnable without a network connection to
   fastblips.com.
 - **App**: A BLIP that is published (has compiled code saved with its record) and is
-  reachable via `?run=<name>`.
+  reachable via `?app=<name>`.
 - **Library**: A named record in the database whose content is source code (Crumb or
   MiniPy) intended to be imported into other programs, not run directly.
 - **Module**: A loaded library's compiled code, made available to an importing program
@@ -45,7 +45,7 @@ the platform complete.
 - **Scheduler**: The cooperative time-slicer that runs multiple processes on the browser's
   single thread.
 - **AppScreen**: The full-page surface on which a BLIP's `Print` output and widgets appear
-  when run via `?run=` or a Launch window.
+  when run via `?app=` or a Launch window.
 - **Package**: A named group of libraries and optional app records in the database,
   versioned together and importable as a unit.
 - **Target**: The rendering environment for an app — `desktop`, `mobile`, or `both`.
@@ -128,7 +128,7 @@ the platform complete.
 
 #### Acceptance Criteria
 
-1. THE IDE SHALL provide a Launch → Mobile menu item that opens the current program in a Launch window sized to exactly 360 × 640 logical pixels, matching the `?run=` mobile AppScreen.
+1. THE IDE SHALL provide a Launch → Mobile menu item that opens the current program in a Launch window sized to exactly 360 × 640 logical pixels, matching the `?app=` mobile AppScreen.
 2. THE IDE SHALL provide a Launch → Desktop menu item that opens the current program in a Launch window sized to the full available screen area, excluding OS taskbars and system chrome.
 3. WHEN a Launch window is resized by the user dragging its border or corner, THE Runtime SHALL invoke the `OnResize` handler, if one is registered, passing the new width and height as integer values in logical pixels.
 4. IF a Launch window is resized and no `OnResize` handler is registered, THEN THE Runtime SHALL complete the resize without error and update the displayed dimensions.
@@ -194,7 +194,7 @@ the platform complete.
 2. IF the Bundler detects a circular import dependency during transitive resolution, THEN THE Bundler SHALL report an error identifying the cycle and SHALL NOT produce a bundle.
 3. IF any imported library in the transitive closure has no compiled code, THEN THE Bundler SHALL report an error identifying that library by name and SHALL NOT produce a bundle.
 4. THE Runtime in the bundle SHALL load imported libraries from the embedded bytecode and SHALL NOT make any network request while resolving a library import.
-5. FOR ALL valid standalone bundles of the same app and library versions, the set of exported names available at runtime SHALL be identical to the set available when the same app is run via `?run=` with network access.
+5. FOR ALL valid standalone bundles of the same app and library versions, the set of exported names available at runtime SHALL be identical to the set available when the same app is run via `?app=` with network access.
 
 ---
 
@@ -207,7 +207,7 @@ the platform complete.
 1. THE Database SHALL associate every app and library record with an owner field matching a valid user-name pattern (`[a-z0-9][a-z0-9_-]{1,29}`, case-insensitive).
 2. WHEN an authenticated user requests to update or delete a record and the requesting user's name matches the record's owner field, THE Server SHALL permit the operation.
 3. IF an authenticated user requests to update or delete a record and the requesting user's name does not match the record's owner field, THEN THE Server SHALL reject the request with an HTTP 403 response without modifying the record.
-4. WHEN a client requests the `?run=<owner>/<name>` URL, THE Runtime SHALL load the app screens and composites from the named owner's space; IF no app matching the owner and name exists, THEN THE Server SHALL return an HTTP 404 response.
+4. WHEN a client requests the `?app=<owner>/<name>` URL, THE Runtime SHALL load the app screens and composites from the named owner's space; IF no app matching the owner and name exists, THEN THE Server SHALL return an HTTP 404 response.
 5. THE Server SHALL allow any client to read (`GET`) published app records regardless of ownership, so apps are publicly runnable by default.
 6. WHERE an app record has a `public` field set to `false`, IF the requesting client is not authenticated as the record's owner, THEN THE Server SHALL return an HTTP 403 response for any read request on that record.
 
@@ -220,7 +220,7 @@ the platform complete.
 #### Acceptance Criteria
 
 1. THE Server SHALL store a `compiled_code` field on each app record, set by the IDE's Compile action, containing the serialised bytecode as a JSON string.
-2. WHEN a `?run=` page loads an app that has a non-empty `compiled_code` field, THE Runtime SHALL execute the compiled bytecode directly and SHALL NOT run the compiler on the viewer's device.
+2. WHEN a `?app=` page loads an app that has a non-empty `compiled_code` field, THE Runtime SHALL execute the compiled bytecode directly and SHALL NOT run the compiler on the viewer's device.
 3. IF the `compiled_code` field is present and the record's `content` (source) has been modified after the bytecode was compiled (as determined by comparing compile-time timestamp with source last-modified timestamp), THEN THE Runtime SHALL recompile from source and display a non-blocking warning before execution begins that the compiled code is stale.
 4. THE Bytecode_Format SHALL include a version field and an opcode-table hash.
 5. IF the VM encounters a chunk whose opcode-table hash does not match the running VM's hash, THEN THE VM SHALL refuse to execute that chunk and SHALL report a runtime error to the viewer identifying the version mismatch.
@@ -235,11 +235,11 @@ the platform complete.
 
 #### Acceptance Criteria
 
-1. THE Server SHALL serve every app at `https://fastblips.com/app/<owner>/<name>` as an alias for `https://fastblips.com/?run=<owner>/<name>`, with the same runtime page, where `<owner>` and `<name>` each consist of 1 to 64 characters containing only alphanumeric characters, hyphens, or underscores.
+1. THE Server SHALL serve every app at `https://fastblips.com/?app=<owner>/<name>` as the address of the runtime page, where `<owner>` and `<name>` each consist of 1 to 64 characters containing only alphanumeric characters, hyphens, or underscores.
 2. IF the path segment `<owner>` or `<name>` contains characters outside the set of alphanumeric characters, hyphens, and underscores, or either segment is empty, THEN THE Server SHALL respond with an HTTP 400 error indicating the URL is invalid.
 3. THE Runtime page SHALL set the browser tab title to the app's `name` field, truncated to 100 characters, when the app loads successfully.
 4. WHEN the app record has an `icon_url` field, THE Runtime page SHALL set the page favicon to that URL.
-5. THE Server SHALL include Open Graph meta tags (`og:title`, `og:description`) in the HTML served at `/app/<owner>/<name>`, populated from the record's `name` field (truncated to 100 characters) and optional `description` field (truncated to 300 characters).
+5. THE Server SHALL include Open Graph meta tags (`og:title`, `og:description`) in the HTML served at `/?app=<owner>/<name>`, populated from the record's `name` field (truncated to 100 characters) and optional `description` field (truncated to 300 characters).
 6. IF the record has no `description` field, THEN THE Server SHALL use the text `"A FastBlips app"` as the `og:description` value.
 7. IF no app record exists for the given `<owner>/<name>` path, THEN THE Server SHALL respond with an HTTP 404 error indicating the app was not found.
 

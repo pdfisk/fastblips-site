@@ -263,7 +263,7 @@ export class ConsoleOutputHost {
     const id = Object.hasOwn(this.bindings, className) ? IDS[className] : 0;
     if (!id) {
       throw new WidgetError(`a ${className} needs a screen to go on, and a console has only a Board, a Canvas and a Physics: `
-        + 'run the program from a launch window (the console\'s Launch menu) or a ?run= page');
+        + 'run the program from a launch window (the console\'s Launch menu) or a ?app= page');
     }
     this._made.set(id, className);
     if (className === 'Physics') this.bindings.Physics.start();   // a new, empty world

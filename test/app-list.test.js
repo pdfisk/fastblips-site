@@ -40,16 +40,16 @@ test('listApps: a table that cannot be read is skipped; both failing rejects', a
   assert.deepEqual(await listApps({ stores: { basic: store(null), python: store([]) } }), []);
 });
 
-test('runUrl: this page with ?run=<name>, keeping only db=', () => {
-  assert.equal(runUrl('json-explorer', 'https://fastblips.com/?ui=mobile#x'), 'https://fastblips.com/?run=json-explorer');
+test('runUrl: this page with ?app=<name>, keeping only db=', () => {
+  assert.equal(runUrl('json-explorer', 'https://fastblips.com/?ui=mobile#x'), 'https://fastblips.com/?app=json-explorer');
   assert.equal(runUrl('my app', 'https://fastblips.com/index.html?db=local&ui=mobile'),
-    'https://fastblips.com/index.html?run=my+app&db=local');
-  assert.equal(runUrl('abc', 'https://fastblips.com/', 'peter'), 'https://fastblips.com/?run=peter%2Fabc');
+    'https://fastblips.com/index.html?app=my+app&db=local');
+  assert.equal(runUrl('abc', 'https://fastblips.com/', 'peter'), 'https://fastblips.com/?app=peter/abc');
 });
 
-test('projectUrl: this page with ?project=<owner>/<name>, keeping only db=', () => {
+test('projectUrl: this page with ?app=<owner>/<name>, keeping only db=', () => {
   assert.equal(projectUrl('Demo', 'https://fastblips.com/?ui=mobile#x', 'peter'),
-    'https://fastblips.com/?project=peter%2FDemo');
+    'https://fastblips.com/?app=peter/Demo');
   assert.equal(projectUrl('Demo', 'https://fastblips.com/?db=local', 'peter'),
-    'https://fastblips.com/?project=peter%2FDemo&db=local');
+    'https://fastblips.com/?app=peter/Demo&db=local');
 });

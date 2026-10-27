@@ -16,7 +16,7 @@
 // The value a program holds is a Widget (../values.js).
 //
 // The widgets themselves belong to the host (in the browser, the AppScreen
-// of a LaunchWindow or of the ?run= page), passed to the VM as the `gui`
+// of a LaunchWindow or of the ?app= page), passed to the VM as the `gui`
 // option. A host implements four methods:
 //
 //   create(className, args) -> id   a new widget, placed on the screen;
@@ -389,7 +389,7 @@ export function checkClassName(what, position, name, fail) {
 /** The host, or fails if the VM has none. */
 export function hostFor(vm, what, fail) {
   if (!vm.gui) {
-    fail(`${what} needs a screen to put widgets on: run the program from a launch window (the console's Launch menu) or a ?run= page`);
+    fail(`${what} needs a screen to put widgets on: run the program from a launch window (the console's Launch menu) or a ?app= page`);
   }
   return vm.gui;
 }

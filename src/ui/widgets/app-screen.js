@@ -1,5 +1,5 @@
 // AppScreen: the screen a program runs on, in a LaunchWindow and on the
-// ?run= page (see docs/widgets.txt). A TextPanel fills it (the program's
+// ?app= page (see docs/widgets.txt). A TextPanel fills it (the program's
 // Print output), and the widgets the program makes (New Button, New Label,
 // ...) float above the text at the positions it gives them. Between the
 // two are the program's Board (New Board() / Board()), a BoardPanel, and its

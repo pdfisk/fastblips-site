@@ -96,7 +96,7 @@ of the widget tree.
     clicked.
   - content is the widget filling the space between the Navbar and the
     StatusBar (or null); Windows float above it. Any widget with a height
-    can be docked as the StatusBar (the ?run= page docks a ButtonBar).
+    can be docked as the StatusBar (the ?app= page docks a ButtonBar).
   - Listens for browser resize events and lays out the whole tree again.
   - windows returns the open Windows, back to front.
   - visibleWindows and minimizedWindows return the Windows that are
@@ -607,7 +607,7 @@ language consoles below. Any number of consoles can be open at once.
     launch('desktop'), launch('mobile') and launch('web'). The first two
     open a new DesktopLaunchWindow or MobileLaunchWindow with a copy of the
     console's source. Web opens the app saved in the database under the
-    console's script name as a full page (the ?run= page) in a
+    console's script name as a full page (the ?app= page) in a
     new browser tab; it runs the saved version, not edits made in the
     console, and needs a script that came from the database (console.
     recordName and recordOwner, set when a record is opened in a console):
@@ -684,7 +684,7 @@ opened from a console's Launch menu; any number can be open at once.
     after minimizing or hiding it does not run it again. Pass
     autoStart: false to the constructor to wait for Go instead.
   - go(), stop() and reset() are done by a ProgramRunner (window.runner),
-    shared with the ?run= page.
+    shared with the ?app= page.
   - go() stops any previous run, clears the text panel and removes the
     program's widgets, and runs the source
     on the Scheduler shared with the consoles, in the launching console's
@@ -944,7 +944,7 @@ of the widget tree.
     clicked.
   - content is the widget filling the space between the Navbar and the
     StatusBar (or null); Windows float above it. Any widget with a height
-    can be docked as the StatusBar (the ?run= page docks a ButtonBar).
+    can be docked as the StatusBar (the ?app= page docks a ButtonBar).
   - Listens for browser resize events and lays out the whole tree again.
   - windows returns the open Windows, back to front.
   - visibleWindows and minimizedWindows return the Windows that are
@@ -1455,7 +1455,7 @@ language consoles below. Any number of consoles can be open at once.
     launch('desktop'), launch('mobile') and launch('web'). The first two
     open a new DesktopLaunchWindow or MobileLaunchWindow with a copy of the
     console's source. Web opens the app saved in the database under the
-    console's script name as a full page (the ?run= page) in a
+    console's script name as a full page (the ?app= page) in a
     new browser tab; it runs the saved version, not edits made in the
     console, and needs a script that came from the database (console.
     recordName and recordOwner, set when a record is opened in a console):
@@ -1532,7 +1532,7 @@ opened from a console's Launch menu; any number can be open at once.
     after minimizing or hiding it does not run it again. Pass
     autoStart: false to the constructor to wait for Go instead.
   - go(), stop() and reset() are done by a ProgramRunner (window.runner),
-    shared with the ?run= page.
+    shared with the ?app= page.
   - go() stops any previous run, clears the text panel and removes the
     program's widgets, and runs the source
     on the Scheduler shared with the consoles, in the launching console's
@@ -1924,7 +1924,7 @@ a colour; they write var(--cr-title-bg) and so on.
 ProgramRunner
 -------------
 Runs one program for the Go and Reset buttons, in LaunchWindows and on the
-?run= page (src/ui/program-runner.js). Not a widget.
+?app= page (src/ui/program-runner.js). Not a widget.
 
   - new ProgramRunner({ language, source, screen, name, compiled,
     priority }): language is the
@@ -1954,16 +1954,16 @@ Runs one program for the Go and Reset buttons, in LaunchWindows and on the
     uses one in place of the ProgramRunner.
 
 
-The ?run= page
+The ?app= page
 --------------
-Opening the page with ?run=<program name> runs that program as a full-page
+Opening the page with ?app=<program name> runs that program as a full-page
 app instead of the playground (src/ui/run-app.js, startRuntime(name)). It
 works on any device, phone included.
 
   - The browser window (tab) is titled with the program name.
   - The source is read from the database server in use (Settings >
-    Database, or ?db=local). ?run=abc is the program abc in the shared
-    space; ?run=peter/abc is abc in the user peter's space, and the
+    Database, or ?db=local). ?app=abc is the program abc in the shared
+    space; ?app=peter/abc is abc in the user peter's space, and the
     screens it loads by name are peter's too. A Basic program is found
     before a Python one, matching the name exactly, else ignoring case.
     The record's language decides how it runs. The record's compiled_code, if
@@ -1992,7 +1992,7 @@ Compiled code
 -------------
 A program runs from compiled code instead of being compiled each time,
 wherever it runs in the browser: consoles (Run), launch windows (Go) and
-the ?run= page. ConsoleWindow.spawn gets a chunk from loadProgram
+the ?app= page. ConsoleWindow.spawn gets a chunk from loadProgram
 (src/vm/program-loader.js), which tries, in order:
 
   1. The compiled code given with the program (a record's compiled_code,
@@ -2015,7 +2015,7 @@ when the source was compiled.
 
 AppScreen
 ---------
-The screen a program runs on, in a LaunchWindow and on the ?run= page
+The screen a program runs on, in a LaunchWindow and on the ?app= page
 (src/ui/widgets/app-screen.js).
 
   - A TextPanel (screen.textPanel) fills it: the program's Print output.
@@ -2060,7 +2060,7 @@ changed through methods, and in MiniPy the same way with Python spellings:
         console.outputHost). Each Run starts with the board and the canvas
         as new and the Text page showing; a program that stops with an
         error shows the Text page again, where the error is.
-      - on an AppScreen (a launch window, desktop or mobile, the ?run=
+      - on an AppScreen (a launch window, desktop or mobile, the ?app=
         page), the screen's own BoardPanel, CanvasPanel and PhysicsPanel,
         each covering the printed text once the program makes it (the
         canvas over the board). Widgets still float above them.

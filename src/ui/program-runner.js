@@ -1,6 +1,6 @@
 // ProgramRunner: runs one program's source on the shared scheduler and prints
 // to a TextPanel. It is what the Go and Reset buttons do, in LaunchWindows and
-// on the ?run= page (see docs/widgets.txt).
+// on the ?app= page (see docs/widgets.txt).
 
 import { StatusBar } from './widgets/status-bar.js';
 import { scheduler } from './runtime.js';

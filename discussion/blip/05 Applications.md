@@ -11,7 +11,7 @@ composites it loads, stored as records on the FastBlips server and run by the
 FastBlips runtime in the viewer's browser.
 
 ```
-  record in database ──▶ https://fastblips.com/?run=<name> ──▶ runtime in the page
+  record in database ──▶ https://fastblips.com/?app=<name> ──▶ runtime in the page
   (source; later bytecode)                                        compiler · VM · scheduler
   + saved screens/composites                                      · widget host
 ```
@@ -19,7 +19,7 @@ FastBlips runtime in the viewer's browser.
 ## 2. Running apps from the database
 
 **Today.**
-- Saving a program in the Database window publishes it; `?run=<name>` runs
+- Saving a program in the Database window publishes it; `?app=<name>` runs
   it full-page. The table it is found in (Basic first, then Python) decides
   the language.
 - Screens and composites are loaded at run time by name
@@ -32,7 +32,7 @@ FastBlips runtime in the viewer's browser.
   private apps.
 - **Versions** — a published version that keeps running while the author
   edits a draft.
-- **Bytecode delivery** — so `?run=` need not compile (see *02 BLIP definition*, Next steps 3).
+- **Bytecode delivery** — so `?app=` need not compile (see *02 BLIP definition*, Next steps 3).
 - **Friendly URLs** — e.g. `fastblips.com/app/<name>` or
   `<name>.fastblips.com`, with a title and icon for sharing previews.
 - **Limits** for network built-ins (`Fetch` rate, per-app storage).

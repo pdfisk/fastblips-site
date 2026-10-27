@@ -1,4 +1,4 @@
-// The ?run=<program name> page: runs one program from the database as a
+// The ?app=<owner>/<name> page (?run= is the older spelling): runs one program from the database as a
 // full-page app, instead of the playground (see docs/widgets.txt).
 //
 //   - The browser window (tab) is titled with the program name.
@@ -11,8 +11,8 @@
 // ?project=<owner>/<name> runs a project the same way: every script of that
 // user's project, in order, together on the one screen (startProjectRuntime).
 //
-// The source is read from the database server (db-client.js). ?run=abc is
-// the program abc in the shared space; ?run=peter/abc is abc in the user
+// The source is read from the database server (db-client.js). ?app=abc is
+// the program abc in the shared space; ?app=peter/abc is abc in the user
 // peter's space. A Basic program is found before a Python one of the same
 // name, and the record's language decides how it runs. The screens the
 // program loads by name are its owner's (setSpace).
@@ -32,10 +32,11 @@ export const RUN_TABLES = [
   ['python', PythonConsoleWindow],
 ];
 
-/** The program name in a ?run= query parameter, or null. */
+/** The program name in the ?app= query parameter (or the older ?run=), or null. */
 export function runParameter(g = globalThis) {
   try {
-    const name = new URLSearchParams(g.location?.search ?? '').get('run')?.trim();
+    const q = new URLSearchParams(g.location?.search ?? '');
+    const name = (q.get('app') ?? q.get('run'))?.trim();
     return name || null;
   } catch {
     return null;
@@ -43,7 +44,7 @@ export function runParameter(g = globalThis) {
 }
 
 /**
- * Splits a ?run= value "owner/name" into { owner, name }, or returns null if
+ * Splits a ?app= value "owner/name" into { owner, name }, or returns null if
  * it does not start with a user name and a slash.
  */
 export function splitRunName(value) {
@@ -54,7 +55,7 @@ export function splitRunName(value) {
 }
 
 /**
- * Finds the program a ?run= value names: "owner/name" in that user's space,
+ * Finds the program a ?app= value names: "owner/name" in that user's space,
  * else (or failing that, for a shared program whose name has a slash) the
  * whole value in the shared space. Resolves to { record, language, owner }
  * (owner '' for shared) or null if there is none. Rejects with a StoreError
@@ -211,6 +212,46 @@ export function startRuntime(name) {
       }),
     };
   }, `There is no program named "${name}" in the database.\n`);
+}
+
+/**
+ * Finds what a ?app= value names: the project of that name if there is one (an
+ * application is a project), else the single program. Resolves to
+ * { kind: 'project', found } (as findProject), { kind: 'program', found } (as
+ * findProgram) or null.
+ */
+export async function findApp(value, { stores } = {}) {
+  const project = await findProject(value, { stores });
+  if (project) return { kind: 'project', found: project };
+  const program = await findProgram(value, { stores });
+  return program ? { kind: 'program', found: program } : null;
+}
+
+/**
+ * Builds the page for a ?app=<owner>/<name> value (see findApp). Returns what
+ * startRuntime does.
+ */
+export function startAppRuntime(name) {
+  return startPage(name, async () => {
+    const app = await findApp(name);
+    if (!app) return null;
+    const { kind, found } = app;
+    if (kind === 'project') {
+      if (found.programs.length === 0) throw new Error('the project has no scripts to run');
+      return { owner: found.owner, runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }) };
+    }
+    return {
+      owner: found.owner,
+      runner: (screen) => new ProgramRunner({
+        language: found.language,
+        source: found.record.content ?? '',
+        compiled: found.record.compiled_code ?? null,
+        priority: found.record.priority ?? undefined,
+        screen,
+        name,
+      }),
+    };
+  }, `There is no application named "${name}" in the database.\n`);
 }
 
 /**

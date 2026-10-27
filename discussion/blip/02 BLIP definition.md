@@ -6,12 +6,12 @@ Python, compiled to FastBlips bytecode, and executed by a virtual machine
 (VM) under a scheduler that can run many BLIPs at once.
 
 ```
-https://fastblips.com/?run=abc
+https://fastblips.com/?app=abc
 ```
 
 loads the program named `abc` from the database and runs it as a full-page
 app. (The discussion notes used `?name=abc.bas`; the implemented parameter is
-`?run=`, and the name is the record's name. The table it is found in — Basic
+`?app=`, and the name is the record's name. The table it is found in — Basic
 first, then Python — decides the language, so no extension is needed.)
 
 ## Why a bytecode interpreter, and not plain JavaScript?
@@ -117,8 +117,8 @@ traceback, while the other processes carry on.
 | Priority levels | ❌ | Every process gets the same quantum in turn. |
 | Delayed start | ✅ | `spawn(chunk, { delay })`. |
 | Run from bytecode without source | ❌ | The database stores source; chunks exist only in memory. |
-| Deploy by adding to the database | ✅ | Save in the Database window; the program is live at `?run=<name>`. |
-| Run from a URL | ✅ | `?run=<name>`, on any device. |
+| Deploy by adding to the database | ✅ | Save in the Database window; the program is live at `?app=<name>`. |
+| Run from a URL | ✅ | `?app=<name>`, on any device. |
 | Installable PWA | ❌ | No manifest or service worker yet. |
 
 ## Next steps
@@ -136,12 +136,12 @@ traceback, while the other processes carry on.
 3. **Bytecode serialisation.** Define a versioned chunk format (JSON first,
    a compact binary later) with an opcode-table hash, so a VM refuses a chunk
    built for a different instruction set. Add a `bytecode` column to the
-   source tables, filled on save, and let `?run=` load it directly — the
+   source tables, filled on save, and let `?app=` load it directly — the
    compiler then never has to run on the viewer's device.
 4. **PWA packaging.** A manifest and service worker per BLIP
-   (`?run=<name>` → installable, with its name and icon), caching the
+   (`?app=<name>` → installable, with its name and icon), caching the
    runtime bundle and the program's chunk for offline use.
 5. **Access control.** Once anyone can publish, programs need owners,
-   and the `?run=` page needs to treat every BLIP as untrusted (it already
+   and the `?app=` page needs to treat every BLIP as untrusted (it already
    does at the VM level; built-ins that reach the network deserve per-program
    limits).

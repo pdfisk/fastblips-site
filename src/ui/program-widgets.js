@@ -46,7 +46,7 @@ export const VIEWPORT_VERSION = 1;
 /** The database table of saved viewports: records { name, content }. The
  *  content's kind says what it is: 'screen' (a whole Viewport; also when
  *  there is no kind) or 'composite' (one widget and everything in it).
- *  It works in this page's space: the user's, or on a ?run= page the
+ *  It works in this page's space: the user's, or on a ?app= page the
  *  space of the app being run. */
 export const viewportStore = new SourceStore({ resource: 'viewports', key: 'viewport', owner: spaceName });
 

@@ -49,7 +49,7 @@ priorities:
 ## How the pieces fit
 
 ```
-  author  ──▶  Playground (desktop UI)  ──▶  Database server  ──▶  fastblips.com?run=<name>
+  author  ──▶  Playground (desktop UI)  ──▶  Database server  ──▶  fastblips.com?app=<name>
                editor · consoles ·           basic_source          a full-page app on any
                scheduler · launch windows    python_source         device, phone included
                          │
@@ -77,8 +77,8 @@ priorities:
 | Multitasking scheduler | Round robin, sleep, suspend/resume/kill, delayed start |
 | Desktop playground | Consoles, database browser, process window, themes |
 | Program widgets | Button and Label only |
-| Database deployment + `?run=` page | Implemented |
-| Mobile | `?run=` apps work on phones; the full IDE shows a landing page |
+| Database deployment + `?app=` page | Implemented |
+| Mobile | `?app=` apps work on phones; the full IDE shows a landing page |
 | PWA packaging, priorities, bytecode-only deploy | Not yet started |
 
 ## Where to read next

@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findProgram, splitRunName, findProject, projectParameter } from '../src/ui/run-app.js';
+import { findProgram, splitRunName, findProject, projectParameter, findApp, runParameter } from '../src/ui/run-app.js';
 
 // A store whose records are per space: { '': [...], peter: [...] }.
 const store = (spaces, owner = '') => ({
@@ -53,4 +53,31 @@ test('findProject: owner/name in that space, its scripts in order, as programs',
 test('projectParameter: the ?project= value, or null', () => {
   assert.equal(projectParameter({ location: { search: '?project=peter%2FDemo' } }), 'peter/Demo');
   assert.equal(projectParameter({ location: { search: '?run=abc' } }), null);
+});
+
+test('runParameter: ?app= first, the older ?run= as a fallback', () => {
+  const at = (search) => runParameter({ location: { search } });
+  assert.equal(at('?app=admin%2Fabc'), 'admin/abc');
+  assert.equal(at('?app=admin/abc'), 'admin/abc');
+  assert.equal(at('?run=abc'), 'abc');
+  assert.equal(at('?app=a&run=b'), 'a');
+  assert.equal(at('?project=abc'), null);
+  assert.equal(at(''), null);
+});
+
+test('findApp: a project of that name, else a program, else null', async () => {
+  const projects = store({ admin: [{ id: 1, name: 'abc', scripts: [{ id: 11 }] }] });
+  const scripts = { list: async () => [{ id: 11, name: 'Main', language: 'basic', content: 'PRINT 1' }] };
+  const basic = store({ admin: [{ id: 5, name: 'abc' }, { id: 6, name: 'solo' }] });
+  const stores = { projects, scripts, basic, python: store({}) };
+
+  const project = await findApp('admin/abc', { stores });    // project wins over a same-named program
+  assert.equal(project.kind, 'project');
+  assert.deepEqual(project.found.programs.map((p) => p.name), ['Main']);
+
+  const program = await findApp('admin/solo', { stores });
+  assert.equal(program.kind, 'program');
+  assert.equal(program.found.record.id, 6);
+
+  assert.equal(await findApp('admin/nope', { stores }), null);
 });

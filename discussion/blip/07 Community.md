@@ -19,7 +19,7 @@ school students, which shapes accounts and moderation (§2 and Open points).
 **Built in, not bolted on.** The forum lives on fastblips.com, uses the same
 accounts, and understands BLIPs:
 
-- **Runnable posts** — a post can embed a BLIP (`?run=<name>` in an inline
+- **Runnable posts** — a post can embed a BLIP (`?app=<name>` in an inline
   frame) or a code block with a *Run* button that runs it in the page.
 - **Open a copy** — any shared program opens in the IDE as the reader's own
   copy ("remix"), with a link back to the original.
@@ -75,7 +75,7 @@ point to.
 **How.** Each community has its own rules on self-promotion — read them
 first. What works best is a post about something interesting, with a link
 that runs instantly. For learners, lead with what they can make:
-- "Build a phone app in 20 lines of Basic" — with a runnable `?run=` link
+- "Build a phone app in 20 lines of Basic" — with a runnable `?app=` link
   and a tutorial.
 - "Your first game in the browser: no install, works on your phone."
 - "From Basic to Python: the same app in both" — the two-language story
