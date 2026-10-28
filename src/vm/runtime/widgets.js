@@ -205,6 +205,21 @@ const GROUP_BOX = [
   method('isChecked', [], 'boolean'),
   method('onChange', ['handler:boolean']),
 ];
+const FIELD = [
+  ...TEXT,
+  method('setPlaceholder', ['text']),
+  method('getPlaceholder', [], 'text'),
+  method('setMaxLength', ['size']),
+  method('getMaxLength', [], 'int'),
+  method('setReadOnly', ['boolean']),
+  method('isReadOnly', [], 'boolean'),
+  method('setEnabled', ['boolean']),
+  method('isEnabled', [], 'boolean'),
+  method('focus'),
+  method('selectAll'),
+  method('onChange', ['handler:text']),
+  method('onSubmit', ['handler']),
+];
 const SPLIT = [
   method('setFirst', ['widget']),
   method('setSecond', ['widget']),
@@ -477,6 +492,12 @@ export const WIDGET_CLASSES = Object.freeze([
     method('setGroup', ['text']),
     method('getGroup', [], 'text'),
   ]),
+  // A single line of text the user edits. onChange is called with the field
+  // and its text on every edit by the user (not when the program sets it);
+  // onSubmit when the user presses Enter. A PasswordField shows dots; its text
+  // is never saved by toJson or saveComposite.
+  cls('TextField', ['text'], FIELD),
+  cls('PasswordField', [], FIELD),
 ]);
 
 /** className -> class */

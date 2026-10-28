@@ -13,7 +13,7 @@ const field = (node, label, opts) => fieldsFor(node, opts).flatMap(([, fs]) => f
 
 test('the palette is every class but the Viewport; new nodes get New\'s defaults', () => {
   assert.equal(PALETTE.includes('Viewport'), false);
-  assert.equal(PALETTE.length, 22);
+  assert.equal(PALETTE.length, 24);
   assert.ok(PALETTE.includes('Composite') && PALETTE.includes('Stack'));
   assert.deepEqual(PALETTE, [...PALETTE].sort((a, b) => a.localeCompare(b)), 'palette is alphabetical');
   assert.deepEqual(newNode('Button'), { class: 'Button', text: 'Button', box: [0, 0, 100, 32] });

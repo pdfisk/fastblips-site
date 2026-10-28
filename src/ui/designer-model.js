@@ -54,6 +54,7 @@ export function newNode(cls) {
     case 'TabPanel': node.tabs = []; break;
     case 'Image': node.source = ''; break;
     case 'CheckGroupBox': case 'RadioGroupBox': node.text = 'Group'; break;
+    case 'TextField': node.text = ''; break;   // a PasswordField has no text to keep
     default: break;
   }
   if (cls === 'Menu') node.items = [];
@@ -498,6 +499,8 @@ const FIELDS = {
   checkedOn: prop('checked', 'Checked', 'bool', true),
   checkedOff: prop('checked', 'Checked', 'bool', false),
   group: prop('group', 'Group', 'text', ''),
+  placeholder: prop('placeholder', 'Placeholder', 'text', ''),
+  maxLength: prop('maxLength', 'Max length (0 for none)', 'number'),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
   emptyText: prop('emptyText', 'Empty text', 'text'),
@@ -595,6 +598,8 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     Image: [f.source, f.fit, f.alt],
     CheckGroupBox: [f.text, f.checkedOn],
     RadioGroupBox: [f.text, f.group, f.checkedOff],
+    TextField: [f.text, f.placeholder, f.maxLength, f.readOnly, f.enabled],
+    PasswordField: [f.placeholder, f.maxLength, f.readOnly, f.enabled],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];

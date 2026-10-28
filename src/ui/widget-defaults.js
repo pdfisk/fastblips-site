@@ -26,6 +26,8 @@ export const DEFAULT_BOXES = Object.freeze({
   Image: [0, 0, 100, 100],
   CheckGroupBox: [0, 0, 320, 200],
   RadioGroupBox: [0, 0, 320, 200],
+  TextField: [0, 0, 160, 28],
+  PasswordField: [0, 0, 160, 28],
 });
 
 /** The classes that place their children with a layout, and the layout each starts with. */

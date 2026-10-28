@@ -91,6 +91,7 @@ const VARIABLE_BASES = {
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
   Composite: 'composite', Stack: 'stack', Image: 'image', CheckGroupBox: 'group', RadioGroupBox: 'group',
+  TextField: 'field', PasswordField: 'password',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -207,6 +208,7 @@ class Generator {
         MonacoPanel: [text(), this.str(node.language || 'plaintext')],
         Window: [this.str(node.title)],
         Image: [this.str(node.source)], CheckGroupBox: [text()], RadioGroupBox: [text()],
+        TextField: [text()],
       }[cls] ?? [];
       this.line(L.declare(v, L.construct(cls, args)));
     }
@@ -307,6 +309,12 @@ class Generator {
       case 'TextPanel': case 'MonacoPanel': if (node.readOnly) this.call(v, 'setReadOnly', [L.bool(true)]); break;
       case 'HPanel': case 'VPanel':
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
+        break;
+      case 'TextField': case 'PasswordField':
+        if (node.placeholder) this.call(v, 'setPlaceholder', [this.str(node.placeholder)]);
+        if (node.maxLength > 0) this.call(v, 'setMaxLength', [num(node.maxLength)]);
+        if (node.readOnly) this.call(v, 'setReadOnly', [L.bool(true)]);
+        if (node.enabled === false) this.call(v, 'setEnabled', [L.bool(false)]);
         break;
       case 'Composite': this.compositeLayout(v, node); break;
       case 'CheckGroupBox': case 'RadioGroupBox':

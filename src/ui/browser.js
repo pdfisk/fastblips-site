@@ -21,6 +21,7 @@ import { Composite } from './widgets/composite.js';
 import { Stack } from './widgets/stack.js';
 import { Image as ImageWidget } from './widgets/image.js';
 import { GroupBox, CheckGroupBox, RadioGroupBox } from './widgets/group-box.js';
+import { TextField, PasswordField } from './widgets/text-field.js';
 import * as layouts from './layouts/index.js';
 import { ProgramWidgetHost } from './program-widgets.js';
 import { DesignerWindow } from './windows/designer-window.js';
@@ -62,7 +63,7 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, GroupBox, CheckGroupBox, RadioGroupBox, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
+  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, GroupBox, CheckGroupBox, RadioGroupBox, TextField, PasswordField, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, WidgetHelpWindow, CommunityProjectsWindow, RecordPanel, Label,

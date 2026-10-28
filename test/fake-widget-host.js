@@ -169,7 +169,7 @@ export class FakeHost {
       id, className, args, props: { visible: true, enabled: true }, children: [], parent: null,
       handlers: {}, items: [], selected: -1,
     };
-    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox'].includes(className)) w.props.text = args[0];
+    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox', 'TextField'].includes(className)) w.props.text = args[0];
     if (className === 'Window') w.props.title = args[0];
     if (className === 'Image') w.props.source = args[0];
     this.widgets.set(id, w);
@@ -288,7 +288,7 @@ export class FakeHost {
       case 'getSelectedText': return w.items[w.selected] ?? '';
       case 'append': w.props.text += args[0]; return undefined;
       case 'fill': w.props.fill = true; return undefined;
-      case 'open': case 'close': case 'maximize': case 'restore': case 'focus': case 'addSeparator':
+      case 'open': case 'close': case 'maximize': case 'restore': case 'focus': case 'selectAll': case 'addSeparator':
         w.props.state = method; return undefined;
       default: break;
     }

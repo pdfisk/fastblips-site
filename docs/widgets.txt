@@ -63,6 +63,8 @@ Class hierarchy
     Button
     Label
     Image
+    TextField
+      PasswordField
     Spacer
     Separator
 
@@ -1031,6 +1033,8 @@ SchedulerWindow (singleton)
     Button
     Label
     Image
+    TextField
+      PasswordField
     Spacer
     Separator
 
@@ -2124,6 +2128,35 @@ Spacer
 An empty Widget with a flex weight (1 by default). Placed in an HPanel, it
 takes up the free space, pushing the widgets after it to the right.
 
+TextField and PasswordField
+---------------------------
+(src/ui/widgets/text-field.js)
+A single line of text the user can edit, after qooxdoo's qx.ui.form.TextField
+and PasswordField. A Widget (not a Panel) on an <input>. A TextPanel is the
+box of several lines.
+
+  - text, placeholder (grey text while it is empty), maxLength (the most the
+    user can type; 0 for no limit, and text already there is not cut),
+    readOnly, enabled (false greys it out), focus() and selectAll().
+  - Events: the browser's own input event on every edit by the user (not when
+    the program sets text), and submit, a CustomEvent, when the user presses
+    Enter.
+  - PasswordField is a TextField that shows dots. It starts empty, and the
+    browser is told not to fill in a saved password (autocomplete is
+    new-password).
+  - A password is never saved. toJson, save and saveComposite leave out a
+    PasswordField's text (its placeholder, limit and other settings are kept),
+    and building a saved PasswordField ignores any text it holds. The designer
+    gives it no Text field and the code generator writes no text for it. The
+    program can still read what was typed with getText, so a password typed into
+    a program goes to that program: only type one into a program you trust.
+  - For a program: TextField(text) and PasswordField(), with setText /
+    getText, setPlaceholder / getPlaceholder, setMaxLength / getMaxLength,
+    setReadOnly / isReadOnly, setEnabled / isEnabled, focus, selectAll,
+    onChange (called with the field and its text) and onSubmit (called with
+    the field). The default box is 160 by 28.
+
+
 Image
 -----
 (src/ui/widgets/image.js)
@@ -2345,7 +2378,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
     MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack, Image,
-    CheckGroupBox and RadioGroupBox, and the Board and the Canvas (below). Left
+    CheckGroupBox, RadioGroupBox, TextField and PasswordField, and the Board
+    and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).

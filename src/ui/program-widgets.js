@@ -35,6 +35,7 @@ import { Spacer } from './widgets/spacer.js';
 import { Composite } from './widgets/composite.js';
 import { Image as ImageWidget } from './widgets/image.js';
 import { GroupBox, CheckGroupBox, RadioGroupBox } from './widgets/group-box.js';
+import { TextField, PasswordField } from './widgets/text-field.js';
 import { Stack } from './widgets/stack.js';
 import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
@@ -228,6 +229,8 @@ const CLASSES = {
   Image: { make: (source) => imageCall(() => new ImageWidget(source)), box: DEFAULT_BOXES.Image },
   CheckGroupBox: { make: (text) => new CheckGroupBox(text), box: DEFAULT_BOXES.CheckGroupBox },
   RadioGroupBox: { make: (text) => new RadioGroupBox(text), box: DEFAULT_BOXES.RadioGroupBox },
+  TextField: { make: (text) => new TextField(text), box: DEFAULT_BOXES.TextField },
+  PasswordField: { make: () => new PasswordField(), box: DEFAULT_BOXES.PasswordField },
 };
 
 /** Container classes whose children are a plain list. */
@@ -447,6 +450,7 @@ export class ProgramWidgetHost {
       case 'onChange':
         if (w instanceof HSplitPanel || w instanceof VSplitPanel) own('change', (e) => callback(e.detail.position));
         else if (w instanceof GroupBox) own('change', (e) => callback(e.detail.checked));
+        else if (w instanceof TextField) own('input', () => callback(w.text));
         else own('change', () => callback(w.text));
         break;
       case 'onSubmit': own('submit', () => callback()); break;
@@ -545,6 +549,14 @@ export class ProgramWidgetHost {
       }
       case 'Stack':
         put('selected', w.selectedIndex, 0);
+        break;
+      case 'TextField': case 'PasswordField':
+        // A password is never saved: a saved screen or composite is kept in the database.
+        if (cls === 'TextField') node.text = w.text;
+        put('placeholder', w.placeholder, '');
+        put('maxLength', w.maxLength, 0);
+        put('readOnly', w.readOnly, false);
+        put('enabled', w.enabled, true);
         break;
       case 'Image':
         node.source = w.source;
@@ -693,6 +705,7 @@ export class ProgramWidgetHost {
       Window: [str(node.title)], TextPanel: [str(node.text)],
       MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
       Image: [str(node.source)], CheckGroupBox: [str(node.text)], RadioGroupBox: [str(node.text)],
+      TextField: [str(node.text)],
     }[cls] ?? [];
     const w = spec.make(...args);
     if (spec.box) {
@@ -728,6 +741,12 @@ export class ProgramWidgetHost {
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
       case 'RoundedRect': if (num(node.radius) !== undefined) w.radius = node.radius; break;
+      case 'TextField': case 'PasswordField':
+        if (typeof node.placeholder === 'string') w.placeholder = node.placeholder;
+        if (num(node.maxLength) !== undefined) w.maxLength = node.maxLength;
+        if (node.readOnly === true) w.readOnly = true;
+        if (node.enabled === false) w.enabled = false;
+        break;
       case 'Image':
         if (typeof node.fit === 'string') imageCall(() => { w.fit = node.fit; });
         if (typeof node.alt === 'string') w.alt = node.alt;
@@ -857,6 +876,24 @@ export class ProgramWidgetHost {
       default: break;
     }
 
+    // TextField and PasswordField.
+    if (w instanceof TextField) {
+      switch (method) {
+        case 'setText': w.text = a; return undefined;
+        case 'getText': return w.text;
+        case 'setPlaceholder': w.placeholder = a; return undefined;
+        case 'getPlaceholder': return w.placeholder;
+        case 'setMaxLength': w.maxLength = a; return undefined;
+        case 'getMaxLength': return w.maxLength;
+        case 'setReadOnly': w.readOnly = a; return undefined;
+        case 'isReadOnly': return w.readOnly;
+        case 'setEnabled': w.enabled = a; return undefined;
+        case 'isEnabled': return w.enabled;
+        case 'focus': w.focus(); return undefined;
+        case 'selectAll': w.selectAll(); return undefined;
+        default: break;
+      }
+    }
     // The group boxes: a title, a check box or radio button, and a Composite's methods.
     if (w instanceof GroupBox) {
       switch (method) {

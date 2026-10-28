@@ -208,6 +208,24 @@ on_change(function) is called with the box and whether it is checked now,
 for the box checked and for the one it unchecks.
 ${CONTAINER}`,
 
+  TextField: `A single line of text the user can edit. TextField(text) starts it with some
+text. set_text(text) and get_text(); set_placeholder(text) is grey text shown
+while it is empty; set_max_length(n) is the most the user can type (0 for no
+limit; text already there is not cut); set_read_only(b) lets the user look but
+not change it; set_enabled(b) greys it out; focus() moves the keyboard into it
+and select_all() selects its text. on_change(function) is called with the field
+and its text on every edit by the user (not when the program calls set_text);
+on_submit(function) is called with the field when the user presses Enter. A
+TextPanel is the box of several lines.`,
+
+  PasswordField: `A TextField that shows dots instead of its text, for a password or another secret.
+PasswordField() starts it empty; it has the methods of a TextField (see
+TextField). The browser is asked not to fill in a saved password. The text is
+for the program: get_text() reads what the user typed, but the field's text is
+never saved with a screen or composite (to_json, save, save_composite). A
+password typed into a program goes to that program, so only type one into a
+program you trust.`,
+
   Image: `A picture. Image(source) starts it; the source is an http: or https: address
 or a data:image/ URI ("" for none); anything else is an error.
 set_source(text) and get_source(); set_fit(text) says how the picture fills its

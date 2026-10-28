@@ -33,7 +33,7 @@ test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
     'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board', 'Canvas', 'Physics',
-    'Ellipse', 'RoundedRect', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox',
+    'Ellipse', 'RoundedRect', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'PasswordField',
   ]);
   for (const c of WIDGET_CLASSES) {
     for (const m of c.methods) assert.match(m.py, /^[a-z_]+(3d)?$/, `${c.name}.${m.name}`);
@@ -143,6 +143,28 @@ test('MiniPy: Composite and Stack, with the layout settings in snake_case', () =
   assert.deepEqual(named(3, 'setSpan'), [[1, 2]]);
   assert.deepEqual(named(3, 'setAlign'), [['left', '']]);
   assert.deepEqual(named(2, 'setCanvasBounds'), [['10', '', '', '5%', '', '']]);
+});
+
+test('MiniPy: TextField and PasswordField, with their methods in snake_case', () => {
+  const { host, out } = runPy([
+    'name = TextField("Ann")',
+    'name.set_placeholder("Your name")',
+    'name.set_max_length(12)',
+    'name.set_read_only(True)',
+    'name.set_enabled(False)',
+    'name.focus()',
+    'name.select_all()',
+    'secret = PasswordField()',
+    'secret.set_text("hunter2")',
+    'print(name.get_text(), name.get_placeholder(), name.get_max_length(), name.is_read_only(), name.is_enabled())',
+    'print(secret.get_text(), PasswordField(), TextField("x"))',
+  ].join('\n'));
+  assert.deepEqual(out, ['Ann Your name 12 True False', 'hunter2 <PasswordField object> <TextField object>']);
+  const named = (id, method) => host.calls.filter((c) => c[0] === id && c[1] === method).map((c) => c.slice(2));
+  assert.deepEqual(named(1, 'setMaxLength'), [[12]]);
+  assert.deepEqual(named(1, 'selectAll'), [[]]);
+  assert.throws(() => runPy('TextField("x").set_max_length(-1)'), /set_max_length\(\) expects a size of 0 or more/);
+  assert.throws(() => runPy('PasswordField("secret")'), /PasswordField\(\) takes 0 arguments/);
 });
 
 test('MiniPy: layout settings are checked before the host sees them', () => {
