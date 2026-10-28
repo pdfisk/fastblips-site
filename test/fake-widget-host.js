@@ -169,7 +169,7 @@ export class FakeHost {
       id, className, args, props: { visible: true, enabled: true }, children: [], parent: null,
       handlers: {}, items: [], selected: -1,
     };
-    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel'].includes(className)) w.props.text = args[0];
+    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox'].includes(className)) w.props.text = args[0];
     if (className === 'Window') w.props.title = args[0];
     if (className === 'Image') w.props.source = args[0];
     this.widgets.set(id, w);

@@ -17,7 +17,7 @@ import { WIDGET_CLASSES, snakeCase } from '../vm/runtime/widgets.js';
 import { KEYWORDS as PY_KEYWORDS } from '../vm/compiler/python/tokens.js';
 import { BUILTIN_NAMES as PY_BUILTINS } from '../vm/runtime/python-builtins.js';
 import { childrenOf, eventsOf, isFreeParent } from './designer-model.js';
-import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
+import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, DEFAULT_LAYOUTS } from './widget-defaults.js';
 
 // ---- literals ---------------------------------------------------------------
 
@@ -90,11 +90,11 @@ const VARIABLE_BASES = {
   Label: 'label', Button: 'button', Menu: 'menu', Spacer: 'spacer', Panel: 'panel', HPanel: 'row', VPanel: 'column',
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
-  Composite: 'composite', Stack: 'stack', Image: 'image',
+  Composite: 'composite', Stack: 'stack', Image: 'image', CheckGroupBox: 'group', RadioGroupBox: 'group',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
-const VALUE_PARAMS = { int: 'index', number: 'value', text: 'text' };
+const VALUE_PARAMS = { int: 'index', number: 'value', text: 'text', boolean: 'checked' };
 
 const MARK = '=====';
 const BEGIN = (lang) => `${lang.comment} ${MARK} DESIGNER LAYOUT (generated: edit the design, not this) ${MARK}`;
@@ -206,7 +206,7 @@ class Generator {
         Label: [text()], Button: [text()], Menu: [text()], TextPanel: [text()],
         MonacoPanel: [text(), this.str(node.language || 'plaintext')],
         Window: [this.str(node.title)],
-        Image: [this.str(node.source)],
+        Image: [this.str(node.source)], CheckGroupBox: [text()], RadioGroupBox: [text()],
       }[cls] ?? [];
       this.line(L.declare(v, L.construct(cls, args)));
     }
@@ -260,7 +260,7 @@ class Generator {
 
   /** A Composite's layout and its settings (spacing, alignment, a grid's columns and rows). */
   compositeLayout(v, node) {
-    if (node.layout && node.layout !== 'basic') this.call(v, 'setLayout', [this.str(node.layout)]);
+    if (node.layout && node.layout !== (DEFAULT_LAYOUTS[node.class] ?? 'basic')) this.call(v, 'setLayout', [this.str(node.layout)]);
     const o = node.layoutOptions ?? {};
     if (Number.isFinite(o.spacing)) this.call(v, 'setSpacing', [num(o.spacing)]);
     if (Number.isFinite(o.spacingX)) this.call(v, 'setSpacingX', [num(o.spacingX)]);
@@ -309,6 +309,13 @@ class Generator {
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
       case 'Composite': this.compositeLayout(v, node); break;
+      case 'CheckGroupBox': case 'RadioGroupBox':
+        this.compositeLayout(v, node);
+        if (node.class === 'RadioGroupBox' && node.group) this.call(v, 'setGroup', [this.str(node.group)]);
+        // A check box starts checked, a radio button not.
+        if (node.class === 'CheckGroupBox' && node.checked === false) this.call(v, 'setChecked', [L.bool(false)]);
+        if (node.class === 'RadioGroupBox' && node.checked === true) this.call(v, 'setChecked', [L.bool(true)]);
+        break;
       case 'Image':
         if (node.fit && node.fit !== 'contain') this.call(v, 'setFit', [this.str(node.fit)]);
         if (node.alt) this.call(v, 'setAlt', [this.str(node.alt)]);
@@ -368,7 +375,7 @@ class Generator {
       if (how) how(c);
     };
     switch (node.class) {
-      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar': case 'Composite':
+      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar': case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox':
         for (const child of node.children ?? []) into(child, (c) => this.call(v, 'add', [c]));
         break;
       case 'Stack':

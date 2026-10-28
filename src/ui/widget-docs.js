@@ -185,6 +185,29 @@ get_selected_index() says which is showing. on_select(function) is called with
 the stack and the index. The stack sets its children's visibility.
 ${CONTAINER}`,
 
+  CheckGroupBox: `A frame around a container, under a title with a check box in it. Like a
+Composite, its children are placed by a layout (vbox until set_layout) inside
+the frame, below the title, and it has a Composite's methods (see Composite).
+While the box is checked the widgets inside can be used; unchecked, they are
+dimmed and cannot be clicked or reached with the keyboard. It starts checked.
+set_text(title) and get_text(); set_checked(b) and is_checked(). on_change(function)
+is called with the box and whether it is checked now, when the user or the
+program changes it.
+${CONTAINER}`,
+
+  RadioGroupBox: `A frame around a container, under a title with a radio button in it. It is
+a CheckGroupBox whose check box is a radio button: checking one unchecks the
+others in its group, and the widgets inside can be used only while it is
+the one checked. Its group is the RadioGroupBoxes in the same container; with
+set_group(name) it is every RadioGroupBox with that name (get_group), wherever
+they are on the screen. It starts unchecked, so call set_checked(True) on the
+one to start with. Like a Composite, its children are placed by a layout (vbox
+until set_layout), and it has a Composite's methods (see Composite).
+set_text(title) and get_text(); set_checked(b) and is_checked();
+on_change(function) is called with the box and whether it is checked now,
+for the box checked and for the one it unchecks.
+${CONTAINER}`,
+
   Image: `A picture. Image(source) starts it; the source is an http: or https: address
 or a data:image/ URI ("" for none); anything else is an error.
 set_source(text) and get_source(); set_fit(text) says how the picture fills its

@@ -31,14 +31,20 @@ export const ALIGN_Y = Object.freeze(['top', 'middle', 'bottom']);
 /** The layout settings of a child, made on first use. */
 export const propsOf = (child) => (child.layoutProps ??= {});
 
-/** The area inside a container's padding: { left, top, width, height }. */
+/**
+ * The area inside a container's padding: { left, top, width, height }. A
+ * container that draws something of its own around its children (a GroupBox's
+ * title and frame) says how much room that takes in frameInsets, [top, right,
+ * bottom, left], which comes off the area as well.
+ */
 export function inner(container) {
   const [pt, pr, pb, pl] = container.padding;
+  const [ft, fr, fb, fl] = container.frameInsets ?? [0, 0, 0, 0];
   return {
-    left: pl,
-    top: pt,
-    width: Math.max(0, container.innerWidth - pl - pr),
-    height: Math.max(0, container.innerHeight - pt - pb),
+    left: pl + fl,
+    top: pt + ft,
+    width: Math.max(0, container.innerWidth - pl - pr - fl - fr),
+    height: Math.max(0, container.innerHeight - pt - pb - ft - fb),
   };
 }
 

@@ -24,7 +24,13 @@ export const DEFAULT_BOXES = Object.freeze({
   Composite: [0, 0, 320, 200],
   Stack: [0, 0, 320, 200],
   Image: [0, 0, 100, 100],
+  CheckGroupBox: [0, 0, 320, 200],
+  RadioGroupBox: [0, 0, 320, 200],
 });
+
+/** The classes that place their children with a layout, and the layout each starts with. */
+export const DEFAULT_LAYOUTS = Object.freeze({ Composite: 'basic', CheckGroupBox: 'vbox', RadioGroupBox: 'vbox' });
+export const LAYOUT_CLASSES = new Set(Object.keys(DEFAULT_LAYOUTS));
 
 /** A new Window's bounds (x, y, width, height). */
 export const DEFAULT_WINDOW_BOUNDS = Object.freeze([20, 20, 320, 240]);

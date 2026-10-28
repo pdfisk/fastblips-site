@@ -34,6 +34,7 @@ import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
 import { Composite } from './widgets/composite.js';
 import { Image as ImageWidget } from './widgets/image.js';
+import { GroupBox, CheckGroupBox, RadioGroupBox } from './widgets/group-box.js';
 import { Stack } from './widgets/stack.js';
 import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
@@ -41,7 +42,9 @@ import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
 import { BoardBinding, CanvasBinding, PhysicsBinding } from './board-host.js';
-import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED, NATURAL_SIZED } from './widget-defaults.js';
+import {
+  DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED, NATURAL_SIZED, DEFAULT_LAYOUTS,
+} from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
 export const VIEWPORT_FORMAT = 'fastblip-viewport';
@@ -223,10 +226,12 @@ const CLASSES = {
   Composite: { make: () => new Composite(), box: DEFAULT_BOXES.Composite },
   Stack: { make: () => new Stack(), box: DEFAULT_BOXES.Stack },
   Image: { make: (source) => imageCall(() => new ImageWidget(source)), box: DEFAULT_BOXES.Image },
+  CheckGroupBox: { make: (text) => new CheckGroupBox(text), box: DEFAULT_BOXES.CheckGroupBox },
+  RadioGroupBox: { make: (text) => new RadioGroupBox(text), box: DEFAULT_BOXES.RadioGroupBox },
 };
 
 /** Container classes whose children are a plain list. */
-const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack'];
+const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox'];
 
 /** Runs an Image operation, turning the Error it throws (a bad source or fit) into a WidgetError. */
 function imageCall(body) {
@@ -441,6 +446,7 @@ export class ProgramWidgetHost {
       case 'onSelect': own('select', (e) => callback(e.detail.index)); break;
       case 'onChange':
         if (w instanceof HSplitPanel || w instanceof VSplitPanel) own('change', (e) => callback(e.detail.position));
+        else if (w instanceof GroupBox) own('change', (e) => callback(e.detail.checked));
         else own('change', () => callback(w.text));
         break;
       case 'onSubmit': own('submit', () => callback()); break;
@@ -526,8 +532,13 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         put('spacing', w.spacing, 0);
         break;
-      case 'Composite': {
-        put('layout', w.layoutName, 'basic');
+      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox': {
+        if (w instanceof GroupBox) {
+          node.text = w.text;
+          put('checked', w.checked, w instanceof CheckGroupBox);   // a check box starts checked, a radio button not
+        }
+        if (cls === 'RadioGroupBox') put('group', w.group, '');
+        put('layout', w.layoutName, DEFAULT_LAYOUTS[cls]);
         const options = w.layoutManager.toJSON();
         if (Object.keys(options).length) node.layoutOptions = options;
         break;
@@ -681,7 +692,7 @@ export class ProgramWidgetHost {
       Label: [str(node.text)], Button: [str(node.text)], Menu: [str(node.text)],
       Window: [str(node.title)], TextPanel: [str(node.text)],
       MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
-      Image: [str(node.source)],
+      Image: [str(node.source)], CheckGroupBox: [str(node.text)], RadioGroupBox: [str(node.text)],
     }[cls] ?? [];
     const w = spec.make(...args);
     if (spec.box) {
@@ -750,12 +761,14 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         if (num(node.spacing) !== undefined) w.spacing = node.spacing;
         break;
-      case 'Composite':
+      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox':
         w.layoutManager = layoutCall(() => {
-          const layout = makeLayout(node.layout ?? 'basic');
+          const layout = makeLayout(node.layout ?? DEFAULT_LAYOUTS[cls]);
           layout.load(node.layoutOptions);
           return layout;
         });
+        if (cls === 'RadioGroupBox' && typeof node.group === 'string') w.group = node.group;
+        if (w instanceof GroupBox && typeof node.checked === 'boolean') w.checked = node.checked;
         break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (node.first) w.first = child(node.first);
@@ -844,7 +857,20 @@ export class ProgramWidgetHost {
       default: break;
     }
 
-    switch (`${cls}.${method}`) {
+    // The group boxes: a title, a check box or radio button, and a Composite's methods.
+    if (w instanceof GroupBox) {
+      switch (method) {
+        case 'setText': w.text = a; return undefined;
+        case 'getText': return w.text;
+        case 'setChecked': w.checked = a; return undefined;
+        case 'isChecked': return w.checked;
+        case 'setGroup': if (cls === 'RadioGroupBox') { w.group = a; return undefined; } break;
+        case 'getGroup': if (cls === 'RadioGroupBox') return w.group; break;
+        default: break;
+      }
+    }
+    const family = w instanceof GroupBox ? 'Composite' : cls;
+    switch (`${family}.${method}`) {
       // ---- text
       case 'Label.setText': w.text = a; return undefined;
       case 'Label.getText': return w.text;
@@ -987,7 +1013,7 @@ export class ProgramWidgetHost {
       case 'ListPanel.setEmptyText': w.emptyText = a; w.items = w.items; return undefined;
 
       default:
-        if (cls === 'Composite' && method in GRID_TRACKS) {
+        if (w instanceof Composite && method in GRID_TRACKS) {
           const layout = w.layoutManager;
           if (layout.kind !== 'grid') throw new WidgetError(`the ${layout.kind} layout has no columns or rows: ${method} is for a grid`);
           const [axis, key] = GRID_TRACKS[method];

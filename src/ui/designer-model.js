@@ -11,18 +11,20 @@
 // buttonBar.children (Window). slots() gives them one shape.
 
 import { WIDGET_CLASSES } from '../vm/runtime/widgets.js';
-import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
+import {
+  DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, DEFAULT_LAYOUTS, LAYOUT_CLASSES,
+} from './widget-defaults.js';
 import { makeLayout, cleanChildProps } from './layouts/index.js';
 import { FITS, checkImageSource } from './widgets/image.js';
 
 /** The classes the designer offers: every widget class but the singletons (the Viewport, the Board, the Canvas and the Physics). */
 export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => !['Viewport', 'Board', 'Canvas', 'Physics'].includes(n)).sort((a, b) => a.localeCompare(b));
 
-const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack']);
+const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox']);
 const SPLITS = new Set(['HSplitPanel', 'VSplitPanel']);
 
-/** The layout of a Composite node: its name ('basic' when none is saved). */
-export const layoutOf = (node) => node.layout ?? 'basic';
+/** The layout of a Composite or group box node: its name (the class's own, 'basic' or 'vbox', when none is saved). */
+export const layoutOf = (node) => node.layout ?? DEFAULT_LAYOUTS[node.class] ?? 'basic';
 
 /** True when node holds its children as a plain list. */
 export const isList = (node) => LIST_CONTAINERS.has(node.class);
@@ -33,11 +35,11 @@ export const isList = (node) => LIST_CONTAINERS.has(node.class);
  * their own, and can be dragged.
  */
 export const isFreeParent = (node) => node.class === 'Panel'
-  || (node.class === 'Composite' && ['basic', 'canvas'].includes(layoutOf(node)));
+  || (LAYOUT_CLASSES.has(node.class) && ['basic', 'canvas'].includes(layoutOf(node)));
 
 /** True when node lays its children out along a row (so a drop goes to the left or right of a child). */
 export const isHorizontal = (node) => node.class === 'HPanel' || node.class === 'ButtonBar'
-  || (node.class === 'Composite' && ['hbox', 'flow'].includes(layoutOf(node)));
+  || (LAYOUT_CLASSES.has(node.class) && ['hbox', 'flow'].includes(layoutOf(node)));
 
 /** A new node of a class, with the defaults a program's New would give it. */
 export function newNode(cls) {
@@ -51,6 +53,7 @@ export function newNode(cls) {
     case 'ListPanel': node.items = []; break;
     case 'TabPanel': node.tabs = []; break;
     case 'Image': node.source = ''; break;
+    case 'CheckGroupBox': case 'RadioGroupBox': node.text = 'Group'; break;
     default: break;
   }
   if (cls === 'Menu') node.items = [];
@@ -221,7 +224,7 @@ export function describe(node) {
   let text = node.class;
   if (node.id) text += ` #${node.id}`;
   const caption = node.class === 'Window' ? node.title : node.text;
-  if (caption !== undefined && caption !== '' && ['Label', 'Button', 'Menu', 'Window'].includes(node.class)) {
+  if (caption !== undefined && caption !== '' && ['Label', 'Button', 'Menu', 'Window', 'CheckGroupBox', 'RadioGroupBox'].includes(node.class)) {
     text += ` "${String(caption).split('\n')[0]}"`;
   }
   return text;
@@ -383,10 +386,11 @@ const layoutField = {
   key: 'layout', label: 'Layout', type: 'text',
   get: (n) => layoutOf(n),
   set: (n, v) => {
-    const name = String(v).trim().toLowerCase() || 'basic';
+    const dflt = DEFAULT_LAYOUTS[n.class] ?? 'basic';
+    const name = String(v).trim().toLowerCase() || dflt;
     makeLayout(name);   // says which layouts there are, when there is none of this name
     if (name === layoutOf(n)) return;
-    if (name === 'basic') delete n.layout; else n.layout = name;
+    if (name === dflt) delete n.layout; else n.layout = name;
     delete n.layoutOptions;
   },
 };
@@ -491,6 +495,9 @@ const FIELDS = {
     },
   },
   alt: prop('alt', 'Alt text', 'text', ''),
+  checkedOn: prop('checked', 'Checked', 'bool', true),
+  checkedOff: prop('checked', 'Checked', 'bool', false),
+  group: prop('group', 'Group', 'text', ''),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
   emptyText: prop('emptyText', 'Empty text', 'text'),
@@ -560,8 +567,8 @@ export function eventsOf(cls) {
 // are placed by its box (a border pushes them in), but only a row, a column, a
 // Label or a Button have padding. A shape's outline is its border (see above).
 const NO_MARGIN = new Set(['Window', 'Spacer']);
-const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack', 'Image']);
-const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack']);
+const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox']);
+const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox']);
 
 function boxFields(cls) {
   const f = FIELDS;
@@ -586,6 +593,8 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     TabPanel: [f.tabLabels, f.selected],
     Stack: [f.selected],
     Image: [f.source, f.fit, f.alt],
+    CheckGroupBox: [f.text, f.checkedOn],
+    RadioGroupBox: [f.text, f.group, f.checkedOff],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];
@@ -597,8 +606,8 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
       ? [f.left, f.top, f.width, f.height, f.fill]
       : [f.width, f.height, f.flex]]);
   }
-  if (cls === 'Composite') groups.push([`Layout (${layoutOf(node)})`, layoutFields(node)]);
-  if (cls !== 'Window' && parent?.class === 'Composite') {
+  if (LAYOUT_CLASSES.has(cls)) groups.push([`Layout (${layoutOf(node)})`, layoutFields(node)]);
+  if (cls !== 'Window' && LAYOUT_CLASSES.has(parent?.class)) {
     const place = placeFields(parent);
     if (place.length) groups.push([`In the ${layoutOf(parent)} layout`, place]);
   }

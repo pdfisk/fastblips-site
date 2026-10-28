@@ -198,6 +198,13 @@ const COMPOSITE = [
   method('setColumnMaxWidth', ['index', 'size']),
   method('setRowMaxHeight', ['index', 'size']),
 ];
+const GROUP_BOX = [
+  ...COMPOSITE,
+  ...TEXT,
+  method('setChecked', ['boolean']),
+  method('isChecked', [], 'boolean'),
+  method('onChange', ['handler:boolean']),
+];
 const SPLIT = [
   method('setFirst', ['widget']),
   method('setSecond', ['widget']),
@@ -457,6 +464,18 @@ export const WIDGET_CLASSES = Object.freeze([
     ...CLICK,
     method('onLoad', ['handler']),
     method('onError', ['handler']),
+  ]),
+  // Group boxes, after qooxdoo's: a Composite in a frame under a title with a
+  // check box or radio button. The layout is vbox until setLayout. While the
+  // box is unchecked its children cannot be used. onChange is called with the
+  // box and whether it is checked now. Checking a RadioGroupBox unchecks the
+  // others in its group: those in the same container, or those with the same
+  // setGroup name.
+  cls('CheckGroupBox', ['text'], GROUP_BOX),
+  cls('RadioGroupBox', ['text'], [
+    ...GROUP_BOX,
+    method('setGroup', ['text']),
+    method('getGroup', [], 'text'),
   ]),
 ]);
 

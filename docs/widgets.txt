@@ -18,6 +18,9 @@ Class hierarchy
         ButtonBar
       VPanel
       Composite
+        GroupBox
+          CheckGroupBox
+          RadioGroupBox
       Stack
       SplitPanel (abstract)
         HSplitPanel
@@ -227,6 +230,46 @@ only the settings that differ from the layout's defaults (a grid's as
 columns / rows: { index: { flex, size, min, max } }). A child's settings are
 saved as layoutProps. A saved Stack has selected (the page showing, left out
 when 0) and children.
+
+
+GroupBox, CheckGroupBox and RadioGroupBox
+------------------------------------------
+(src/ui/widgets/group-box.js)
+Modelled on qooxdoo's qx.ui.groupbox. A GroupBox is a Composite in a frame,
+under a title; a CheckGroupBox has a check box in the title and a
+RadioGroupBox a radio button. A program can make the last two (a plain
+GroupBox is the toolkit's base class of both).
+
+  - The children are placed by a layout manager like a Composite's, inside the
+    frame and below the title. The default layout is vbox, not basic.
+    A layout takes the room the title and frame need from the container's
+    frameInsets ([top, right, bottom, left]; inner() in layouts/layout.js
+    subtracts it with the padding): the title row is LEGEND_HEIGHT (24) high,
+    and the frame is FRAME_WIDTH (1) wide with FRAME_PADDING (6) inside it.
+    The box's own padding comes on top of that.
+  - text is the title. checked is the state of the check box or radio button.
+    A CheckGroupBox starts checked, a RadioGroupBox not. A plain GroupBox has
+    no state: reading checked gives false, and setting it is an error.
+  - While the box is not checked its content is disabled: the children are
+    dimmed (class cr-groupbox-off) and made inert (element.inert), so they take
+    neither clicks nor the keyboard. Children added later are inert too; a child
+    taken out is usable again. contentEnabled says which.
+  - A change of state fires a change event with detail { checked }, whether the
+    user or the program made it.
+  - Checking a RadioGroupBox unchecks the others in its group, and they fire
+    their change events first. The group is the RadioGroupBoxes in the same
+    container; with group set to a name it is every RadioGroupBox with that name
+    in the same tree of widgets, wherever they are. Unnamed boxes and named boxes
+    are never in a group together. Nothing is checked at first, and a program
+    can uncheck the one that is (unlike an HTML radio button, which cannot be
+    cleared by the user). Checking two before they are in the same tree leaves
+    both checked, so check the one to start with after adding them.
+  - For a program: CheckGroupBox(text) and RadioGroupBox(text), with the
+    container and layout methods of a Composite, setText / getText,
+    setChecked / isChecked, onChange (called with the box and whether it is
+    checked now) and, for a RadioGroupBox, setGroup / getGroup. They are saved
+    with text, checked (when not the class's default), group and layout (when not
+    vbox), and the designer offers them like a Composite.
 
 
 HSplitPanel and VSplitPanel
@@ -1155,6 +1198,46 @@ only the settings that differ from the layout's defaults (a grid's as
 columns / rows: { index: { flex, size, min, max } }). A child's settings are
 saved as layoutProps. A saved Stack has selected (the page showing, left out
 when 0) and children.
+
+
+GroupBox, CheckGroupBox and RadioGroupBox
+------------------------------------------
+(src/ui/widgets/group-box.js)
+Modelled on qooxdoo's qx.ui.groupbox. A GroupBox is a Composite in a frame,
+under a title; a CheckGroupBox has a check box in the title and a
+RadioGroupBox a radio button. A program can make the last two (a plain
+GroupBox is the toolkit's base class of both).
+
+  - The children are placed by a layout manager like a Composite's, inside the
+    frame and below the title. The default layout is vbox, not basic.
+    A layout takes the room the title and frame need from the container's
+    frameInsets ([top, right, bottom, left]; inner() in layouts/layout.js
+    subtracts it with the padding): the title row is LEGEND_HEIGHT (24) high,
+    and the frame is FRAME_WIDTH (1) wide with FRAME_PADDING (6) inside it.
+    The box's own padding comes on top of that.
+  - text is the title. checked is the state of the check box or radio button.
+    A CheckGroupBox starts checked, a RadioGroupBox not. A plain GroupBox has
+    no state: reading checked gives false, and setting it is an error.
+  - While the box is not checked its content is disabled: the children are
+    dimmed (class cr-groupbox-off) and made inert (element.inert), so they take
+    neither clicks nor the keyboard. Children added later are inert too; a child
+    taken out is usable again. contentEnabled says which.
+  - A change of state fires a change event with detail { checked }, whether the
+    user or the program made it.
+  - Checking a RadioGroupBox unchecks the others in its group, and they fire
+    their change events first. The group is the RadioGroupBoxes in the same
+    container; with group set to a name it is every RadioGroupBox with that name
+    in the same tree of widgets, wherever they are. Unnamed boxes and named boxes
+    are never in a group together. Nothing is checked at first, and a program
+    can uncheck the one that is (unlike an HTML radio button, which cannot be
+    cleared by the user). Checking two before they are in the same tree leaves
+    both checked, so check the one to start with after adding them.
+  - For a program: CheckGroupBox(text) and RadioGroupBox(text), with the
+    container and layout methods of a Composite, setText / getText,
+    setChecked / isChecked, onChange (called with the box and whether it is
+    checked now) and, for a RadioGroupBox, setGroup / getGroup. They are saved
+    with text, checked (when not the class's default), group and layout (when not
+    vbox), and the designer offers them like a Composite.
 
 
 HSplitPanel and VSplitPanel
@@ -2261,8 +2344,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
 
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
-    MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack and
-    Image, and the Board and the Canvas (below). Left
+    MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack, Image,
+    CheckGroupBox and RadioGroupBox, and the Board and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).
@@ -2357,6 +2440,11 @@ changed through methods, and in MiniPy the same way with Python spellings:
     and generated by the designer like the other containers; the designer
     offers the layout's settings and the child's place in the Inspector.
     examples/layouts-tour.py uses each layout.
+  - CheckGroupBox and RadioGroupBox (above): a Composite under a title with a
+    check box or radio button. Their layout starts as vbox. While unchecked the
+    widgets inside cannot be used. A RadioGroupBox unchecks the others in its
+    group (the RadioGroupBoxes in its container, or those with the same
+    setGroup name) when it is checked.
   - The classes and their methods are one table, WIDGET_CLASSES in
     src/vm/runtime/widgets.js, shared by both languages: each method's
     Crumb name (camelCase), MiniPy name (snake_case), argument kinds and
