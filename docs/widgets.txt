@@ -21,8 +21,10 @@ Class hierarchy
         GroupBox
           CheckGroupBox
           RadioGroupBox
+        Drawer
       Stack
       SplitButton
+      Carousel
       SplitPanel (abstract)
         HSplitPanel
         VSplitPanel
@@ -69,6 +71,7 @@ Class hierarchy
         PasswordField
       TextArea
     SelectBox
+    NavigationBar
     Spacer
     Separator
 
@@ -669,7 +672,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic, Smalltalk, Apple, Steampunk or Pokemon.
+    - Theme: Classic, Smalltalk, Apple or Steampunk.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -1042,6 +1045,7 @@ SchedulerWindow (singleton)
         PasswordField
       TextArea
     SelectBox
+    NavigationBar
     Spacer
     Separator
 
@@ -1642,7 +1646,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic, Smalltalk, Apple, Steampunk or Pokemon.
+    - Theme: Classic, Smalltalk, Apple or Steampunk.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -2230,6 +2234,91 @@ and works with the keyboard, a screen reader and a touch screen.
     -1 for none) and enabled (when not true).
 
 
+NavigationBar
+-------------
+(src/ui/widgets/navigation-bar.js)
+The bar along the top of a page of a phone or tablet app: a title in the middle,
+a back button on the left and an action button on the right. After qooxdoo
+mobile's qx.ui.mobile.navigationbar.NavigationBar. A Widget (not a Panel). The
+Navbar is the desktop IDE's own menu strip; this is for programs.
+
+  - title; backText and actionText, the text of the two buttons. A button shows
+    only while it has text; both keep their room when hidden, so the title stays
+    in the middle. The back button's text follows a chevron.
+  - It asks for NAVIGATION_BAR_HEIGHT (44) pixels, a comfortable touch target;
+    the default box is 320 by 44.
+  - Tapping a button fires back or action, a CustomEvent, on the bar.
+  - For a program: NavigationBar(title), with setTitle / getTitle, setBackText /
+    getBackText, setActionText / getActionText, onBack and onAction (called with
+    the bar). It is saved with title, backText and actionText (when not empty).
+
+
+Carousel
+--------
+(src/ui/widgets/carousel.js)
+Pages side by side that the user swipes between, with a row of dots saying which
+one is showing. After qooxdoo mobile's qx.ui.mobile.container.Carousel. A Panel.
+
+  - Each child is a page and fills the Carousel. The page showing is selected
+    (the first one added is); the others wait to its left and right, out of
+    sight, and are inert: they take neither clicks nor the keyboard.
+  - Dragging sideways with a finger or the mouse (more across than down, past
+    DRAG_THRESHOLD, 10 pixels) moves the pages with it. On letting go it goes to
+    the next or previous page when the drag covered TURN_FRACTION (0.2) of the
+    width, or was a flick faster than FLICK_SPEED (0.5 pixels a millisecond),
+    else back. Pointer cancel goes back. At the first and last pages the drag
+    resists (a third of the distance). The click that ends a drag is swallowed, so
+    it is not a tap on the page under it. The page's own vertical scrolling is
+    left alone (touch-action: pan-y).
+  - The dots (a row of buttons at the bottom, one a page, the one showing filled)
+    can be tapped. dots false hides them; they never show for fewer than two
+    pages.
+  - select(i), selectNext() and selectPrevious() change the page; the last two do
+    nothing at the ends, and select ignores an index that is not a page. Pages do
+    not wrap round (a Stack's selectNext does). Each change fires select with
+    detail { index, widget }, whoever made it, including when the first page is
+    added and when the page showing is removed.
+  - For a program: Carousel(), with add, getCount, getChild, clear, select,
+    getSelectedIndex, selectNext, selectPrevious, setDots / isDots and onSelect
+    (called with the carousel and the index). It is saved with its pages,
+    selected (when not 0) and dots (when not true). The default box is 320 by 200.
+
+
+Drawer
+------
+(src/ui/widgets/drawer.js)
+A panel that slides in over the page from one of its edges, with the page behind
+it dimmed: the menu that comes out of the side of a phone app. After qooxdoo
+mobile's qx.ui.mobile.container.Drawer. A Composite.
+
+  - A Drawer covers the whole area of the container it is in: a program's Drawer
+    starts with fill(), so on the Viewport or in a Composite with a basic, canvas
+    or grow layout it fills it. Put it last in its container so it is on top (it
+    also has a z-index of 10). In a row or a column it is laid out like any child,
+    which is not what it is for. It has no place of its own in the designer.
+  - side is one of SIDES (left, right, top, bottom); panelSize is the width of the
+    panel (the height, for top and bottom), 260 at first, and never more than the
+    area. open slides the panel in and fires change with detail { open }, whoever
+    made it; toggle() flips it.
+  - Closed, the Drawer takes no clicks (pointer-events: none) and its children are
+    inert, so a closed drawer cannot be reached with the keyboard or a screen
+    reader. Open, the rest of the area is dimmed.
+  - It closes on a tap on the dimmed area (unless dismissOnTap is false, when the
+    dimmed area still blocks the page behind it), on Escape, and on a swipe on the
+    panel of SWIPE_DISTANCE (50) pixels toward its edge, more along that axis than
+    across it.
+  - The children are in the panel, placed by a layout manager as a Composite's
+    are: vbox at first. A layout is given the panel's size, not the area's, so
+    that layout() and the panel agree; the Drawer's padding is inside the panel.
+  - For a program: Drawer(), with a Composite's methods (add, getCount, getChild,
+    clear, setLayout and the layout settings), setSide / getSide, setPanelSize /
+    getPanelSize, setOpen / isOpen, toggle, setDismissOnTap / isDismissOnTap and
+    onChange (called with the drawer and whether it is open now). It is saved
+    with side, panelSize, open and dismissOnTap (when not the defaults), layout
+    (when not vbox), fill (true, or false when the program turned it off) and its
+    children. In the designer set Open to see it.
+
+
 Image
 -----
 (src/ui/widgets/image.js)
@@ -2292,8 +2381,6 @@ a colour; they write var(--cr-title-bg) and so on.
       light      the original flat look
       dark       a dark version of it
       steampunk  dark walnut, mahogany title bars and brass buttons
-      pokemon    off-white with red title bars and buttons, bold black
-                 outlines, rounded corners and flat, hard shadows
     Values shared by every theme are defined once, and a theme overrides
     only those it changes. Besides colours there are shape variables:
     window padding, title weight and alignment, raised button and title-bar
@@ -2302,7 +2389,7 @@ a colour; they write var(--cr-title-bg) and so on.
     blurred menus and bars, the window corner radius (windows have slightly rounded
     corners and soft shadows; a maximized window is square) and how far a
     running console's output fades.
-  - Steampunk and Pokemon are FastBlips themes, defined in
+  - Steampunk is a FastBlips theme, defined in
     src/ui/fastblips-themes.js as a small set of tokens (ui: colours, fonts,
     radius, shadow; syntax: editor colours). Choosing one calls applyTheme(),
     which writes the ui tokens on <html> as --fb-* variables, and theme.js
@@ -2310,8 +2397,9 @@ a colour; they write var(--cr-title-bg) and so on.
     need no change. Each also has its own Monaco theme, built by
     toMonacoTheme() and registered when Monaco loads. Another theme of this
     kind is one more entry in that file's `themes`.
-  - Settings > Theme offers Classic, Smalltalk, Apple, Steampunk and Pokemon
-    (MENU_THEMES). Light and Dark remain available from code.
+  - Settings > Theme offers Classic, Smalltalk, Apple and Steampunk
+    (MENU_THEMES). Light and Dark remain available from code. A visitor whose
+    saved choice was a theme that has since been removed starts on the default.
   - setTheme(name) switches theme by setting data-cr-theme on <html>, and
     remembers it in localStorage ('crumb.theme'), so the next visit starts
     with it. setTheme('auto') follows the operating system's light or dark
@@ -2452,7 +2540,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
     MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack, Image,
     CheckGroupBox, RadioGroupBox, TextField, PasswordField, TextArea,
-    SplitButton and SelectBox, and the Board and the Canvas (below). Left
+    SplitButton, SelectBox, NavigationBar, Carousel and Drawer, and the Board
+    and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).

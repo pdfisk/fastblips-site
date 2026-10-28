@@ -533,6 +533,50 @@ export const WIDGET_CLASSES = Object.freeze([
     method('isEnabled', [], 'boolean'),
     method('onSelect', ['handler:int']),
   ]),
+  // Widgets for phone and tablet apps, after qooxdoo mobile's. A NavigationBar
+  // is the bar at the top of a page: a title, a back button and an action
+  // button (each shown only while it has text); onBack and onAction are called
+  // with the bar.
+  cls('NavigationBar', ['text'], [
+    method('setTitle', ['text']),
+    method('getTitle', [], 'text'),
+    method('setBackText', ['text']),
+    method('getBackText', [], 'text'),
+    method('setActionText', ['text']),
+    method('getActionText', [], 'text'),
+    method('onBack', ['handler']),
+    method('onAction', ['handler']),
+  ]),
+  // A Carousel holds pages that the user swipes between; the page showing is
+  // selected. onSelect is called with the carousel and the index, whoever
+  // changed it. The pages do not wrap round.
+  cls('Carousel', [], [
+    ...CONTAINER,
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('selectNext'),
+    method('selectPrevious'),
+    method('setDots', ['boolean']),
+    method('isDots', [], 'boolean'),
+    method('onSelect', ['handler:int']),
+  ]),
+  // A Drawer is a panel that slides in over the page from an edge. It covers
+  // the area of its container (it is made to fill) and holds children placed
+  // by a layout, as a Composite's are (vbox at first). onChange is called with
+  // the drawer and whether it is open now.
+  cls('Drawer', [], [
+    ...COMPOSITE,
+    method('setSide', ['text']),
+    method('getSide', [], 'text'),
+    method('setPanelSize', ['size']),
+    method('getPanelSize', [], 'int'),
+    method('setOpen', ['boolean']),
+    method('isOpen', [], 'boolean'),
+    method('toggle'),
+    method('setDismissOnTap', ['boolean']),
+    method('isDismissOnTap', [], 'boolean'),
+    method('onChange', ['handler:boolean']),
+  ]),
 ]);
 
 /** className -> class */

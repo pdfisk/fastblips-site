@@ -39,6 +39,9 @@ import { TextInput, TextField, PasswordField } from './widgets/text-field.js';
 import { TextArea } from './widgets/text-area.js';
 import { SplitButton } from './widgets/split-button.js';
 import { SelectBox } from './widgets/select-box.js';
+import { NavigationBar } from './widgets/navigation-bar.js';
+import { Carousel } from './widgets/carousel.js';
+import { Drawer, DEFAULT_PANEL_SIZE } from './widgets/drawer.js';
 import { Stack } from './widgets/stack.js';
 import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
@@ -47,7 +50,7 @@ import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
 import { BoardBinding, CanvasBinding, PhysicsBinding } from './board-host.js';
 import {
-  DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED, NATURAL_SIZED, DEFAULT_LAYOUTS,
+  DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED, NATURAL_SIZED, DEFAULT_LAYOUTS, LAYOUT_CLASSES,
 } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
@@ -229,7 +232,7 @@ const CLASSES = {
   RoundedRect: { make: () => new RoundedRect(), box: DEFAULT_BOXES.RoundedRect },
   Composite: { make: () => new Composite(), box: DEFAULT_BOXES.Composite },
   Stack: { make: () => new Stack(), box: DEFAULT_BOXES.Stack },
-  Image: { make: (source) => imageCall(() => new ImageWidget(source)), box: DEFAULT_BOXES.Image },
+  Image: { make: (source) => widgetCall(() => new ImageWidget(source)), box: DEFAULT_BOXES.Image },
   CheckGroupBox: { make: (text) => new CheckGroupBox(text), box: DEFAULT_BOXES.CheckGroupBox },
   RadioGroupBox: { make: (text) => new RadioGroupBox(text), box: DEFAULT_BOXES.RadioGroupBox },
   TextField: { make: (text) => new TextField(text), box: DEFAULT_BOXES.TextField },
@@ -237,16 +240,27 @@ const CLASSES = {
   TextArea: { make: (text) => new TextArea(text), box: DEFAULT_BOXES.TextArea },
   SplitButton: { make: (text) => new SplitButton(text), box: DEFAULT_BOXES.SplitButton },
   SelectBox: { make: () => new SelectBox(), box: DEFAULT_BOXES.SelectBox },
+  NavigationBar: { make: (title) => new NavigationBar(title), box: DEFAULT_BOXES.NavigationBar },
+  Carousel: { make: () => new Carousel(), box: DEFAULT_BOXES.Carousel },
+  // A Drawer covers the area of its container, so it starts with fill().
+  Drawer: {
+    make: () => {
+      const drawer = new Drawer();
+      drawer.fillParent = true;
+      return drawer;
+    },
+    box: DEFAULT_BOXES.Drawer,
+  },
 };
 
 /** Container classes whose children are a plain list. */
-const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox'];
+const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox', 'Carousel', 'Drawer'];
 
 /** True for a widget with a pop-up menu that has to be closed when it goes: a Menu or a SplitButton. */
 const opensMenu = (w) => w instanceof Menu || w instanceof SplitButton;
 
 /** Runs an Image operation, turning the Error it throws (a bad source or fit) into a WidgetError. */
-function imageCall(body) {
+function widgetCall(body) {
   try {
     return body();
   } catch (err) {
@@ -466,11 +480,14 @@ export class ProgramWidgetHost {
       case 'onChange':
         if (w instanceof HSplitPanel || w instanceof VSplitPanel) own('change', (e) => callback(e.detail.position));
         else if (w instanceof GroupBox) own('change', (e) => callback(e.detail.checked));
+        else if (w instanceof Drawer) own('change', (e) => callback(e.detail.open));
         else if (w instanceof TextInput) own('input', () => callback(w.text));
         else own('change', () => callback(w.text));
         break;
       case 'onSubmit': own('submit', () => callback()); break;
       case 'onClose': own('close', () => callback()); break;
+      case 'onBack': own('back', () => callback()); break;
+      case 'onAction': own('action', () => callback()); break;
       case 'onLoad': own('load', () => callback()); break;
       case 'onError': own('error', () => callback()); break;
       default: throw new WidgetError(`a ${w.programClass} has no event '${method}'`);
@@ -553,7 +570,22 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         put('spacing', w.spacing, 0);
         break;
-      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox': {
+      case 'NavigationBar':
+        node.title = w.title;
+        put('backText', w.backText, '');
+        put('actionText', w.actionText, '');
+        break;
+      case 'Carousel':
+        put('selected', w.selectedIndex, 0);
+        put('dots', w.dots, true);
+        break;
+      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox': case 'Drawer': {
+        if (cls === 'Drawer') {
+          put('side', w.side, 'left');
+          put('panelSize', w.panelSize, DEFAULT_PANEL_SIZE);
+          put('open', w.open, false);
+          put('dismissOnTap', w.dismissOnTap, true);
+        }
         if (w instanceof GroupBox) {
           node.text = w.text;
           put('checked', w.checked, w instanceof CheckGroupBox);   // a check box starts checked, a radio button not
@@ -608,6 +640,7 @@ export class ProgramWidgetHost {
     }
     put('flex', w.flex ?? undefined, cls === 'Spacer' ? 1 : undefined);
     put('fill', w.fillParent ? true : undefined);
+    if (cls === 'Drawer' && !w.fillParent) node.fill = false;   // a Drawer fills unless it says not
     if (w.layoutProps && Object.keys(w.layoutProps).length) node.layoutProps = JSON.parse(JSON.stringify(w.layoutProps));
     // Tabs and a Stack show their own page.
     if (!(w.parent instanceof TabPanel || w.parent instanceof Stack)) put('visible', w.visible, true);
@@ -729,6 +762,7 @@ export class ProgramWidgetHost {
       MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
       Image: [str(node.source)], CheckGroupBox: [str(node.text)], RadioGroupBox: [str(node.text)],
       TextField: [str(node.text)], TextArea: [str(node.text)], SplitButton: [str(node.text)],
+      NavigationBar: [str(node.title)],
     }[cls] ?? [];
     const w = spec.make(...args);
     if (spec.box) {
@@ -747,6 +781,7 @@ export class ProgramWidgetHost {
     if (num(node.height) !== undefined) w.fixedHeight = node.height;
     if (num(node.flex) !== undefined) w.flex = node.flex;
     if (node.fill === true) w.fillParent = true;
+    if (node.fill === false) w.fillParent = false;
     if (node.layoutProps !== undefined) w.layoutProps = layoutCall(() => cleanChildProps(node.layoutProps));
     if (node.visible === false) w.visible = false;
     if (node.background) { w._background = String(node.background); this._paint(w, 'background', w._background); }
@@ -777,7 +812,7 @@ export class ProgramWidgetHost {
         if (node.enabled === false) w.enabled = false;
         break;
       case 'Image':
-        if (typeof node.fit === 'string') imageCall(() => { w.fit = node.fit; });
+        if (typeof node.fit === 'string') widgetCall(() => { w.fit = node.fit; });
         if (typeof node.alt === 'string') w.alt = node.alt;
         break;
       case 'Menu': case 'SplitButton':
@@ -810,7 +845,14 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         if (num(node.spacing) !== undefined) w.spacing = node.spacing;
         break;
-      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox':
+      case 'NavigationBar':
+        if (typeof node.backText === 'string') w.backText = node.backText;
+        if (typeof node.actionText === 'string') w.actionText = node.actionText;
+        break;
+      case 'Carousel':
+        if (node.dots === false) w.dots = false;
+        break;
+      case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox': case 'Drawer':
         w.layoutManager = layoutCall(() => {
           const layout = makeLayout(node.layout ?? DEFAULT_LAYOUTS[cls]);
           layout.load(node.layoutOptions);
@@ -818,6 +860,12 @@ export class ProgramWidgetHost {
         });
         if (cls === 'RadioGroupBox' && typeof node.group === 'string') w.group = node.group;
         if (w instanceof GroupBox && typeof node.checked === 'boolean') w.checked = node.checked;
+        if (cls === 'Drawer') {
+          if (typeof node.side === 'string') widgetCall(() => { w.side = node.side; });
+          if (num(node.panelSize) !== undefined) w.panelSize = node.panelSize;
+          if (typeof node.dismissOnTap === 'boolean') w.dismissOnTap = node.dismissOnTap;
+          if (node.open === true) w.open = true;
+        }
         break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (node.first) w.first = child(node.first);
@@ -833,7 +881,7 @@ export class ProgramWidgetHost {
     if (LIST_CONTAINERS.includes(cls)) {
       for (const n of node.children ?? []) w.add(child(n));
     }
-    if (cls === 'Stack' && Number.isInteger(node.selected) && node.selected > 0 && node.selected < w.children.length) {
+    if ((cls === 'Stack' || cls === 'Carousel') && Number.isInteger(node.selected) && node.selected > 0 && node.selected < w.children.length) {
       w.select(node.selected);
     }
     for (const event of node.events ?? []) {
@@ -927,6 +975,21 @@ export class ProgramWidgetHost {
         default: break;
       }
     }
+    // The Drawer: the panel's side, size and state; the rest is a Composite's.
+    if (w instanceof Drawer) {
+      switch (method) {
+        case 'setSide': widgetCall(() => { w.side = a; }); return undefined;
+        case 'getSide': return w.side;
+        case 'setPanelSize': w.panelSize = a; return undefined;
+        case 'getPanelSize': return w.panelSize;
+        case 'setOpen': w.open = a; return undefined;
+        case 'isOpen': return w.open;
+        case 'toggle': w.toggle(); return undefined;
+        case 'setDismissOnTap': w.dismissOnTap = a; return undefined;
+        case 'isDismissOnTap': return w.dismissOnTap;
+        default: break;
+      }
+    }
     // The group boxes: a title, a check box or radio button, and a Composite's methods.
     if (w instanceof GroupBox) {
       switch (method) {
@@ -939,7 +1002,7 @@ export class ProgramWidgetHost {
         default: break;
       }
     }
-    const family = w instanceof GroupBox ? 'Composite' : cls;
+    const family = LAYOUT_CLASSES.has(cls) ? 'Composite' : cls;
     switch (`${family}.${method}`) {
       // ---- text
       case 'Label.setText': w.text = a; return undefined;
@@ -951,9 +1014,9 @@ export class ProgramWidgetHost {
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
 
-      case 'Image.setSource': imageCall(() => { w.source = a; }); return this._relayout(w);
+      case 'Image.setSource': widgetCall(() => { w.source = a; }); return this._relayout(w);
       case 'Image.getSource': return w.source;
-      case 'Image.setFit': imageCall(() => { w.fit = a; }); return undefined;
+      case 'Image.setFit': widgetCall(() => { w.fit = a; }); return undefined;
       case 'Image.getFit': return w.fit;
       case 'Image.setAlt': w.alt = a; return undefined;
       case 'Image.getAlt': return w.alt;
@@ -1001,20 +1064,20 @@ export class ProgramWidgetHost {
       case 'Viewport.load': return fetchDoc(a, 'screen').then((doc) => { this._loadViewport(doc, b); });
       case 'Viewport.loadComposite': return this._loadComposite(a, b);
 
-      case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': case 'Composite.add': case 'Stack.add': {
+      case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': case 'Composite.add': case 'Stack.add': case 'Carousel.add': {
         const child = this._placeable(w, a);
         w.add(child);
         w.layout();
         return undefined;
       }
       case 'Panel.getCount': case 'HPanel.getCount': case 'VPanel.getCount': case 'ButtonBar.getCount':
-      case 'Composite.getCount': case 'Stack.getCount':
+      case 'Composite.getCount': case 'Stack.getCount': case 'Carousel.getCount':
         return w.children.length;
       case 'Panel.getChild': case 'HPanel.getChild': case 'VPanel.getChild': case 'ButtonBar.getChild':
-      case 'Composite.getChild': case 'Stack.getChild':
+      case 'Composite.getChild': case 'Stack.getChild': case 'Carousel.getChild':
         return this._idOf(w.children[this._index(a, w.children.length)]);
       case 'Panel.clear': case 'HPanel.clear': case 'VPanel.clear': case 'ButtonBar.clear':
-      case 'Composite.clear': case 'Stack.clear':
+      case 'Composite.clear': case 'Stack.clear': case 'Carousel.clear':
         for (const child of w.children) w.remove(child);
         w.layout();
         return undefined;
@@ -1036,7 +1099,20 @@ export class ProgramWidgetHost {
         layoutCall(() => this._layoutOption(w.layoutManager, method, a, b));
         w.layout();
         return undefined;
-      case 'Stack.select': w.select(this._index(a, w.children.length)); return undefined;
+      case 'Stack.select': case 'Carousel.select': w.select(this._index(a, w.children.length)); return undefined;
+      case 'Carousel.getSelectedIndex': return w.selectedIndex;
+      case 'Carousel.selectNext': w.selectNext(); return undefined;
+      case 'Carousel.selectPrevious': w.selectPrevious(); return undefined;
+      case 'Carousel.setDots': w.dots = a; return undefined;
+      case 'Carousel.isDots': return w.dots;
+
+      // ---- NavigationBar
+      case 'NavigationBar.setTitle': w.title = a; return undefined;
+      case 'NavigationBar.getTitle': return w.title;
+      case 'NavigationBar.setBackText': w.backText = a; return undefined;
+      case 'NavigationBar.getBackText': return w.backText;
+      case 'NavigationBar.setActionText': w.actionText = a; return undefined;
+      case 'NavigationBar.getActionText': return w.actionText;
       case 'Stack.getSelectedIndex': return w.selectedIndex;
       case 'Stack.selectNext': w.selectNext(); return undefined;
       case 'Stack.selectPrevious': w.selectPrevious(); return undefined;

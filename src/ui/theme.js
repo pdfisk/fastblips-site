@@ -10,15 +10,15 @@
 //   setTheme('smalltalk')  black and white, after Smalltalk-80
 //   setTheme('apple')      a present-day Mac desktop
 //   setTheme('steampunk')  dark walnut and brass (fastblips-themes.js)
-//   setTheme('pokemon')    red, white and bold outlines (fastblips-themes.js)
 //   setTheme('light')      the original flat look
 //   setTheme('dark')
 //   setTheme('auto')       light or dark, following the operating system
 //
-// Settings > Theme offers Classic, Smalltalk, Apple, Steampunk and Pokemon; the
-// choice is remembered in localStorage.
+// Settings > Theme offers Classic, Smalltalk, Apple and Steampunk; the
+// choice is remembered in localStorage. A saved choice that is no longer a
+// theme (one that was removed) is ignored: the default is used.
 //
-// Steampunk and Pokemon are FastBlips themes: a small set of tokens defined in
+// Steampunk is a FastBlips theme: a small set of tokens defined in
 // fastblips-themes.js. Choosing one calls its applyTheme(), which writes the
 // tokens on <html> as --fb-* variables, and the --cr-* variables the widgets
 // use are then defined in terms of those (fbBridge below).

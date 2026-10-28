@@ -170,7 +170,7 @@ export class FakeHost {
       handlers: {}, items: [], selected: -1,
     };
     if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'TextArea', 'SplitButton'].includes(className)) w.props.text = args[0];
-    if (className === 'Window') w.props.title = args[0];
+    if (className === 'Window' || className === 'NavigationBar') w.props.title = args[0];
     if (className === 'Image') w.props.source = args[0];
     this.widgets.set(id, w);
     return id;
@@ -222,7 +222,7 @@ export class FakeHost {
       case 'setBounds': [w.props.left, w.props.top, w.props.width, w.props.height] = args; return undefined;
       case 'add':
         this.adopt(w, args[0]);
-        if (w.className === 'Stack' && w.selected < 0) w.selected = 0;   // the first page is showing
+        if (['Stack', 'Carousel'].includes(w.className) && w.selected < 0) w.selected = 0;   // the first page is showing
         return undefined;
       case 'addTab': this.adopt(w, args[1]); w.items.push(args[0]); if (w.selected < 0) w.selected = 0; return undefined;
       case 'setContent': case 'setFirst': case 'setSecond':
@@ -280,7 +280,7 @@ export class FakeHost {
         return undefined;
       }
       case 'select':
-        if (args[0] !== -1) this.checkIndex(w, args[0], w.className === 'Stack' ? w.children.length : w.items.length);
+        if (args[0] !== -1) this.checkIndex(w, args[0], ['Stack', 'Carousel'].includes(w.className) ? w.children.length : w.items.length);
         w.selected = args[0];
         this.fire(id, 'select', args[0]);
         return undefined;
@@ -288,7 +288,7 @@ export class FakeHost {
       case 'getSelectedText': return w.items[w.selected] ?? '';
       case 'append': w.props.text += args[0]; return undefined;
       case 'fill': w.props.fill = true; return undefined;
-      case 'open': case 'close': case 'maximize': case 'restore': case 'focus': case 'selectAll': case 'addSeparator':
+      case 'open': case 'close': case 'maximize': case 'restore': case 'focus': case 'selectAll': case 'toggle': case 'addSeparator':
         w.props.state = method; return undefined;
       default: break;
     }

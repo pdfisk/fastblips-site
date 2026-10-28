@@ -1,4 +1,4 @@
-// FastBlips IDE themes: Steampunk (dark) and Pokemon-inspired (light).
+// FastBlips IDE themes: Steampunk (dark).
 //
 // Each theme has:
 //   ui     - colour/typography tokens for widgets and windows
@@ -47,48 +47,7 @@ export const steampunk = {
   },
 };
 
-export const pokemon = {
-  id: 'pokemon',
-  label: 'Pokemon',
-  dark: false,
-  ui: {
-    bg:            '#f4f5f0', // off-white
-    surface:       '#ffffff',
-    panel:         '#eaeef6',
-    titleBar:      '#e3350d', // red top half
-    titleText:     '#ffffff',
-    border:        '#2a2a2a', // bold black outline
-    borderStrong:  '#000000',
-    text:          '#1d1d1f',
-    textMuted:     '#5f6672',
-    accent:        '#e3350d', // red: primary buttons
-    accentHover:   '#ff4b22',
-    accentText:    '#ffffff',
-    secondary:     '#3b5ca8', // blue: links, secondary buttons
-    selection:     '#ffe680', // pale yellow
-    highlight:     '#ffcb05', // yellow: selected tab, focus ring
-    success:       '#3f9a4d', // grass
-    warning:       '#b07a00',
-    danger:        '#a3123f',
-    shadow:        '3px 3px 0 #2a2a2a', // flat, hard-edged
-    radius:        '10px',
-    borderWidth:   '2px',
-    fontUi:        "'Nunito', 'Trebuchet MS', system-ui, sans-serif",
-    fontMono:      "'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-  },
-  syntax: {
-    keyword:  '#c62d0a', // fire
-    string:   '#2f7d3a', // grass
-    number:   '#2a56b0', // water
-    comment:  '#7c828c',
-    function: '#7a4fc0', // psychic
-    type:     '#8f6200', // electric, darkened for contrast
-    operator: '#1d1d1f',
-    error:    '#a3123f',
-  },
-};
-
-export const themes = { steampunk, pokemon };
+export const themes = { steampunk };
 
 const kebab = (s) => s.replace(/[A-Z]/g, (c) => '-' + c.toLowerCase());
 

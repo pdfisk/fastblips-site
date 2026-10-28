@@ -16,11 +16,12 @@ import {
 } from './widget-defaults.js';
 import { makeLayout, cleanChildProps } from './layouts/index.js';
 import { FITS, checkImageSource } from './widgets/image.js';
+import { SIDES } from './widgets/drawer.js';
 
 /** The classes the designer offers: every widget class but the singletons (the Viewport, the Board, the Canvas and the Physics). */
 export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => !['Viewport', 'Board', 'Canvas', 'Physics'].includes(n)).sort((a, b) => a.localeCompare(b));
 
-const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox']);
+const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox', 'Carousel', 'Drawer']);
 const SPLITS = new Set(['HSplitPanel', 'VSplitPanel']);
 
 /** The layout of a Composite or group box node: its name (the class's own, 'basic' or 'vbox', when none is saved). */
@@ -55,6 +56,7 @@ export function newNode(cls) {
     case 'Image': node.source = ''; break;
     case 'CheckGroupBox': case 'RadioGroupBox': node.text = 'Group'; break;
     case 'TextField': node.text = ''; break;   // a PasswordField has no text to keep
+    case 'NavigationBar': node.title = 'Title'; break;
     default: break;
   }
   if (cls === 'Menu' || cls === 'SplitButton') node.items = [];
@@ -502,6 +504,22 @@ const FIELDS = {
   placeholder: prop('placeholder', 'Placeholder', 'text', ''),
   maxLength: prop('maxLength', 'Max length (0 for none)', 'number'),
   wrap: prop('wrap', 'Wrap lines', 'bool', true),
+  backText: prop('backText', 'Back button text (empty for none)', 'text', ''),
+  actionText: prop('actionText', 'Action button text (empty for none)', 'text', ''),
+  dots: prop('dots', 'Page dots', 'bool', true),
+  side: {
+    key: 'side', label: `Side (${SIDES.join(', ')})`, type: 'text',
+    get: (n) => n.side ?? 'left',
+    set: (n, v) => {
+      const side = String(v).trim().toLowerCase();
+      if (side === '' || side === 'left') { delete n.side; return; }
+      if (!SIDES.includes(side)) throw new Error(`a side must be one of ${SIDES.join(', ')}, not '${v}'`);
+      n.side = side;
+    },
+  },
+  panelSize: prop('panelSize', 'Panel size (pixels)', 'number'),
+  open: prop('open', 'Open', 'bool', false),
+  dismissOnTap: prop('dismissOnTap', 'Close on tap outside', 'bool', true),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
   emptyText: prop('emptyText', 'Empty text', 'text'),
@@ -572,7 +590,7 @@ export function eventsOf(cls) {
 // Label or a Button have padding. A shape's outline is its border (see above).
 const NO_MARGIN = new Set(['Window', 'Spacer']);
 const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox']);
-const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox']);
+const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox', 'Drawer']);
 
 function boxFields(cls) {
   const f = FIELDS;
@@ -604,12 +622,15 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     TextArea: [f.textArea, f.placeholder, f.maxLength, f.readOnly, f.enabled, f.wrap],
     SelectBox: [f.listItems, f.selected, f.enabled],
     SplitButton: [f.text, f.enabled, f.menuItems],
+    NavigationBar: [f.title, f.backText, f.actionText],
+    Carousel: [f.selected, f.dots],
+    Drawer: [f.side, f.panelSize, f.open, f.dismissOnTap],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];
   if (cls === 'Window') {
     groups.push(['Place', [f.winLeft, f.winTop, f.winWidth, f.winHeight]]);
-  } else {
+  } else if (cls !== 'Drawer') {   // a Drawer covers the area of its container: it has no place of its own
     const free = isRoot || !parent || isFreeParent(parent);
     groups.push(['Place', free
       ? [f.left, f.top, f.width, f.height, f.fill]

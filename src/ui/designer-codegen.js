@@ -92,6 +92,7 @@ const VARIABLE_BASES = {
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
   Composite: 'composite', Stack: 'stack', Image: 'image', CheckGroupBox: 'group', RadioGroupBox: 'group',
   TextField: 'field', PasswordField: 'password', TextArea: 'area', SplitButton: 'splitButton', SelectBox: 'select',
+  NavigationBar: 'bar', Carousel: 'carousel', Drawer: 'drawer',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -209,6 +210,7 @@ class Generator {
         Window: [this.str(node.title)],
         Image: [this.str(node.source)], CheckGroupBox: [text()], RadioGroupBox: [text()],
         TextField: [text()], TextArea: [text()], SplitButton: [text()],
+        NavigationBar: [this.str(node.title)],
       }[cls] ?? [];
       this.line(L.declare(v, L.construct(cls, args)));
     }
@@ -310,6 +312,20 @@ class Generator {
       case 'HPanel': case 'VPanel':
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
+      case 'NavigationBar':
+        if (node.backText) this.call(v, 'setBackText', [this.str(node.backText)]);
+        if (node.actionText) this.call(v, 'setActionText', [this.str(node.actionText)]);
+        break;
+      case 'Carousel':
+        if (node.dots === false) this.call(v, 'setDots', [L.bool(false)]);
+        break;
+      case 'Drawer':
+        this.compositeLayout(v, node);
+        if (node.side && node.side !== 'left') this.call(v, 'setSide', [this.str(node.side)]);
+        if (Number.isFinite(node.panelSize) && node.panelSize !== 260) this.call(v, 'setPanelSize', [num(node.panelSize)]);
+        if (node.dismissOnTap === false) this.call(v, 'setDismissOnTap', [L.bool(false)]);
+        if (node.open === true) this.call(v, 'setOpen', [L.bool(true)]);
+        break;
       case 'SplitButton':
         if (node.enabled === false) this.call(v, 'setEnabled', [L.bool(false)]);
         this.menuItems(v, node);
@@ -397,10 +413,10 @@ class Generator {
       if (how) how(c);
     };
     switch (node.class) {
-      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar': case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox':
+      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar': case 'Composite': case 'CheckGroupBox': case 'RadioGroupBox': case 'Drawer':
         for (const child of node.children ?? []) into(child, (c) => this.call(v, 'add', [c]));
         break;
-      case 'Stack':
+      case 'Stack': case 'Carousel':
         for (const child of node.children ?? []) into(child, (c) => this.call(v, 'add', [c]));
         if (Number.isInteger(node.selected) && node.selected > 0 && node.selected < (node.children ?? []).length) {
           this.call(v, 'select', [num(node.selected)]);

@@ -250,6 +250,42 @@ then. on_select(function) is called with the box and the index chosen (-1 for
 none) whenever the choice changes, by the user or the program, including when
 the first item is added. set_enabled(b) greys it out.`,
 
+  NavigationBar: `The bar along the top of a page of a phone or tablet app: a title in the middle, a
+back button on the left and an action button on the right. NavigationBar(title)
+starts it. set_title(text) and get_title(). set_back_text(text) is what the back
+button says, after a chevron; set_action_text(text) is what the action button
+says; each button shows only while it has text, and the title stays in the
+middle either way. on_back(function) and on_action(function) are called with the
+bar when the button is tapped. It is 44 pixels high, a comfortable size for a
+finger. (The Navbar is the desktop IDE's own menu strip; this is for programs.)`,
+
+  Carousel: `Pages side by side that the user swipes between, with a row of dots showing
+which one is showing. Each child is a page and fills the carousel; the first
+page added is showing, the others wait out of sight to its left and right and
+cannot be used until they are. Dragging sideways moves the pages with the finger
+or mouse and, on letting go, goes to the next or previous page if it was dragged
+far enough or flicked, else back; at the first and last pages it resists. The dots
+can be tapped. select(i) shows page i (from 0), select_next() and select_previous()
+do nothing at the ends (the pages do not wrap round), get_selected_index() says
+which is showing. set_dots(False) hides the dots (is_dots() says). on_select(function)
+is called with the carousel and the index, whoever changed it.
+${CONTAINER}`,
+
+  Drawer: `A panel that slides in over the page from one of its edges, with the page behind
+it dimmed: the menu that comes out of the side of a phone app. A Drawer covers the
+whole area of the container it is in (it starts with fill()), so put it in the
+Viewport or in a Composite with a basic, canvas or grow layout, usually last, so
+it is on top. Closed, it is out of sight and takes no clicks. set_open(True) slides
+it in, set_open(False) out, toggle() the other way; is_open() says which. The
+panel is set_panel_size(n) pixels wide (high, for the top and bottom; 260 at first)
+and comes from set_side("left"), "right", "top" or "bottom" (get_side()). A tap on
+the dimmed page closes it unless set_dismiss_on_tap(False); a swipe on the panel
+toward its edge, and Escape, close it too. on_change(function) is called with
+the drawer and whether it is open now, whoever changed it. Its children are placed
+in the panel by a layout, as a Composite's are (vbox at first), and it has a
+Composite's methods (see Composite).
+${CONTAINER}`,
+
   Image: `A picture. Image(source) starts it; the source is an http: or https: address
 or a data:image/ URI ("" for none); anything else is an error.
 set_source(text) and get_source(); set_fit(text) says how the picture fills its

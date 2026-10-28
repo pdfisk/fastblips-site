@@ -34,6 +34,7 @@ test('the classes are the toolkit\'s general-purpose widgets', () => {
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
     'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board', 'Canvas', 'Physics',
     'Ellipse', 'RoundedRect', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'PasswordField', 'TextArea', 'SplitButton', 'SelectBox',
+    'NavigationBar', 'Carousel', 'Drawer',
   ]);
   for (const c of WIDGET_CLASSES) {
     for (const m of c.methods) assert.match(m.py, /^[a-z_]+(3d)?$/, `${c.name}.${m.name}`);
@@ -195,6 +196,42 @@ test('MiniPy: TextArea, SplitButton and SelectBox, with their methods in snake_c
   assert.deepEqual(named(3, 'setItem'), [[1, 'blue']]);
   assert.throws(() => runPy('SelectBox().select("a")'), /select\(\) expects an int as argument 1/);
   assert.throws(() => runPy('SelectBox("x")'), /SelectBox\(\) takes 0 arguments/);
+});
+
+test('MiniPy: NavigationBar, Carousel and Drawer, with their methods in snake_case', () => {
+  const { host, out } = runPy([
+    'bar = NavigationBar("Inbox")',
+    'bar.set_back_text("Mail")',
+    'bar.set_action_text("Edit")',
+    'def back(widget):',
+    '    pass',
+    'bar.on_back(back)',
+    'pages = Carousel()',
+    'for i in range(3):',
+    '    pages.add(Composite())',
+    'pages.set_dots(False)',
+    'pages.select(2)',
+    'pages.select_previous()',
+    'menu = Drawer()',
+    'menu.set_side("right")',
+    'menu.set_panel_size(200)',
+    'menu.set_dismiss_on_tap(False)',
+    'menu.set_layout("vbox")',
+    'menu.add(Label("Settings"))',
+    'menu.set_open(True)',
+    'menu.toggle()',
+    'print(bar.get_title(), bar.get_back_text(), bar.get_action_text(), pages.get_count(), pages.is_dots(), menu.get_side(), menu.get_panel_size(), menu.get_count())',
+  ].join('\n'));
+  assert.deepEqual(out, ['Inbox Mail Edit 3 False right 200 1']);
+  const named = (id, method) => host.calls.filter((c) => c[0] === id && c[1] === method).map((c) => c.slice(2));
+  assert.deepEqual(named(2, 'setDots'), [[false]]);
+  assert.deepEqual(named(2, 'select'), [[2], [1]]);
+  assert.deepEqual(named(6, 'setSide'), [['right']]);
+  assert.deepEqual(named(6, 'setPanelSize'), [[200]]);
+  assert.deepEqual(named(6, 'setOpen'), [[true]]);
+  assert.deepEqual(named(6, 'toggle'), [[]]);
+  assert.throws(() => runPy('Drawer().set_panel_size(-5)'), /set_panel_size\(\) expects a size of 0 or more/);
+  assert.throws(() => runPy('NavigationBar()'), /NavigationBar\(\) takes 1 argument/);
 });
 
 test('MiniPy: layout settings are checked before the host sees them', () => {

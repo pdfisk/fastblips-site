@@ -31,10 +31,13 @@ export const DEFAULT_BOXES = Object.freeze({
   TextArea: [0, 0, 240, 120],
   SplitButton: [0, 0, 120, 32],
   SelectBox: [0, 0, 160, 28],
+  NavigationBar: [0, 0, 320, 44],
+  Carousel: [0, 0, 320, 200],
+  Drawer: [0, 0, 320, 200],
 });
 
 /** The classes that place their children with a layout, and the layout each starts with. */
-export const DEFAULT_LAYOUTS = Object.freeze({ Composite: 'basic', CheckGroupBox: 'vbox', RadioGroupBox: 'vbox' });
+export const DEFAULT_LAYOUTS = Object.freeze({ Composite: 'basic', CheckGroupBox: 'vbox', RadioGroupBox: 'vbox', Drawer: 'vbox' });
 export const LAYOUT_CLASSES = new Set(Object.keys(DEFAULT_LAYOUTS));
 
 /** A new Window's bounds (x, y, width, height). */
