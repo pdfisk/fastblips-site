@@ -6,6 +6,10 @@
 > Sections of this README that describe Crumb, `.bas` files or `src/vm/compiler/basic/`
 > are historical and need a rewrite; the VM still carries Crumb's shared opcodes
 > and runtime values, which MiniPy's widgets use.
+>
+> **Examples:** `examples/README.md` lists the MiniPy programs, including one or
+> more for every widget (desktop and mobile); `test/widget-examples.test.js`
+> runs each of them.
 
 Tokenizer, parser, bytecode compiler and VM for **Crumb v0.1** — the small
 Visual-Basic-flavoured language specified in [`docs/crumb-v0.1-spec.md`](docs/crumb-v0.1-spec.md).
