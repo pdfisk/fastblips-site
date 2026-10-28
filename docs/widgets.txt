@@ -40,6 +40,7 @@ Class hierarchy
           MobileLaunchWindow
         TranscriptWindow (singleton)
         SchedulerWindow (singleton)
+        WidgetHelpWindow (singleton)
         SignInWindow (singleton)
         RegisterWindow (singleton)
         NotificationWindow
@@ -58,6 +59,7 @@ Class hierarchy
     Menu
     Button
     Label
+    Image
     Spacer
     Separator
 
@@ -585,6 +587,8 @@ last menu. At the right end is the time the page was built, e.g.
 "Built 2026-09-23 13:47:05 UTC". The
 StatusBar is docked at the bottom, and the TranscriptWindow is open.
 
+  - The Help menu, after the My Projects and Libraries buttons, has Widget
+    Documentation, which opens the WidgetHelpWindow.
   - The File menu starts with Sign In, which opens the SignInWindow, and
     Register..., which opens the RegisterWindow, then a separator. It then has New Basic and New Python; then Open..., Save and
     Save As...; then Delete, with a separator between the groups.
@@ -983,6 +987,7 @@ SchedulerWindow (singleton)
     Menu
     Button
     Label
+    Image
     Spacer
     Separator
 
@@ -1510,6 +1515,8 @@ last menu. At the right end is the time the page was built, e.g.
 "Built 2026-09-23 13:47:05 UTC". The
 StatusBar is docked at the bottom, and the TranscriptWindow is open.
 
+  - The Help menu, after the My Projects and Libraries buttons, has Widget
+    Documentation, which opens the WidgetHelpWindow.
   - The File menu starts with Sign In, which opens the SignInWindow, and
     Register..., which opens the RegisterWindow, then a separator. It then has New Basic and New Python; then Open..., Save and
     Save As...; then Delete, with a separator between the groups.
@@ -1832,6 +1839,30 @@ A Window listing the compiled apps, so they can be launched.
     read, or no compiled apps, shows a note in place of the rows.
 
 
+WidgetHelpWindow (singleton)
+----------------------------
+(src/ui/windows/widget-help-window.js, src/ui/widget-docs.js)
+A Window, opened by Help > Widget Documentation, that documents every widget a
+program can make. It is an HSplitWindow: a ListPanel of entries on the left and
+the text of the one chosen in a read-only TextPanel on the right. There is one;
+choosing the menu item again brings it to the front.
+
+  - The entries are "All widgets" (an introduction and everything below it, to
+    scroll through), "Common methods" (the methods every widget has, in groups),
+    then one per class in WIDGET_CLASSES, A to Z. show(label) chooses one.
+  - A class's text is its description, its constructor and its methods, in
+    MiniPy's spelling with the kind of each argument and result. The
+    constructor and methods are made from the class table
+    (src/vm/runtime/widgets.js), so they cannot go out of date; the
+    description is WIDGET_DOCS in widget-docs.js. Methods every widget has are
+    left out of a class and listed once under Common methods
+    (WIDGET_CLASSES' common / own fields; the Board, the Canvas and the Physics
+    have no common methods, the Viewport only the find methods).
+  - test/widget-help.test.js fails when a class has no description, when a
+    common method is not described in a group, and when a description names a
+    method that does not exist, so a new widget cannot be added undocumented.
+
+
 SchedulerWindow (singleton)
 ---------------------------
 A Window listing the programs on the UI's shared Scheduler, so they can be
@@ -2009,6 +2040,37 @@ Spacer
 ------
 An empty Widget with a flex weight (1 by default). Placed in an HPanel, it
 takes up the free space, pushing the widgets after it to the right.
+
+Image
+-----
+(src/ui/widgets/image.js)
+A picture from a source address, after qooxdoo's qx.ui.basic.Image. A Widget
+(not a Panel) on an <img> element.
+
+  - source: an http: or https: address, or a data:image/ URI; '' shows
+    nothing. Anything else (a relative path, file:, javascript:, data: that
+    is not an image) is an error, so a shared program can only show pictures
+    from the web or ones it carries itself. checkImageSource() checks it.
+  - fit: how the picture fills its box: contain (the default: all of it,
+    keeping its proportions), cover (fills the box, cropping), fill
+    (stretches), none (its own size) or scale-down. These are the CSS
+    object-fit values (FITS).
+  - alt: text for when the picture cannot be shown.
+  - The picture loads in the background. status is 'empty', 'loading',
+    'loaded' or 'failed'; naturalWidth and naturalHeight are the picture's
+    own size (0 until it has loaded). The widget fires the browser's load
+    and error events.
+  - Until it has loaded an Image asks for 100 by 100 (the class's default
+    box); after, for the picture's own size, and its parent is laid out
+    again. A row, column or layout therefore sizes it by the picture
+    unless the program fixes a size with setWidth / setHeight.
+  - For a program: Image(source) / New Image(source), with setSource /
+    getSource, setFit / getFit, setAlt / getAlt, getNaturalWidth,
+    getNaturalHeight, isLoaded, onClick, onLoad and onError (the last two
+    are called with the image). Register the handlers in the program's
+    top-level code, before the picture has loaded. It is saved with source,
+    fit and alt (fit and alt only when they are not the defaults).
+
 
 Ellipse, RoundedRect
 --------------------
@@ -2199,8 +2261,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
 
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
-    MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite and Stack, and
-    the Board and the Canvas (below). Left
+    MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack and
+    Image, and the Board and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).

@@ -90,7 +90,7 @@ const VARIABLE_BASES = {
   Label: 'label', Button: 'button', Menu: 'menu', Spacer: 'spacer', Panel: 'panel', HPanel: 'row', VPanel: 'column',
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
-  Composite: 'composite', Stack: 'stack',
+  Composite: 'composite', Stack: 'stack', Image: 'image',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -206,6 +206,7 @@ class Generator {
         Label: [text()], Button: [text()], Menu: [text()], TextPanel: [text()],
         MonacoPanel: [text(), this.str(node.language || 'plaintext')],
         Window: [this.str(node.title)],
+        Image: [this.str(node.source)],
       }[cls] ?? [];
       this.line(L.declare(v, L.construct(cls, args)));
     }
@@ -308,6 +309,10 @@ class Generator {
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
       case 'Composite': this.compositeLayout(v, node); break;
+      case 'Image':
+        if (node.fit && node.fit !== 'contain') this.call(v, 'setFit', [this.str(node.fit)]);
+        if (node.alt) this.call(v, 'setAlt', [this.str(node.alt)]);
+        break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (Number.isFinite(node.position)) this.call(v, 'setPosition', [num(node.position)]);
         break;

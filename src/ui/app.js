@@ -28,6 +28,7 @@ import { startMobile } from './mobile/app.js';
 import { runParameter, projectParameter, startAppRuntime, startProjectRuntime } from './run-app.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { FileCopyWindow } from './windows/file-copy-window.js';
+import { WidgetHelpWindow } from './windows/widget-help-window.js';
 
 /**
  * Starts the UI the page calls for: with ?app=<owner>/<name>, that project (or
@@ -57,6 +58,7 @@ export function startDesktop() {
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(myProjectsButton(viewport));
   navbar.add(librariesButton(viewport));
+  navbar.add(helpMenu(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
   navbar.add(buildLabel());
@@ -284,4 +286,15 @@ function myProjectsButton(viewport) {
 // brings it to the front.
 function librariesButton(viewport) {
   return new Button('Libraries', () => CommunityProjectsWindow.instance.open(viewport));
+}
+
+// The Help menu, after Libraries, is where the documentation is:
+//   Widget Documentation   the Widget Documentation window: every widget a
+//                          program can make, its constructor and its methods
+// There is one Widget Documentation window; choosing the item again brings it
+// to the front.
+function helpMenu(viewport) {
+  const menu = new Menu('Help');
+  menu.addItem('Widget Documentation', () => WidgetHelpWindow.instance.open(viewport));
+  return menu;
 }

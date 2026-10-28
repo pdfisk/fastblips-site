@@ -13,6 +13,7 @@
 import { WIDGET_CLASSES } from '../vm/runtime/widgets.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
 import { makeLayout, cleanChildProps } from './layouts/index.js';
+import { FITS, checkImageSource } from './widgets/image.js';
 
 /** The classes the designer offers: every widget class but the singletons (the Viewport, the Board, the Canvas and the Physics). */
 export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => !['Viewport', 'Board', 'Canvas', 'Physics'].includes(n)).sort((a, b) => a.localeCompare(b));
@@ -49,6 +50,7 @@ export function newNode(cls) {
     case 'Window': node.title = 'Window'; node.bounds = [...DEFAULT_WINDOW_BOUNDS]; break;
     case 'ListPanel': node.items = []; break;
     case 'TabPanel': node.tabs = []; break;
+    case 'Image': node.source = ''; break;
     default: break;
   }
   if (cls === 'Menu') node.items = [];
@@ -473,6 +475,22 @@ const FIELDS = {
   outlineColor: prop('borderColor', 'Outline colour', 'text'),
   radius: prop('radius', 'Corner radius', 'number', 12),
   spacing: prop('spacing', 'Spacing', 'number'),
+  source: {
+    key: 'source', label: 'Source (http, https or data:image address)', type: 'text',
+    get: (n) => n.source ?? '',
+    set: (n, v) => { n.source = checkImageSource(v); },
+  },
+  fit: {
+    key: 'fit', label: `Fit (${FITS.join(', ')})`, type: 'text',
+    get: (n) => n.fit ?? 'contain',
+    set: (n, v) => {
+      const fit = String(v).trim().toLowerCase();
+      if (fit === '' || fit === 'contain') { delete n.fit; return; }
+      if (!FITS.includes(fit)) throw new Error(`a fit must be one of ${FITS.join(', ')}, not '${v}'`);
+      n.fit = fit;
+    },
+  },
+  alt: prop('alt', 'Alt text', 'text', ''),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
   emptyText: prop('emptyText', 'Empty text', 'text'),
@@ -542,7 +560,7 @@ export function eventsOf(cls) {
 // are placed by its box (a border pushes them in), but only a row, a column, a
 // Label or a Button have padding. A shape's outline is its border (see above).
 const NO_MARGIN = new Set(['Window', 'Spacer']);
-const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack']);
+const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack', 'Image']);
 const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack']);
 
 function boxFields(cls) {
@@ -567,6 +585,7 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     HSplitPanel: [f.position], VSplitPanel: [f.position],
     TabPanel: [f.tabLabels, f.selected],
     Stack: [f.selected],
+    Image: [f.source, f.fit, f.alt],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];

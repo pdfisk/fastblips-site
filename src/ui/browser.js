@@ -19,6 +19,7 @@ import { VSplitPanel } from './widgets/vsplit-panel.js';
 import { VPanel } from './widgets/vpanel.js';
 import { Composite } from './widgets/composite.js';
 import { Stack } from './widgets/stack.js';
+import { Image as ImageWidget } from './widgets/image.js';
 import * as layouts from './layouts/index.js';
 import { ProgramWidgetHost } from './program-widgets.js';
 import { DesignerWindow } from './windows/designer-window.js';
@@ -31,6 +32,7 @@ import { MonacoPanel } from './widgets/monaco-panel.js';
 import { ListPanel } from './widgets/list-panel.js';
 import { GridPanel } from './widgets/grid-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
+import { WidgetHelpWindow } from './windows/widget-help-window.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
@@ -59,10 +61,10 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
+  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, PythonConsoleWindow,
-  TranscriptWindow, SchedulerWindow, CommunityProjectsWindow, RecordPanel, Label,
+  TranscriptWindow, SchedulerWindow, WidgetHelpWindow, CommunityProjectsWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel, PhysicsPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,

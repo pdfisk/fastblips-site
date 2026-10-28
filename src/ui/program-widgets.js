@@ -33,6 +33,7 @@ import { Label } from './widgets/label.js';
 import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
 import { Composite } from './widgets/composite.js';
+import { Image as ImageWidget } from './widgets/image.js';
 import { Stack } from './widgets/stack.js';
 import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
@@ -40,7 +41,7 @@ import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
 import { SourceStore, spaceName } from './db-client.js';
 import { BoardBinding, CanvasBinding, PhysicsBinding } from './board-host.js';
-import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED } from './widget-defaults.js';
+import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, TEXT_SIZED, NATURAL_SIZED } from './widget-defaults.js';
 
 /** The format tag of a saved viewport. */
 export const VIEWPORT_FORMAT = 'fastblip-viewport';
@@ -221,10 +222,21 @@ const CLASSES = {
   RoundedRect: { make: () => new RoundedRect(), box: DEFAULT_BOXES.RoundedRect },
   Composite: { make: () => new Composite(), box: DEFAULT_BOXES.Composite },
   Stack: { make: () => new Stack(), box: DEFAULT_BOXES.Stack },
+  Image: { make: (source) => imageCall(() => new ImageWidget(source)), box: DEFAULT_BOXES.Image },
 };
 
 /** Container classes whose children are a plain list. */
 const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack'];
+
+/** Runs an Image operation, turning the Error it throws (a bad source or fit) into a WidgetError. */
+function imageCall(body) {
+  try {
+    return body();
+  } catch (err) {
+    if (err instanceof WidgetError) throw err;
+    throw new WidgetError(err.message);
+  }
+}
 
 /** Runs a layout operation, turning a LayoutError into the WidgetError a program sees. */
 function layoutCall(body) {
@@ -345,8 +357,10 @@ export class ProgramWidgetHost {
       // default height; in an HPanel, a widget with no text to measure gets
       // its default width.
       const [, , width, height] = spec.box;
-      widget.preferredHeight = () => height;
-      if (!TEXT_SIZED.has(className)) widget.preferredWidth = () => width;
+      if (!NATURAL_SIZED.has(className)) {
+        widget.preferredHeight = () => height;
+        if (!TEXT_SIZED.has(className)) widget.preferredWidth = () => width;
+      }
     }
     const id = this._register(widget, className);
     if (widget instanceof Window) {
@@ -431,6 +445,8 @@ export class ProgramWidgetHost {
         break;
       case 'onSubmit': own('submit', () => callback()); break;
       case 'onClose': own('close', () => callback()); break;
+      case 'onLoad': own('load', () => callback()); break;
+      case 'onError': own('error', () => callback()); break;
       default: throw new WidgetError(`a ${w.programClass} has no event '${method}'`);
     }
   }
@@ -518,6 +534,11 @@ export class ProgramWidgetHost {
       }
       case 'Stack':
         put('selected', w.selectedIndex, 0);
+        break;
+      case 'Image':
+        node.source = w.source;
+        put('fit', w.fit, 'contain');
+        put('alt', w.alt, '');
         break;
       case 'HSplitPanel': case 'VSplitPanel':
         node.position = w.position;
@@ -660,14 +681,17 @@ export class ProgramWidgetHost {
       Label: [str(node.text)], Button: [str(node.text)], Menu: [str(node.text)],
       Window: [str(node.title)], TextPanel: [str(node.text)],
       MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
+      Image: [str(node.source)],
     }[cls] ?? [];
     const w = spec.make(...args);
     if (spec.box) {
       w.box = Array.isArray(node.box) && node.box.length === 4 && node.box.every(Number.isFinite)
         ? [...node.box] : [...spec.box];
       const [, , width, height] = spec.box;
-      w.preferredHeight = () => height;
-      if (!TEXT_SIZED.has(cls)) w.preferredWidth = () => width;
+      if (!NATURAL_SIZED.has(cls)) {
+        w.preferredHeight = () => height;
+        if (!TEXT_SIZED.has(cls)) w.preferredWidth = () => width;
+      }
     }
     this._register(w, cls);
     if (w instanceof Window) w.buttonBar.programClass = 'ButtonBar';
@@ -693,6 +717,10 @@ export class ProgramWidgetHost {
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
       case 'RoundedRect': if (num(node.radius) !== undefined) w.radius = node.radius; break;
+      case 'Image':
+        if (typeof node.fit === 'string') imageCall(() => { w.fit = node.fit; });
+        if (typeof node.alt === 'string') w.alt = node.alt;
+        break;
       case 'Menu':
         w._items = [];
         for (const item of node.items ?? []) {
@@ -826,6 +854,16 @@ export class ProgramWidgetHost {
       case 'Button.getText': case 'Menu.getText': return w.label;
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
+
+      case 'Image.setSource': imageCall(() => { w.source = a; }); return this._relayout(w);
+      case 'Image.getSource': return w.source;
+      case 'Image.setFit': imageCall(() => { w.fit = a; }); return undefined;
+      case 'Image.getFit': return w.fit;
+      case 'Image.setAlt': w.alt = a; return undefined;
+      case 'Image.getAlt': return w.alt;
+      case 'Image.getNaturalWidth': return w.naturalWidth;
+      case 'Image.getNaturalHeight': return w.naturalHeight;
+      case 'Image.isLoaded': return w.status === 'loaded';
 
       case 'RoundedRect.setRadius': w.radius = a; return undefined;
       case 'RoundedRect.getRadius': return w.radius;

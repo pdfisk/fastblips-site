@@ -23,6 +23,7 @@ export const DEFAULT_BOXES = Object.freeze({
   RoundedRect: [0, 0, 120, 80],
   Composite: [0, 0, 320, 200],
   Stack: [0, 0, 320, 200],
+  Image: [0, 0, 100, 100],
 });
 
 /** A new Window's bounds (x, y, width, height). */
@@ -30,3 +31,6 @@ export const DEFAULT_WINDOW_BOUNDS = Object.freeze([20, 20, 320, 240]);
 
 /** Classes whose natural width is their text's (in a row). */
 export const TEXT_SIZED = new Set(['Label', 'Button', 'Menu']);
+
+/** Classes that ask for their own natural size, not their class's default box (an Image, once loaded). */
+export const NATURAL_SIZED = new Set(['Image']);

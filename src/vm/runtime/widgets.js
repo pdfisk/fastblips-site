@@ -217,11 +217,16 @@ const TEXT_AREA = [
   method('onSubmit', ['handler']),
 ];
 
+/** The methods every widget has (a few classes have fewer: see cls.common). */
+export const COMMON_METHODS = COMMON;
+
 const cls = (name, params, methods, { common = COMMON } = {}) => {
   const all = [...common, ...methods];
   return Object.freeze({
     name,
     params: Object.freeze(params),
+    common: Object.freeze(common),   // the methods it shares with other classes
+    own: Object.freeze(methods),     // the ones that are its own
     methods: Object.freeze(all),
     byName: new Map(all.map((m) => [m.name.toLowerCase(), m])),
     byPy: new Map(all.map((m) => [m.py, m])),
@@ -436,6 +441,22 @@ export const WIDGET_CLASSES = Object.freeze([
     method('selectNext'),
     method('selectPrevious'),
     method('onSelect', ['handler:int']),
+  ]),
+  // A picture from an http(s) address or a data:image/ URI. onLoad and
+  // onError are called with the image once its picture has loaded or failed.
+  cls('Image', ['text'], [
+    method('setSource', ['text']),
+    method('getSource', [], 'text'),
+    method('setFit', ['text']),
+    method('getFit', [], 'text'),
+    method('setAlt', ['text']),
+    method('getAlt', [], 'text'),
+    method('getNaturalWidth', [], 'int'),
+    method('getNaturalHeight', [], 'int'),
+    method('isLoaded', [], 'boolean'),
+    ...CLICK,
+    method('onLoad', ['handler']),
+    method('onError', ['handler']),
   ]),
 ]);
 
