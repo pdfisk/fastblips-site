@@ -1,7 +1,6 @@
 // ScriptPickerWindow: a small window for choosing one script to add to a
 // project (Add in the Projects window). It lists the scripts it is given -
-// the user's own and those other users have shared (the owner is shown after
-// a script's name) - and calls onPick with the chosen one.
+// the user's own and those in the shared space - and calls onPick with the chosen one.
 
 import { Window } from './window.js';
 import { ListPanel } from '../widgets/list-panel.js';
@@ -21,7 +20,7 @@ export class ScriptPickerWindow extends Window {
     this.onPick = onPick;
     this.list = new ListPanel({
       items: scripts.map((s) => ({ label: scriptLabel(s, space), value: s.id })),
-      emptyText: 'No scripts to add: none of yours is left, and no one has shared any',
+      emptyText: 'No scripts to add: none of yours is left',
     });
     this.content = this.list;
     this.addButton = this.buttonBar.addButton('Add', () => this.pick());

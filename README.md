@@ -1,5 +1,12 @@
 # crumb-lang
 
+> **Basic (Crumb) has been removed.** Python (MiniPy) is now FastBlips' only
+> scripting language. The Basic compiler, runtime, console, examples and tests
+> are archived, runnable, in `../archive/crumb-basic-2026-10-27/` (and `.zip`).
+> Sections of this README that describe Crumb, `.bas` files or `src/vm/compiler/basic/`
+> are historical and need a rewrite; the VM still carries Crumb's shared opcodes
+> and runtime values, which MiniPy's widgets use.
+
 Tokenizer, parser, bytecode compiler and VM for **Crumb v0.1** — the small
 Visual-Basic-flavoured language specified in [`docs/crumb-v0.1-spec.md`](docs/crumb-v0.1-spec.md).
 

@@ -6,11 +6,11 @@ import { ProcessState } from '../src/scheduling/process.js';
 
 function chunkOf(source) {
   const result = compile(source);
-  assert.ok(result.ok, result.errors.map((e) => e.message).join('\n'));
+  assert.ok(result.ok, result.loadErrors.map((e) => e.message).join('\n'));
   return result.chunk;
 }
 
-const counter = (label) => chunkOf(`For i = 1 To 3\n  Print "${label}" & i\nNext`);
+const counter = (label) => chunkOf(`for i in range(1, 4):\n    print("${label}" + str(i))\n`);
 
 test('programs take turns and interleave their output', () => {
   const lines = [];
@@ -29,7 +29,7 @@ test('programs take turns and interleave their output', () => {
 });
 
 test('a resumed VM gives the same output as an uninterrupted one', () => {
-  const source = 'Function F(n)\n  If n <= 1 Then Return 1\n  Return n * F(n - 1)\nEnd Function\nFor i = 0 To 6\n  Print F(i)\nNext';
+  const source = 'def f(n):\n    if n <= 1:\n        return 1\n    return n * f(n - 1)\nfor i in range(7):\n    print(f(i))\n';
   const whole = [];
   const sliced = [];
   new Scheduler({ quantum: Infinity }).spawn(chunkOf(source), { out: (t) => whole.push(t) }).step(Infinity);
@@ -42,7 +42,7 @@ test('a resumed VM gives the same output as an uninterrupted one', () => {
 test('a failing process does not stop the others', () => {
   const lines = [];
   const scheduler = new Scheduler({ quantum: 2 });
-  const bad = scheduler.spawn(chunkOf('Print 1 + "x"'), { out: () => {} });
+  const bad = scheduler.spawn(chunkOf('print(1 + "x")'), { out: () => {} });
   const good = scheduler.spawn(counter('g'), { out: (t) => lines.push(t) });
   scheduler.runAll();
   assert.equal(bad.state, ProcessState.FAILED);
@@ -112,7 +112,7 @@ test('a sleeping process waits in scheduledQueue while others run', () => {
   const lines = [];
   const out = (text) => lines.push(text);
   const scheduler = new Scheduler({ quantum: 1000, now: () => clock });
-  const sleeper = scheduler.spawn(chunkOf('Print "s1"\nSleep(1)\nPrint "s2"'), { out });
+  const sleeper = scheduler.spawn(chunkOf('print("s1")\nsleep(1)\nprint("s2")'), { out });
   const other = scheduler.spawn(counter('o'), { out });
 
   scheduler.runAll();
@@ -137,12 +137,12 @@ test('start() runs in the background, sleeping until processes wake', async () =
   const waits = [];
   const exits = [];
   const scheduler = new Scheduler({ now: () => clock });
-  scheduler.spawn(chunkOf('Sleep(0.25)\nSleep(3)'), { out: () => {}, onExit: (p) => exits.push(p.state) });
+  scheduler.spawn(chunkOf('sleep(0.25)\nsleep(3)'), { out: () => {}, onExit: (p) => exits.push(p.state) });
   const sleep = async (ms) => { waits.push(ms); clock += ms; };
   const first = scheduler.start({ sleep });
   assert.equal(scheduler.start({ sleep }), first, 'a second start() joins the running one');
   await first;
-  assert.deepEqual(waits, [0.25, 3000, 0]);
+  assert.deepEqual(waits, [250, 3000, 0]);
   assert.deepEqual(exits, [ProcessState.DONE]);
   assert.equal(scheduler.running, null);
 });
@@ -151,8 +151,8 @@ test('onExit fires once for failed and killed processes', () => {
   const exits = [];
   const onExit = (p) => exits.push(`${p.name}:${p.state}`);
   const scheduler = new Scheduler({ now: () => 0 });
-  scheduler.spawn(chunkOf('Print 1 + "x"'), { name: 'bad', out: () => {}, onExit });
-  const k = scheduler.spawn(chunkOf('Sleep(5)'), { name: 'k', out: () => {}, onExit });
+  scheduler.spawn(chunkOf('print(1 + "x")'), { name: 'bad', out: () => {}, onExit });
+  const k = scheduler.spawn(chunkOf('sleep(5)'), { name: 'k', out: () => {}, onExit });
   scheduler.runAll();
   scheduler.kill(k.pid);
   scheduler.kill(k.pid);
@@ -186,7 +186,7 @@ test('suspend takes a process out of turn; resume puts it back', () => {
 test('a suspended sleeper keeps the rest of its sleep', () => {
   let clock = 0;
   const scheduler = new Scheduler({ now: () => clock });
-  const p = scheduler.spawn(chunkOf('Sleep(1)\nPrint "woke"'), { out: () => {} });
+  const p = scheduler.spawn(chunkOf('sleep(1)\nprint("woke")'), { out: () => {} });
   scheduler.runAll();                    // now sleeping until 1000
   clock = 400;
   scheduler.suspend(p.pid);
@@ -212,11 +212,11 @@ test('a suspended process can be killed', () => {
 test('start() while sleeping wakes the loop for a new process', async () => {
   const lines = [];
   const scheduler = new Scheduler();
-  const long = scheduler.spawn(chunkOf('Sleep(60)'), { out: () => {} });
+  const long = scheduler.spawn(chunkOf('sleep(60)'), { out: () => {} });
   const done = scheduler.start();
   await new Promise((r) => setTimeout(r, 20));        // the loop is now sleeping ~60 s
   const t0 = Date.now();
-  const quick = scheduler.spawn(chunkOf('Print "hi"'), { out: (t) => lines.push(t) });
+  const quick = scheduler.spawn(chunkOf('print("hi")'), { out: (t) => lines.push(t) });
   assert.equal(scheduler.start(), done);
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(lines, ['hi']);
@@ -233,7 +233,7 @@ import { DEFAULT_QUANTUM, DEFAULT_AGING } from '../src/scheduling/scheduler.js';
 import { DEFAULT_PRIORITY, normalizePriority } from '../src/scheduling/process.js';
 
 // A program that prints its label n times.
-const loop = (label, n = 20) => chunkOf(`For i = 1 To ${n}\n  Print "${label}"\nNext`);
+const loop = (label, n = 20) => chunkOf(`for i in range(${n}):\n    print("${label}")\n`);
 
 // Runs the scheduler to the end, returning the label of each process turn
 // that printed something, run-length collapsed ("a", "b", "a", ...).
@@ -282,7 +282,7 @@ test('processes of equal priority take turns round robin', () => {
 
 test('ageing: a low priority process still gets turns behind a busy high one', () => {
   const scheduler = new Scheduler({ quantum: 10, aging: 5 });
-  const busy = scheduler.spawn(chunkOf('While True\nEnd While'), { name: 'busy', priority: 1 });
+  const busy = scheduler.spawn(chunkOf('while True:\n    pass\n'), { name: 'busy', priority: 1 });
   const low = scheduler.spawn(loop('low', 3), { name: 'low', priority: 5, out: () => {} });
   for (let i = 0; i < 400 && !low.finished; i++) scheduler.tick();
   assert.equal(low.state, ProcessState.DONE, 'the low priority process finished');
@@ -291,7 +291,7 @@ test('ageing: a low priority process still gets turns behind a busy high one', (
 
 test('with aging Infinity, priorities are strict', () => {
   const scheduler = new Scheduler({ quantum: 10, aging: Infinity });
-  scheduler.spawn(chunkOf('While True\nEnd While'), { name: 'busy', priority: 1 });
+  scheduler.spawn(chunkOf('while True:\n    pass\n'), { name: 'busy', priority: 1 });
   const low = scheduler.spawn(loop('low', 3), { name: 'low', priority: 5, out: () => {} });
   for (let i = 0; i < 1000; i++) scheduler.tick();
   assert.equal(low.slices, 0);
@@ -334,7 +334,7 @@ test('a sleeping high priority process lets lower ones run, and comes first when
   const scheduler = new Scheduler({ quantum: 5, aging: Infinity, now: () => clock });
   const lines = [];
   const out = (t) => lines.push(t);
-  scheduler.spawn(chunkOf('Print "h1"\nSleep(1)\nPrint "h2"'), { name: 'h', priority: 1, out, sleep: () => {} });
+  scheduler.spawn(chunkOf('print("h1")\nsleep(1)\nprint("h2")'), { name: 'h', priority: 1, out, sleep: () => {} });
   scheduler.spawn(loop('l', 50), { name: 'l', priority: 5, out });
   for (let i = 0; i < 5; i++) scheduler.tick();
   assert.equal(lines[0], 'h1');

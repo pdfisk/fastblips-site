@@ -1,43 +1,27 @@
 // The GUI designer's code generator: a composite (the node tree of
-// designer-model.js) in, the Crumb or MiniPy program that builds it out. No
+// designer-model.js) in, the MiniPy program that builds it out. No
 // DOM here, so it is tested under Node; DesignerCodeWindow
 // (windows/designer-code-window.js) shows the result.
 //
 // The tree stays the source of truth. The program has a marked layout
-// section that is rebuilt from the design, and handler stubs (a Sub in
-// Crumb, a function in MiniPy) for every event the design names. updateCode()
+// section that is rebuilt from the design, and handler stubs (a function) for every event the design names. updateCode()
 // regenerates the layout section of a program you have already edited,
 // leaves the rest as it is, and adds only the stubs that are missing.
 //
-// Both languages are driven by one table (LANGUAGES): the spelling of a
+// The language is driven by a table (LANGUAGES): the spelling of a
 // constructor, a method, a string, a Boolean, a handler. The method names
 // are the camelCase ones of src/vm/runtime/widgets.js; MiniPy gets its
 // snake_case spelling from snakeCase() there.
 
 import { WIDGET_CLASSES, snakeCase } from '../vm/runtime/widgets.js';
-import { KEYWORDS as CRUMB_KEYWORDS, BUILTINS as CRUMB_BUILTINS } from '../vm/compiler/basic/tokens.js';
 import { KEYWORDS as PY_KEYWORDS } from '../vm/compiler/python/tokens.js';
 import { BUILTIN_NAMES as PY_BUILTINS } from '../vm/runtime/python-builtins.js';
-import { childrenOf, eventsOf } from './designer-model.js';
+import { childrenOf, eventsOf, isFreeParent } from './designer-model.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
 
 // ---- literals ---------------------------------------------------------------
 
 const num = (n) => String(Number.isInteger(n) ? n : Math.round(n * 1e6) / 1e6);
-
-/** A Crumb String literal. `""` is a quote; there are no escapes or multiline
- *  strings, so a control character (a new line, a tab) becomes & Chr(n) &. */
-export function crumbString(value) {
-  const parts = [];
-  let text = '';
-  const flush = () => { if (text) { parts.push(`"${text.replaceAll('"', '""')}"`); text = ''; } };
-  for (const ch of String(value)) {
-    const code = ch.codePointAt(0);
-    if (code < 32 || code === 127) { flush(); parts.push(`Chr(${code})`); } else text += ch;
-  }
-  flush();
-  return parts.length ? parts.join(' & ') : '""';
-}
 
 /** A MiniPy string literal. MiniPy has \n, \t, \\, \" and \0 and no chr(),
  *  so any other control character (a text box cannot hold one) is dropped. */
@@ -61,31 +45,12 @@ const lower = (names) => new Set([...names].map((n) => n.toLowerCase()));
 
 /** Words that cannot be a variable or a handler name (any case). `vp` is the Viewport. */
 const CLASS_NAMES = new Set(WIDGET_CLASSES.map((c) => c.name));
-const CRUMB_RESERVED = lower([...CRUMB_KEYWORDS, ...CRUMB_BUILTINS, 'vp']);
 const PY_RESERVED = lower([...PY_KEYWORDS, ...PY_BUILTINS.filter((n) => !CLASS_NAMES.has(n)), 'vp']);
-// A widget class has a namespace of its own in Crumb. In MiniPy it is a name
-// like any other, so a variable must not be spelled exactly like one.
+// A widget class is a name like any other in MiniPy, so a variable must not be
+// spelled exactly like one.
 const PY_RESERVED_EXACT = CLASS_NAMES;
 
 export const LANGUAGES = Object.freeze({
-  basic: Object.freeze({
-    id: 'basic',
-    title: 'Basic',
-    comment: "'",
-    monaco: 'vb',
-    reserved: CRUMB_RESERVED,
-    reservedExact: new Set(),
-    string: crumbString,
-    bool: (v) => (v ? 'True' : 'False'),
-    method: (name) => name,
-    construct: (cls, args) => `New ${cls}(${args.join(', ')})`,
-    declare: (name, expr) => `Dim ${name} = ${expr}`,
-    handlerRef: (name) => crumbString(name),
-    // Words to a handler name made up for a menu item: OpenFile.
-    handlerFromWords: (words) => words.map((w) => w[0].toUpperCase() + w.slice(1)).join('') || 'MenuItem',
-    stub: (name, params, note) => [`Sub ${name}(${params.join(', ')})`, `  ' ${note}`, 'End Sub'],
-    stubsFirst: false,   // a Sub can be used before it is defined
-  }),
   python: Object.freeze({
     id: 'python',
     title: 'Python',
@@ -125,6 +90,7 @@ const VARIABLE_BASES = {
   Label: 'label', Button: 'button', Menu: 'menu', Spacer: 'spacer', Panel: 'panel', HPanel: 'row', VPanel: 'column',
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
+  Composite: 'composite', Stack: 'stack',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -183,8 +149,8 @@ class Generator {
   /**
    * Reserves the names of every handler in the design before any variable is
    * named: a handler's name is what the design (and a saved composite) calls
-   * it, so a variable gives way to it, not the other way round. Crumb keeps
-   * Subs and variables in one namespace; MiniPy does the same for functions.
+   * it, so a variable gives way to it, not the other way round. MiniPy keeps
+   * functions and variables in one namespace.
    */
   reserveHandlers(node) {
     if (node.class === 'Menu') {
@@ -246,7 +212,8 @@ class Generator {
 
     if (node.id) this.call(v, 'setId', [this.str(node.id)]);
     this.place(v, node, parent);
-    if (node.visible === false && parent?.class !== 'TabPanel') this.call(v, 'setVisible', [L.bool(false)]);
+    this.childLayout(v, node);
+    if (node.visible === false && !['TabPanel', 'Stack'].includes(parent?.class)) this.call(v, 'setVisible', [L.bool(false)]);
     if (node.background) this.call(v, 'setBackground', [this.str(node.background)]);
     if (node.color) this.call(v, 'setColor', [this.str(node.color)]);
     this.box(v, node);
@@ -265,7 +232,7 @@ class Generator {
       if (b.some((x, i) => x !== DEFAULT_WINDOW_BOUNDS[i])) this.call(v, 'setBounds', b.map(num));
       return;
     }
-    const free = !parent || parent.class === 'Panel';
+    const free = !parent || isFreeParent(parent);
     const dflt = DEFAULT_BOXES[cls] ?? [0, 0, 0, 0];
     if (free) {
       const box = node.box ?? dflt;
@@ -277,6 +244,40 @@ class Generator {
     }
     if (node.flex !== undefined) this.call(v, 'setFlex', [num(node.flex)]);
     if (node.fill === true) this.call(v, 'fill');
+  }
+
+  /** Where it sits in its parent Composite's layout: its edge, cell, span, alignment, canvas edges. */
+  childLayout(v, node) {
+    const p = node.layoutProps;
+    if (!p) return;
+    if (p.edge) this.call(v, 'setEdge', [this.str(p.edge)]);
+    if (p.row || p.column) this.call(v, 'setCell', [num(p.row ?? 0), num(p.column ?? 0)]);
+    if ((p.rowSpan ?? 1) !== 1 || (p.columnSpan ?? 1) !== 1) this.call(v, 'setSpan', [num(p.rowSpan ?? 1), num(p.columnSpan ?? 1)]);
+    if (p.alignX || p.alignY) this.call(v, 'setAlign', [this.str(p.alignX ?? ''), this.str(p.alignY ?? '')]);
+    if (Array.isArray(p.canvas)) this.call(v, 'setCanvasBounds', p.canvas.map((x) => this.str(x)));
+  }
+
+  /** A Composite's layout and its settings (spacing, alignment, a grid's columns and rows). */
+  compositeLayout(v, node) {
+    if (node.layout && node.layout !== 'basic') this.call(v, 'setLayout', [this.str(node.layout)]);
+    const o = node.layoutOptions ?? {};
+    if (Number.isFinite(o.spacing)) this.call(v, 'setSpacing', [num(o.spacing)]);
+    if (Number.isFinite(o.spacingX)) this.call(v, 'setSpacingX', [num(o.spacingX)]);
+    if (Number.isFinite(o.spacingY)) this.call(v, 'setSpacingY', [num(o.spacingY)]);
+    if (o.alignX) this.call(v, 'setContentAlign', [this.str(o.alignX), this.str('')]);
+    if (o.alignY) this.call(v, 'setContentAlign', [this.str(''), this.str(o.alignY)]);
+    if (o.reversed) this.call(v, 'setReversed', [this.lang.bool(true)]);
+    const methods = {
+      column: { flex: 'setColumnFlex', size: 'setColumnWidth', min: 'setColumnMinWidth', max: 'setColumnMaxWidth' },
+      row: { flex: 'setRowFlex', size: 'setRowHeight', min: 'setRowMinHeight', max: 'setRowMaxHeight' },
+    };
+    for (const axis of ['column', 'row']) {
+      for (const [index, track] of Object.entries(o[`${axis}s`] ?? {})) {
+        for (const [key, value] of Object.entries(track)) {
+          if (methods[axis][key]) this.call(v, methods[axis][key], [num(Number(index)), num(value)]);
+        }
+      }
+    }
   }
 
   /** setMargin(n) when the sides are alike, else setMarginSides(top, right, bottom, left); nothing when not set. */
@@ -306,6 +307,7 @@ class Generator {
       case 'HPanel': case 'VPanel':
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
+      case 'Composite': this.compositeLayout(v, node); break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (Number.isFinite(node.position)) this.call(v, 'setPosition', [num(node.position)]);
         break;
@@ -361,8 +363,14 @@ class Generator {
       if (how) how(c);
     };
     switch (node.class) {
-      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar':
+      case 'Panel': case 'HPanel': case 'VPanel': case 'ButtonBar': case 'Composite':
         for (const child of node.children ?? []) into(child, (c) => this.call(v, 'add', [c]));
+        break;
+      case 'Stack':
+        for (const child of node.children ?? []) into(child, (c) => this.call(v, 'add', [c]));
+        if (Number.isInteger(node.selected) && node.selected > 0 && node.selected < (node.children ?? []).length) {
+          this.call(v, 'select', [num(node.selected)]);
+        }
         break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (node.first) into(node.first, (c) => this.call(v, 'setFirst', [c]));
@@ -397,7 +405,7 @@ class Generator {
 // ---- the program ------------------------------------------------------------
 
 /** The pieces of the program: its layout lines and its handler stubs. */
-function parts(root, { language: id = 'basic', name = '' } = {}) {
+function parts(root, { language: id = 'python', name = '' } = {}) {
   if (!root || typeof root !== 'object' || !root.class) throw new Error('there is no design to generate code from');
   const lang = language(id);
   const g = new Generator(lang);
@@ -429,10 +437,10 @@ const stubText = (stubs) => stubs.flatMap((s, i) => (i ? ['', ...s.lines] : s.li
 
 /**
  * The program that builds root: a header, the layout section, and a stub for
- * every handler the design names (before the layout in MiniPy, which needs a
- * function defined before it is named; after it in Crumb).
+ * every handler the design names (before the layout: MiniPy needs a
+ * function defined before it is named).
  * @param {object} root - the design (a node of designer-model.js)
- * @param {{language?: 'basic'|'python', name?: string}} [options]
+ * @param {{language?: 'python', name?: string}} [options]
  */
 export function generateCode(root, options = {}) {
   const { lang, layout, stubs, name } = parts(root, options);
@@ -448,10 +456,10 @@ export function generateCode(root, options = {}) {
   return `${body.join('\n')}\n`;
 }
 
-/** True when a Sub or function called name is defined in source. */
+/** True when a function called name is defined in source. */
 function defines(source, lang, name) {
   const word = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const pattern = lang.id === 'python' ? `^[ \\t]*def[ \\t]+${word}\\b` : `^[ \\t]*(?:Sub|Function)[ \\t]+${word}\\b`;
+  const pattern = `^[ \\t]*def[ \\t]+${word}\\b`;
   return new RegExp(pattern, 'im').test(source);
 }
 
@@ -496,10 +504,10 @@ export function updateCode(existing, root, options = {}) {
  * and the handlers it lacks are added. Any other script of that name is left
  * alone (it was not made here, or has lost its markers), with an Error.
  * @param {object} store - a SourceStore of the scripts in the user's space
- * @param {{name: string, root: object, language?: 'basic'|'python'}} options
+ * @param {{name: string, root: object, language?: 'python'}} options
  * @returns {Promise<{action: 'created'|'updated', script: object, added: string[]}>}
  */
-export async function saveAsScript(store, { name, root, language: id = 'basic' }) {
+export async function saveAsScript(store, { name, root, language: id = 'python' }) {
   const lang = language(id);
   const wanted = String(name ?? '').trim();
   if (!wanted) throw new Error('A name is required');

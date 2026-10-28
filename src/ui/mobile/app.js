@@ -50,7 +50,7 @@ export function startMobile() {
   root.innerHTML = `
     <section class="cr-mobile-card">
       <h1>FastBlips</h1>
-      <p class="cr-mobile-tagline">Apps made with Basic and Python</p>
+      <p class="cr-mobile-tagline">Apps made with Python</p>
       <p class="cr-mobile-status">Loading projects...</p>
       <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Shared projects"></ul>
       <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>

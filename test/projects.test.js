@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SourceStore, setUser, setSpace } from '../src/ui/db-client.js';
 import {
-  PROJECTS, SCRIPTS, byName, projectScript, scriptLabel, availableScripts, moved, sameList,
+  PROJECTS, SCRIPTS, byName, projectScript, scriptRef, splitScriptRef, findScript, withScripts, projectScriptFor, scriptLabel, availableScripts, moved, sameList,
   uniqueName, copyProject, projectDetails,
 } from '../src/ui/projects.js';
 
@@ -34,19 +34,19 @@ test('the project store reads the page\'s space, the script store every space', 
   ]);
 });
 
-test('a project is saved with its description and the ids of its scripts', async () => {
+test('a project is saved with its description and the references of its scripts', async () => {
   setUser('ann');
   const fetch = fakeFetch({ status: 201, body: { id: 1 } }, { status: 200, body: { id: 1 } });
   const s = new SourceStore({ ...PROJECTS, baseUrl: 'http://db.test', fetch });
-  await s.create({ name: 'Games', description: 'Small games', script_ids: [3, 5] });
-  await s.update(1, { name: 'Games', description: '', script_ids: [] });
+  await s.create({ name: 'Games', description: 'Small games', scripts: ['ann/a', '/b'] });
+  await s.update(1, { name: 'Games', description: '', scripts: [] });
   setUser('');
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`),
     ['POST http://db.test/projects', 'PATCH http://db.test/projects/1']);
   assert.deepEqual(fetch.calls[0].body,
-    { project: { name: 'Games', description: 'Small games', script_ids: [3, 5], owner: 'ann' } });
+    { project: { name: 'Games', description: 'Small games', scripts: ['ann/a', '/b'], owner: 'ann' } });
   // An empty list is sent: it takes every script out of the project.
-  assert.deepEqual(fetch.calls[1].body, { project: { name: 'Games', description: '', script_ids: [] } });
+  assert.deepEqual(fetch.calls[1].body, { project: { name: 'Games', description: '', scripts: [] } });
 });
 
 test('byName: by name ignoring case, then by id', () => {
@@ -55,32 +55,53 @@ test('byName: by name ignoring case, then by id', () => {
   assert.deepEqual(byName(null), []);
 });
 
-test('projectScript: language by title, owner and shared always there', () => {
-  assert.deepEqual(projectScript({ id: 1, name: 'snake', language: 'basic', owner: 'ann', shared: true, content: 'x' }),
-    { id: 1, name: 'snake', language: 'Basic', owner: 'ann', shared: true });
-  assert.deepEqual(projectScript({ id: 2, language: 'python', owner: null }),
-    { id: 2, name: '', language: 'Python', owner: '', shared: false });
+test('projectScript: reference, language by title and owner always there', () => {
+  assert.deepEqual(projectScript({ id: 1, name: 'snake', language: 'python', owner: 'ann', content: 'x' }),
+    { ref: 'ann/snake', id: 1, name: 'snake', language: 'Python', owner: 'ann' });
+  assert.deepEqual(projectScript({ id: 2, name: 'x', language: 'python', owner: null }),
+    { ref: '/x', id: 2, name: 'x', language: 'Python', owner: '' });
+});
+
+test('script references: "owner/name", with "/name" in the shared space', () => {
+  assert.equal(scriptRef({ owner: 'ann', name: 'a/b' }), 'ann/a/b');
+  assert.equal(scriptRef({ owner: null, name: 'x' }), '/x');
+  assert.deepEqual(splitScriptRef('ann/a/b'), { owner: 'ann', name: 'a/b' });
+  assert.deepEqual(splitScriptRef('/x'), { owner: '', name: 'x' });
+  for (const bad of ['x', 'ann/', '', null]) assert.equal(splitScriptRef(bad), null);
+});
+
+test('references are resolved against script records, ignoring case; a script that has gone is missing', () => {
+  const records = [{ id: 1, name: 'Ball', owner: 'Ann', language: 'python', content: 'a' }, { id: 2, name: 'common', owner: null, language: 'python' }];
+  assert.equal(findScript('ann/ball', records).id, 1);
+  assert.equal(findScript('/COMMON', records).id, 2);
+  assert.equal(findScript('ann/gone', records), undefined);
+  const full = withScripts({ id: 9, name: 'P', scripts: ['/common', 'ann/gone', 'Ann/Ball'] }, records);
+  assert.deepEqual(full.scripts.map((s) => [s.ref, s.id]), [['/common', 2], ['Ann/Ball', 1]]);
+  assert.equal(full.missing, 1);
+  assert.deepEqual(projectScriptFor('ann/gone', records),
+    { ref: 'ann/gone', id: undefined, name: 'gone', language: '', owner: 'ann', missing: true });
+  assert.equal(projectScriptFor('ann/ball', records).ref, 'Ann/Ball');
 });
 
 test('scriptLabel shows the owner of other users\' scripts only', () => {
-  const mine = { name: 'snake', language: 'Basic', owner: 'Peter' };
-  assert.equal(scriptLabel(mine, 'peter'), 'snake  Basic');
-  assert.equal(scriptLabel({ ...mine, owner: 'ann' }, 'peter'), 'snake  Basic  \u00b7 ann');
-  assert.equal(scriptLabel({ ...mine, owner: '' }, ''), 'snake  Basic');
+  const mine = { name: 'snake', language: 'Python', owner: 'Peter' };
+  assert.equal(scriptLabel(mine, 'peter'), 'snake  Python');
+  assert.equal(scriptLabel({ ...mine, owner: 'ann' }, 'peter'), 'snake  Python  \u00b7 ann');
+  assert.equal(scriptLabel({ ...mine, owner: '' }, ''), 'snake  Python');
 });
 
-test('availableScripts: the space\'s own, shared by others and the shared space, not already in', () => {
+test('availableScripts: the space\'s own and the shared space, not already in', () => {
   const scripts = [
-    { id: 1, name: 'snake', language: 'basic', owner: 'peter', shared: false },
-    { id: 2, name: 'Pong', language: 'python', owner: 'ann', shared: true },
-    { id: 3, name: 'secret', language: 'basic', owner: 'ann', shared: false },
-    { id: 4, name: 'common', language: 'python', owner: null, shared: false },
-    { id: 5, name: 'chart', language: 'python', owner: 'Peter', shared: false },
+    { id: 1, name: 'snake', language: 'python', owner: 'peter' },
+    { id: 2, name: 'Pong', language: 'python', owner: 'ann' },
+    { id: 3, name: 'secret', language: 'python', owner: 'ann' },
+    { id: 4, name: 'common', language: 'python', owner: null },
+    { id: 5, name: 'chart', language: 'python', owner: 'Peter' },
   ];
-  assert.deepEqual(availableScripts(scripts, [], 'peter').map((s) => s.id), [5, 4, 2, 1]);
-  assert.deepEqual(availableScripts(scripts, [5, 2], 'peter').map((s) => s.id), [4, 1]);
-  // The shared space has the shared scripts and those of no one.
-  assert.deepEqual(availableScripts(scripts, [], '').map((s) => s.id), [4, 2]);
+  assert.deepEqual(availableScripts(scripts, [], 'peter').map((s) => s.id), [5, 4, 1]);
+  assert.deepEqual(availableScripts(scripts, ['peter/chart'], 'peter').map((s) => s.id), [4, 1]);
+  // The shared space has only the scripts of no one.
+  assert.deepEqual(availableScripts(scripts, [], '').map((s) => s.id), [4]);
   assert.deepEqual(availableScripts(null, [], 'peter'), []);
 });
 
@@ -134,7 +155,7 @@ function memoryStore(records = []) {
 const SOURCE = {
   id: 7, name: 'Pong', owner: 'ann', description: 'Two paddles', shared: true,
   scripts: [
-    { id: 1, name: 'Ball', language: 'basic', content: 'PRINT 1', compiled_code: '{"a":1}', priority: 3 },
+    { id: 1, name: 'Ball', language: 'python', content: 'PRINT 1', compiled_code: '{"a":1}', priority: 3 },
     { id: 2, name: 'Paddle', language: 'python', content: 'print(2)', compiled_code: null, priority: null },
   ],
 };
@@ -150,11 +171,11 @@ test('copyProject makes the user\'s own copies of the scripts, then an unshared 
   const scripts = memoryStore();
   const { project, renamed } = await copyProject(SOURCE, { name: ' Pong copy ', projects, scripts });
   assert.deepEqual(scripts.created.map(({ id, ...f }) => f), [
-    { name: 'Ball', language: 'basic', content: 'PRINT 1', priority: 3, compiled_code: '{"a":1}' },
+    { name: 'Ball', language: 'python', content: 'PRINT 1', priority: 3, compiled_code: '{"a":1}' },
     { name: 'Paddle', language: 'python', content: 'print(2)' },
   ]);
   assert.deepEqual(projects.created.map(({ id, ...f }) => f), [
-    { name: 'Pong copy', description: 'Two paddles', shared: false, script_ids: scripts.created.map((s) => s.id) },
+    { name: 'Pong copy', description: 'Two paddles', shared: false, scripts: ['/Ball', '/Paddle'] },
   ]);
   assert.equal(project.name, 'Pong copy');
   assert.deepEqual(renamed, []);

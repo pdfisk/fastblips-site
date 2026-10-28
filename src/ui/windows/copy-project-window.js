@@ -38,7 +38,7 @@ class CopyProjectPanel extends Panel {
 export class CopyProjectWindow extends Window {
   /**
    * @param {object} options
-   * @param {object} options.project - the project to copy, with its scripts' snapshots
+   * @param {object} options.project - the project to copy, with its scripts read (see withScripts in ../projects.js)
    * @param {(result: {project: object, renamed: object[]}) => void} [options.onCopied] - called after the copy is stored
    * @param {object} [options.projects] - the store for the target space's projects (tests); My Projects by default
    * @param {object} [options.scripts] - the store for the target space's scripts, in every language (tests)

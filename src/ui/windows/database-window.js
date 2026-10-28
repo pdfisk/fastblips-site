@@ -1,8 +1,8 @@
 // DatabaseWindow: a browser for one table of source records on the database
 // server (rails/server) - the records listed on the left, the selected one
 // edited on the right. Records can be created, viewed, edited and deleted.
-// BasicDatabaseWindow and PythonDatabaseWindow choose the table; there is
-// one window of each, opened from the Views menu.
+// PythonDatabaseWindow chooses the table; there is one such window, opened
+// from the Views menu.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { ListPanel } from '../widgets/list-panel.js';
@@ -11,7 +11,6 @@ import { Spacer } from '../widgets/spacer.js';
 import { Label } from '../widgets/label.js';
 import { Menu } from '../widgets/menu.js';
 import { SourceStore, TABLES } from '../db-client.js';
-import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
 import { chunkToJsonString, sourceHash } from '../../vm/chunk-json.js';
 
@@ -321,12 +320,6 @@ function formatTime(iso) {
   return sameDay
     ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : d.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
-}
-
-export class BasicDatabaseWindow extends DatabaseWindow {
-  static get table() { return 'basic'; }
-  static get language() { return 'vb'; }
-  static get consoleClass() { return BasicConsoleWindow; }
 }
 
 export class PythonDatabaseWindow extends DatabaseWindow {

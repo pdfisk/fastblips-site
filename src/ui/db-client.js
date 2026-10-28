@@ -26,7 +26,6 @@ export const LOCAL_SERVER_URL = 'http://localhost:3000';
  * (Each language had a table of its own before the server merged them.)
  */
 export const TABLES = {
-  basic: { resource: 'scripts', key: 'script', language: 'basic', title: 'Basic', owner: spaceName },
   python: { resource: 'scripts', key: 'script', language: 'python', title: 'Python', owner: spaceName },
 };
 
@@ -237,7 +236,7 @@ export class SourceStore {
     return parts.length ? `?${parts.join('&')}` : '';
   }
 
-  _body({ name, content, language, priority, compiled_code: compiledCode, description, shared, script_ids: scriptIds }) {
+  _body({ name, content, language, priority, compiled_code: compiledCode, description, shared, scripts }) {
     const record = {};
     if (name !== undefined) record.name = name;
     if (content !== undefined) record.content = content;
@@ -247,7 +246,7 @@ export class SourceStore {
     // A project's fields (see projects.js).
     if (description !== undefined) record.description = description;
     if (shared !== undefined) record.shared = Boolean(shared);
-    if (scriptIds !== undefined) record.script_ids = scriptIds;
+    if (scripts !== undefined) record.scripts = scripts;
     return { [this.key]: record };
   }
 

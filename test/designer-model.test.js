@@ -6,13 +6,15 @@ import assert from 'node:assert/strict';
 import {
   PALETTE, newNode, addChild, removeNode, moveNode, parentOf, childrenOf, outline,
   fieldsFor, getField, setField, eventsOf, toDoc, canAdd, insertChild, moveNodeTo, isWithin, pasteNode, makeIdsUnique, cloneNode,
+  isFreeParent, isHorizontal, isList,
 } from '../src/ui/designer-model.js';
 
 const field = (node, label, opts) => fieldsFor(node, opts).flatMap(([, fs]) => fs).find((f) => f.label === label);
 
 test('the palette is every class but the Viewport; new nodes get New\'s defaults', () => {
   assert.equal(PALETTE.includes('Viewport'), false);
-  assert.equal(PALETTE.length, 17);
+  assert.equal(PALETTE.length, 19);
+  assert.ok(PALETTE.includes('Composite') && PALETTE.includes('Stack'));
   assert.deepEqual(PALETTE, [...PALETTE].sort((a, b) => a.localeCompare(b)), 'palette is alphabetical');
   assert.deepEqual(newNode('Button'), { class: 'Button', text: 'Button', box: [0, 0, 100, 32] });
   assert.deepEqual(newNode('HSplitPanel'), { class: 'HSplitPanel', position: 0.5, first: null, second: null, box: [0, 0, 320, 200] });
@@ -251,4 +253,78 @@ test('fields: sides are written as in CSS and kept as one number when alike', ()
   assert.deepEqual(kept('1, 2, 3, 4'), [[1, 2, 3, 4], '1 2 3 4'], 'top, right, bottom, left');
   assert.deepEqual(kept('0 0 6 0'), [[0, 0, 6, 0], '0 0 6 0'], 'only the bottom');
   assert.deepEqual(kept('3 3'), [3, '3']);
+});
+
+test('Composite and Stack hold a list of children; a Composite is free only with a basic or canvas layout', () => {
+  const comp = newNode('Composite');
+  const stack = newNode('Stack');
+  assert.deepEqual(comp, { class: 'Composite', children: [], box: [0, 0, 320, 200] });
+  assert.deepEqual(stack, { class: 'Stack', children: [], box: [0, 0, 320, 200] });
+  assert.equal(addChild(comp, newNode('Label')), null);
+  assert.equal(addChild(stack, newNode('Label')), null);
+  assert.equal(addChild(stack, newNode('Button')), null);
+  assert.equal(childrenOf(stack).length, 2);
+  assert.equal(isList(comp) && isList(stack), true);
+  assert.equal(isFreeParent(comp), true);
+  setField(comp, field(comp, 'Layout'), 'HBox');
+  assert.equal(comp.layout, 'hbox');
+  assert.equal(isFreeParent(comp), false);
+  assert.equal(isHorizontal(comp), true);
+  setField(comp, field(comp, 'Layout'), 'canvas');
+  assert.equal(isFreeParent(comp), true);
+  assert.equal(isHorizontal(newNode('VPanel')), false);
+  assert.equal(isFreeParent(stack), false);
+});
+
+test('the inspector edits a Composite\'s layout, its settings and a child\'s place in it', () => {
+  const comp = newNode('Composite');
+  const child = newNode('Label');
+  addChild(comp, child);
+  assert.throws(() => setField(comp, field(comp, 'Layout'), 'atom'), /there is no layout 'atom'/);
+  setField(comp, field(comp, 'Layout'), 'grid');
+  assert.equal(comp.layout, 'grid');
+  const opts = { parent: comp };
+  setField(comp, field(comp, 'Spacing across'), '8');
+  setField(comp, field(comp, 'Columns: index flex= size= min= max= (one a line)'), '1 flex=2\n0 size=60');
+  assert.deepEqual(comp.layoutOptions, { spacingX: 8, columns: { 0: { size: 60 }, 1: { flex: 2 } } });
+  assert.equal(getField(comp, field(comp, 'Columns: index flex= size= min= max= (one a line)')), '0 size=60\n1 flex=2');
+  assert.throws(() => setField(comp, field(comp, 'Columns: index flex= size= min= max= (one a line)'), '1 colour=3'), /no colour setting/);
+  setField(comp, field(comp, 'Spacing across'), '');
+  assert.equal(comp.layoutOptions.spacingX, undefined);
+
+  setField(child, field(child, 'Row', opts), '2');
+  setField(child, field(child, 'Columns covered', opts), '3');
+  setField(child, field(child, 'Align across (left, center, right)', opts), 'Right');
+  assert.deepEqual(child.layoutProps, { row: 2, columnSpan: 3, alignX: 'right' });
+  setField(child, field(child, 'Row', opts), '0');          // the default is not kept
+  setField(child, field(child, 'Columns covered', opts), '');
+  assert.deepEqual(child.layoutProps, { alignX: 'right' });
+  assert.throws(() => setField(child, field(child, 'Rows covered', opts), '0'), /rowSpan must be a whole number of 1 or more/);
+  assert.deepEqual(child.layoutProps, { alignX: 'right' });   // a bad value changes nothing
+  setField(child, field(child, 'Align across (left, center, right)', opts), '');
+  assert.equal(child.layoutProps, undefined);
+
+  // a new layout drops the old one's settings and offers its own fields
+  setField(comp, field(comp, 'Layout'), 'dock');
+  assert.equal(comp.layoutOptions, undefined);
+  setField(child, field(child, 'Edge (north, south, west, east, center)', opts), 'North');
+  assert.deepEqual(child.layoutProps, { edge: 'north' });
+  assert.equal(field(child, 'Row', opts), undefined);
+  setField(comp, field(comp, 'Layout'), 'canvas');
+  setField(child, field(child, 'Edges (left, top, right, bottom, width, height)', opts), '10, , 5%, , 50%, ');
+  assert.deepEqual(child.layoutProps.canvas, ['10', '', '5%', '', '50%', '']);
+  assert.throws(() => setField(child, field(child, 'Edges (left, top, right, bottom, width, height)', opts), '1, 2'), /six lengths/);
+});
+
+test('a Composite\'s and a Stack\'s fields: the layout group, the box, and Selected for a Stack', () => {
+  const comp = newNode('Composite');
+  const groups = fieldsFor(comp).map(([title]) => title);
+  assert.deepEqual(groups, ['Widget', 'Place', 'Layout (basic)', 'Box (margin, border, padding)', 'Look']);
+  const stack = newNode('Stack');
+  assert.ok(field(stack, 'Selected'));
+  const grid = newNode('Composite');
+  setField(grid, field(grid, 'Layout'), 'grid');
+  const labels = fieldsFor(grid).find(([title]) => title === 'Layout (grid)')[1].map((f) => f.label);
+  assert.deepEqual(labels, ['Layout', 'Spacing across', 'Spacing down',
+    'Columns: index flex= size= min= max= (one a line)', 'Rows: index flex= size= min= max= (one a line)']);
 });

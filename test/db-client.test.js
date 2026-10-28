@@ -15,31 +15,31 @@ function fakeFetch(...responses) {
   return fn;
 }
 
-const store = (fetch) => new SourceStore({ ...TABLES.basic, baseUrl: 'http://db.test/', fetch });
+const store = (fetch) => new SourceStore({ ...TABLES.python, baseUrl: 'http://db.test/', fetch });
 
 test('list, get, create, update and remove hit the Rails routes', async () => {
   const fetch = fakeFetch(
-    { status: 200, body: [{ id: 1, name: 'a.bas' }] },
-    { status: 200, body: { id: 1, name: 'a.bas', content: 'x' } },
-    { status: 201, body: { id: 2, name: 'b.bas', content: '' } },
-    { status: 200, body: { id: 2, name: 'c.bas', content: '' } },
+    { status: 200, body: [{ id: 1, name: 'a.py' }] },
+    { status: 200, body: { id: 1, name: 'a.py', content: 'x' } },
+    { status: 201, body: { id: 2, name: 'b.py', content: '' } },
+    { status: 200, body: { id: 2, name: 'c.py', content: '' } },
     { status: 204 },
   );
   const s = store(fetch);
-  assert.deepEqual(await s.list(), [{ id: 1, name: 'a.bas' }]);
+  assert.deepEqual(await s.list(), [{ id: 1, name: 'a.py' }]);
   assert.equal((await s.get(1)).content, 'x');
-  assert.equal((await s.create({ name: 'b.bas', content: '' })).id, 2);
-  assert.equal((await s.update(2, { name: 'c.bas' })).name, 'c.bas');
+  assert.equal((await s.create({ name: 'b.py', content: '' })).id, 2);
+  assert.equal((await s.update(2, { name: 'c.py' })).name, 'c.py');
   assert.equal(await s.remove(2), undefined);
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`), [
-    'GET http://db.test/scripts?language=basic&owner=',
+    'GET http://db.test/scripts?language=python&owner=',
     'GET http://db.test/scripts/1',
     'POST http://db.test/scripts',
     'PATCH http://db.test/scripts/2',
     'DELETE http://db.test/scripts/2',
   ]);
-  assert.deepEqual(fetch.calls[2].body, { script: { name: 'b.bas', content: '', language: 'basic' } });
-  assert.deepEqual(fetch.calls[3].body, { script: { name: 'c.bas' } });
+  assert.deepEqual(fetch.calls[2].body, { script: { name: 'b.py', content: '', language: 'python' } });
+  assert.deepEqual(fetch.calls[3].body, { script: { name: 'c.py' } });
 });
 
 test('a language store finds by name within its language', async () => {
@@ -51,7 +51,7 @@ test('a language store finds by name within its language', async () => {
 test('stores work in the user\'s space; a ?run= page fixes the space', async () => {
   const fetch = fakeFetch({ status: 200, body: [] }, { status: 201, body: { id: 5 } },
     { status: 200, body: [] }, { status: 200, body: [] }, { status: 200, body: [] });
-  const s = new SourceStore({ ...TABLES.basic, baseUrl: 'http://db.test', fetch });
+  const s = new SourceStore({ ...TABLES.python, baseUrl: 'http://db.test', fetch });
   assert.equal(s.space, '');
   assert.throws(() => setUser('no spaces'), /user name/);
   setUser('Peter');
@@ -66,13 +66,13 @@ test('stores work in the user\'s space; a ?run= page fixes the space', async () 
   } finally { setUser(''); setSpace(null); }
   await new SourceStore({ resource: 'scripts', key: 'script', baseUrl: 'http://db.test', fetch }).list();
   assert.deepEqual(fetch.calls.map((c) => c.url), [
-    'http://db.test/scripts?language=basic&owner=Peter',
+    'http://db.test/scripts?language=python&owner=Peter',
     'http://db.test/scripts',
-    'http://db.test/scripts?name=x&language=basic&owner=',
-    'http://db.test/scripts?language=basic&owner=ann',
+    'http://db.test/scripts?name=x&language=python&owner=',
+    'http://db.test/scripts?language=python&owner=ann',
     'http://db.test/scripts',
   ]);
-  assert.deepEqual(fetch.calls[1].body, { script: { name: 'mine', language: 'basic', owner: 'Peter' } });
+  assert.deepEqual(fetch.calls[1].body, { script: { name: 'mine', language: 'python', owner: 'Peter' } });
 });
 
 test('validation errors are reported readably', async () => {
@@ -88,9 +88,9 @@ test('not found and network failures', async () => {
 });
 
 test('priority and compiled_code are sent in the record body', async () => {
-  const fetch = fakeFetch({ status: 200, body: { id: 3, name: 'p.bas', priority: 5, compiled_code: '{}' } });
-  await store(fetch).update(3, { name: 'p.bas', priority: 5, compiled_code: '{}' });
-  assert.deepEqual(fetch.calls[0].body, { script: { name: 'p.bas', priority: 5, compiled_code: '{}' } });
+  const fetch = fakeFetch({ status: 200, body: { id: 3, name: 'p.py', priority: 5, compiled_code: '{}' } });
+  await store(fetch).update(3, { name: 'p.py', priority: 5, compiled_code: '{}' });
+  assert.deepEqual(fetch.calls[0].body, { script: { name: 'p.py', priority: 5, compiled_code: '{}' } });
 });
 
 test('the viewports store: find by name, content sent as a JSON object', async () => {
@@ -142,9 +142,9 @@ test('findUser still throws when the server fails', async () => {
 test('a project is saved with its shared flag', async () => {
   const fetch = fakeFetch({ status: 201, body: { id: 1 } }, { status: 200, body: { id: 1 } });
   const s = new SourceStore({ resource: 'projects', key: 'project', baseUrl: 'http://db.test/', fetch });
-  await s.create({ name: 'p', shared: true, script_ids: [] });
+  await s.create({ name: 'p', shared: true, scripts: [] });
   await s.update(1, { shared: 0 });
-  assert.deepEqual(fetch.calls[0].body, { project: { name: 'p', shared: true, script_ids: [] } });
+  assert.deepEqual(fetch.calls[0].body, { project: { name: 'p', shared: true, scripts: [] } });
   assert.deepEqual(fetch.calls[1].body, { project: { shared: false } });   // a boolean, always
 });
 
@@ -153,7 +153,7 @@ test('a store sends the sign-in token of its server, and no other', async () => 
   setToken('tok-1', 'http://db.test/');
   const fetch = fakeFetch({ status: 200, body: [] }, { status: 200, body: [] });
   await store(fetch).list();
-  await new SourceStore({ ...TABLES.basic, baseUrl: 'http://other.test', fetch }).list();
+  await new SourceStore({ ...TABLES.python, baseUrl: 'http://other.test', fetch }).list();
   assert.deepEqual(fetch.calls.map((c) => c.auth), ['Bearer tok-1', undefined]);
   setToken('', 'http://db.test');
 });
@@ -161,11 +161,11 @@ test('a store sends the sign-in token of its server, and no other', async () => 
 test('a write with no token is told to sign in; an expired token is forgotten', async () => {
   setToken('', 'http://db.test');
   let fetch = fakeFetch({ status: 401, body: { error: 'sign in required' } });
-  await assert.rejects(store(fetch).create({ name: 'a.bas', content: '' }),
+  await assert.rejects(store(fetch).create({ name: 'a.py', content: '' }),
     (e) => e instanceof StoreError && e.status === 401 && /Sign in first/.test(e.message));
   setToken('old', 'http://db.test');
   fetch = fakeFetch({ status: 401, body: { error: 'the token is not valid or has expired: sign in again' } });
-  await assert.rejects(store(fetch).create({ name: 'a.bas', content: '' }), /expired/);
+  await assert.rejects(store(fetch).create({ name: 'a.py', content: '' }), /expired/);
   assert.equal(getToken('http://db.test'), '');
 });
 

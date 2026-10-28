@@ -17,7 +17,7 @@
 // after it. Cut, Copy and Paste (the Edit menu, Ctrl+X, Ctrl+C and Ctrl+V) work
 // on a widget with everything in it, between designers too. Test switches the
 // Preview from designing to using it (buttons click, lists scroll). Code
-// shows the Basic or Python program that builds the design
+// shows the Python program that builds the design
 // (designer-code-window.js). Size limits the Preview to the screen of a
 // phone or tablet, to see how the design fits it.
 //
@@ -38,7 +38,7 @@ import {
 } from '../program-widgets.js';
 import {
   PALETTE, newNode, addChild, insertChild, removeNode, moveNode, moveNodeTo, parentOf, canAdd, outline,
-  fieldsFor, getField, setField, toDoc, childrenOf, isWithin, pasteNode, cloneNode,
+  fieldsFor, getField, setField, toDoc, childrenOf, isWithin, pasteNode, cloneNode, isFreeParent, isHorizontal, isList,
 } from '../designer-model.js';
 import { DesignerCodeWindow } from './designer-code-window.js';
 
@@ -368,7 +368,7 @@ class PreviewPanel extends Panel {
     while (hit && moving && isWithin(hit, moving)) hit = parentOf(d.root, hit);
     if (!hit) return null;
     const rectOf = (n) => this.widgetOf.get(n)?.element.getBoundingClientRect() ?? null;
-    const horizontal = (n) => n.class === 'HPanel' || n.class === 'ButtonBar';
+    const horizontal = isHorizontal;
 
     let parent = hit;
     let before = null;   // the sibling to go before, or null for the end (or the first slot)
@@ -378,14 +378,14 @@ class PreviewPanel extends Panel {
       if (!parent) return null;
       anchor = hit;
     }
-    if (parent.class === 'Panel') {
+    if (isFreeParent(parent)) {
       const box = rectOf(parent);
       if (!box) return null;
       const here = { x: x - box.left, y: y - box.top };
       return { parent, place: { left: Math.max(0, Math.round(here.x)), top: Math.max(0, Math.round(here.y)) },
         rect: { left: x, top: y, width: 8, height: 8 }, into: true, region: 'preview' };
     }
-    const listy = ['HPanel', 'VPanel', 'ButtonBar'].includes(parent.class);
+    const listy = isList(parent);
     if (!listy) {
       if (!canAdd(parent)) return null;
       const box = rectOf(parent);
@@ -673,7 +673,7 @@ export class DesignerWindow extends Window {
   /** Whether node is placed freely (the root, or a child of a Panel), so it can be dragged. */
   isFree(node) {
     const parent = parentOf(this.root, node);
-    return !parent || parent.class === 'Panel';
+    return !parent || isFreeParent(parent);
   }
 
   /** Shows the tree again after an edit: outline, preview and properties. */
@@ -808,7 +808,7 @@ export class DesignerWindow extends Window {
     const parent = parentOf(this.root, node);
     if (!parent) return null;
     let index;
-    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(parent.class)) {
+    if (isList(parent)) {
       index = childrenOf(parent).indexOf(node) + (mode === 'after' ? 1 : 0);
     } else if (!canAdd(parent)) {
       return null;

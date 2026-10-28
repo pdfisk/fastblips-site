@@ -5,18 +5,38 @@
 // (windows/designer-window.js) shows and edits it.
 //
 // A node is { class, id?, ...fields }. Its children live in different
-// places by class: children (Panel, HPanel, VPanel, ButtonBar), first /
+// places by class: children (Panel, HPanel, VPanel, ButtonBar, Composite,
+// Stack), first /
 // second (the split panels), tabs[i].widget (TabPanel), content and
 // buttonBar.children (Window). slots() gives them one shape.
 
 import { WIDGET_CLASSES } from '../vm/runtime/widgets.js';
 import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS } from './widget-defaults.js';
+import { makeLayout, cleanChildProps } from './layouts/index.js';
 
 /** The classes the designer offers: every widget class but the singletons (the Viewport, the Board, the Canvas and the Physics). */
 export const PALETTE = WIDGET_CLASSES.map((c) => c.name).filter((n) => !['Viewport', 'Board', 'Canvas', 'Physics'].includes(n)).sort((a, b) => a.localeCompare(b));
 
-const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar']);
+const LIST_CONTAINERS = new Set(['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack']);
 const SPLITS = new Set(['HSplitPanel', 'VSplitPanel']);
+
+/** The layout of a Composite node: its name ('basic' when none is saved). */
+export const layoutOf = (node) => node.layout ?? 'basic';
+
+/** True when node holds its children as a plain list. */
+export const isList = (node) => LIST_CONTAINERS.has(node.class);
+
+/**
+ * True when node places its children where each one's box says (a Panel, or a
+ * Composite with a basic or canvas layout): they have a left and a top of
+ * their own, and can be dragged.
+ */
+export const isFreeParent = (node) => node.class === 'Panel'
+  || (node.class === 'Composite' && ['basic', 'canvas'].includes(layoutOf(node)));
+
+/** True when node lays its children out along a row (so a drop goes to the left or right of a child). */
+export const isHorizontal = (node) => node.class === 'HPanel' || node.class === 'ButtonBar'
+  || (node.class === 'Composite' && ['hbox', 'flow'].includes(layoutOf(node)));
 
 /** A new node of a class, with the defaults a program's New would give it. */
 export function newNode(cls) {
@@ -313,6 +333,126 @@ const sidesField = (key, label) => ({
 
 const lines = (text) => String(text).split('\n').map((l) => l.replace(/\r$/, ''));
 
+// ---- layout fields: a Composite's layout and where a child sits in it
+
+/**
+ * A setting of a Composite's layout, kept in node.layoutOptions: the layout
+ * itself checks the value, and a value that is the layout's default is not
+ * kept. '' goes back to the default.
+ */
+function optionField(key, label, type) {
+  return {
+    key: `layoutOptions.${key}`, label, type,
+    get: (n) => n.layoutOptions?.[key] ?? makeLayout(layoutOf(n)).defaults[key] ?? '',
+    set: (n, v) => {
+      const layout = makeLayout(layoutOf(n));
+      const dflt = layout.defaults[key];
+      const value = type === 'number' ? (num(v) ?? dflt) : type === 'bool' ? Boolean(v) : (blank(v) ? dflt : String(v).trim().toLowerCase());
+      layout.set(key, value);
+      const options = { ...(n.layoutOptions ?? {}) };
+      if (layout.options[key] === dflt) delete options[key]; else options[key] = layout.options[key];
+      if (Object.keys(options).length) n.layoutOptions = options; else delete n.layoutOptions;
+    },
+  };
+}
+
+/** A grid's columns or rows: one line each, `index flex=1 size=80 min=20 max=200`. */
+const tracksField = (axis) => ({
+  key: `layoutOptions.${axis}s`, label: `${axis[0].toUpperCase()}${axis.slice(1)}s: index flex= size= min= max= (one a line)`, type: 'lines',
+  get: (n) => Object.entries(n.layoutOptions?.[`${axis}s`] ?? {})
+    .map(([i, t]) => `${i} ${Object.entries(t).map(([k, x]) => `${k}=${x}`).join(' ')}`).join('\n'),
+  set: (n, v) => {
+    const layout = makeLayout(layoutOf(n));
+    for (const line of lines(v).map((l) => l.trim()).filter(Boolean)) {
+      const [index, ...pairs] = line.split(/\s+/);
+      for (const pair of pairs) {
+        const [k, x] = pair.split('=');
+        layout.setTrack(axis, Number(index), k, Number(x));
+      }
+    }
+    const options = { ...(n.layoutOptions ?? {}) };
+    if (Object.keys(layout[`${axis}s`]).length) options[`${axis}s`] = layout[`${axis}s`]; else delete options[`${axis}s`];
+    if (Object.keys(options).length) n.layoutOptions = options; else delete n.layoutOptions;
+  },
+});
+
+/** Which layout a Composite uses; changing it drops the settings of the old one. */
+const layoutField = {
+  key: 'layout', label: 'Layout', type: 'text',
+  get: (n) => layoutOf(n),
+  set: (n, v) => {
+    const name = String(v).trim().toLowerCase() || 'basic';
+    makeLayout(name);   // says which layouts there are, when there is none of this name
+    if (name === layoutOf(n)) return;
+    if (name === 'basic') delete n.layout; else n.layout = name;
+    delete n.layoutOptions;
+  },
+};
+
+/** A widget's own setting in its parent's layout, kept in node.layoutProps; '' clears it. */
+function childField(key, label, type, dflt) {
+  return {
+    key: `layoutProps.${key}`, label, type,
+    get: (n) => n.layoutProps?.[key] ?? dflt ?? '',
+    set: (n, v) => {
+      const next = { ...(n.layoutProps ?? {}) };
+      const value = blank(v) ? undefined : cleanChildProps({ [key]: type === 'number' ? Number(v) : String(v).trim().toLowerCase() })[key];
+      if (value === undefined || value === dflt) delete next[key]; else next[key] = value;
+      if (Object.keys(next).length) n.layoutProps = next; else delete n.layoutProps;
+    },
+  };
+}
+
+/** The canvas edges and size of a child: six lengths separated by commas. */
+const canvasField = {
+  key: 'layoutProps.canvas', label: 'Edges (left, top, right, bottom, width, height)', type: 'text',
+  get: (n) => (n.layoutProps?.canvas ?? []).join(', '),
+  set: (n, v) => {
+    const next = { ...(n.layoutProps ?? {}) };
+    if (blank(v)) delete next.canvas;
+    else {
+      const parts = String(v).split(',').map((x) => x.trim());
+      const clean = cleanChildProps({ canvas: parts }).canvas;
+      if (clean.every((x) => x === '')) delete next.canvas; else next.canvas = clean;
+    }
+    if (Object.keys(next).length) n.layoutProps = next; else delete n.layoutProps;
+  },
+};
+
+const LAYOUT_OPTION_FIELDS = {
+  spacing: optionField('spacing', 'Spacing', 'number'),
+  spacingX: optionField('spacingX', 'Spacing across', 'number'),
+  spacingY: optionField('spacingY', 'Spacing down', 'number'),
+  alignX: optionField('alignX', 'Align the group (left, center, right)', 'text'),
+  alignY: optionField('alignY', 'Align the group (top, middle, bottom)', 'text'),
+  reversed: optionField('reversed', 'Reversed', 'bool'),
+};
+
+/** The fields for a Composite's layout settings: its layout, then that layout's settings. */
+function layoutFields(node) {
+  const layout = makeLayout(layoutOf(node));
+  const own = Object.keys(layout.defaults).map((key) => LAYOUT_OPTION_FIELDS[key]);
+  return [layoutField, ...own, ...(layout.kind === 'grid' ? [tracksField('column'), tracksField('row')] : [])];
+}
+
+/** The fields for a widget's place in its parent Composite's layout. */
+function placeFields(parent) {
+  const kind = layoutOf(parent);
+  const align = { x: childField('alignX', 'Align across (left, center, right)', 'text'), y: childField('alignY', 'Align across (top, middle, bottom)', 'text') };
+  switch (kind) {
+    case 'dock': return [childField('edge', 'Edge (north, south, west, east, center)', 'text')];
+    case 'grid': return [
+      childField('row', 'Row', 'number', 0), childField('column', 'Column', 'number', 0),
+      childField('rowSpan', 'Rows covered', 'number', 1), childField('columnSpan', 'Columns covered', 'number', 1),
+      align.x, align.y,
+    ];
+    case 'hbox': case 'flow': return [align.y];
+    case 'vbox': return [align.x];
+    case 'canvas': return [canvasField];
+    default: return [];
+  }
+}
+
 const FIELDS = {
   id: prop('id', 'Id', 'text'),
   text: prop('text', 'Text', 'text', ''),
@@ -402,8 +542,8 @@ export function eventsOf(cls) {
 // are placed by its box (a border pushes them in), but only a row, a column, a
 // Label or a Button have padding. A shape's outline is its border (see above).
 const NO_MARGIN = new Set(['Window', 'Spacer']);
-const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel']);
-const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel']);
+const BORDERED = new Set(['Label', 'Button', 'TextPanel', 'ListPanel', 'Panel', 'HPanel', 'VPanel', 'Composite', 'Stack']);
+const PADDED = new Set(['Label', 'Button', 'HPanel', 'VPanel', 'Composite', 'Stack']);
 
 function boxFields(cls) {
   const f = FIELDS;
@@ -426,16 +566,22 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     Ellipse: [f.borderWidth, f.outlineColor], RoundedRect: [f.borderWidth, f.outlineColor, f.radius],
     HSplitPanel: [f.position], VSplitPanel: [f.position],
     TabPanel: [f.tabLabels, f.selected],
+    Stack: [f.selected],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];
   if (cls === 'Window') {
     groups.push(['Place', [f.winLeft, f.winTop, f.winWidth, f.winHeight]]);
   } else {
-    const free = isRoot || !parent || parent.class === 'Panel';
+    const free = isRoot || !parent || isFreeParent(parent);
     groups.push(['Place', free
       ? [f.left, f.top, f.width, f.height, f.fill]
       : [f.width, f.height, f.flex]]);
+  }
+  if (cls === 'Composite') groups.push([`Layout (${layoutOf(node)})`, layoutFields(node)]);
+  if (cls !== 'Window' && parent?.class === 'Composite') {
+    const place = placeFields(parent);
+    if (place.length) groups.push([`In the ${layoutOf(parent)} layout`, place]);
   }
   const box = boxFields(cls);
   if (box.length) groups.push(['Box (margin, border, padding)', box]);
@@ -498,6 +644,6 @@ export function pasteNode(root, selected, copied) {
   const index = after && list ? list.indexOf(after) + 1 : undefined;
   const problem = insertChild(parent, node, index);
   if (problem) return { problem };
-  if (parent.class === 'Panel' && node.box) { node.box[0] += 12; node.box[1] += 12; }
+  if (isFreeParent(parent) && node.box) { node.box[0] += 12; node.box[1] += 12; }
   return { node };
 }

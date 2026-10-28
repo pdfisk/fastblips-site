@@ -1,5 +1,5 @@
 // DesignerCodeWindow: the program that builds the design in the Designer, in
-// Basic or Python. It follows the design as it is edited. Copy puts the
+// Python. It follows the design as it is edited. Copy puts the
 // program on the clipboard; Save as script keeps it in the user's space (and,
 // for a script made here before, rebuilds only its layout section: the code
 // written around it is kept). The generator is ../designer-codegen.js.
@@ -19,14 +19,14 @@ function savedLanguage() {
     const id = globalThis.localStorage?.getItem(STORAGE_KEY);
     if (id in LANGUAGES) return id;
   } catch { /* storage blocked */ }
-  return 'basic';
+  return 'python';
 }
 
 export class DesignerCodeWindow extends Window {
   /**
    * @param {object} options
    * @param {object} options.designer - the DesignerWindow whose design this shows
-   * @param {'basic'|'python'} [options.language] - the language to start in (else the last one used)
+   * @param {'python'} [options.language] - the language to start in (else the last one used)
    * @param {object} [options.store] - the scripts store for Save as script (tests); the user's space by default
    */
   constructor({ designer, language, store, ...options } = {}) {

@@ -22,7 +22,9 @@ import { GridPanel } from '../widgets/grid-panel.js';
 import { TabPanel } from '../widgets/tab-panel.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { ListPanel } from '../widgets/list-panel.js';
-import { allProjectStore, libraryProjects, projectScript, scriptLabel, projectDetails } from '../projects.js';
+import {
+  allProjectStore, scriptStore, libraryProjects, projectScriptFor, scriptLabel, projectDetails, withScripts,
+} from '../projects.js';
 import { RUN_TABLES } from '../run-app.js';
 import { CopyProjectWindow } from './copy-project-window.js';
 import { spaceName, userName } from '../db-client.js';
@@ -62,7 +64,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
 
   /**
    * @param {{list?: () => Promise<object[]>, get?: (id: number) => Promise<object>}} [options] -
-   *   how the projects are read (tests): all of them, and one with its scripts' snapshots
+   *   how the projects are read (tests): all of them, and one with its scripts read (see withScripts)
    */
   constructor({ list, get } = {}) {
     if (instance) throw new Error('CommunityProjectsWindow is a singleton; use CommunityProjectsWindow.instance');
@@ -70,7 +72,8 @@ export class CommunityProjectsWindow extends HSplitWindow {
     instance = this;
     this.element.classList.add('cr-libraries-window');
     this._read = list ?? (() => allProjectStore().list());
-    this._get = get ?? ((id) => allProjectStore().get(id));
+    // A project with its scripts as records (withScripts): they are found by their "owner/name".
+    this._get = get ?? (async (id) => withScripts(await allProjectStore().get(id), await scriptStore().list()));
     this._languages = Object.fromEntries(RUN_TABLES);
     this.projects = [];
     this._loading = null;
@@ -91,7 +94,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     this.tabs.addTab('Source', this.sourcePanel);
     this.left = this.grid;
     this.right = this.tabs;
-    this.full = null;          // the selected project with its scripts' snapshots, once read
+    this.full = null;          // the selected project with its scripts read, once read
     this._detailToken = 0;
     this.scriptsPanel.element.addEventListener('select', () => this._showSource());
     // As in a console: Launch > Desktop, Mobile or Web.
@@ -187,7 +190,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     }
     let full;
     try {
-      full = await this._get(project.id);   // with the scripts' snapshots
+      full = await this._get(project.id);   // with its scripts read
     } catch (e) {
       Toast.show(this.parent, { kind: 'error', message: `Cannot read the project: ${e.message}` });
       return null;
@@ -201,7 +204,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
   }
 
   // Fills the tabs for the selected project (or empties them), and reads the
-  // project with its scripts' snapshots for the Source tab. Unless force is
+  // project with its scripts read for the Source tab. Unless force is
   // set, nothing is done when the project shown is still the selected one.
   _syncDetail(force = false) {
     const project = this.selectedProject;
@@ -212,8 +215,8 @@ export class CommunityProjectsWindow extends HSplitWindow {
     this.full = null;
     this.detailsPanel.text = project ? projectDetails(project, projectUpdated(project)) : '';
     this.scriptsPanel.emptyText = project ? 'This project has no scripts' : 'No project selected';
-    this.scriptsPanel.items = (project?.scripts ?? []).map((s) => ({
-      value: s.id, label: scriptLabel(projectScript(s), project.owner ?? ''),
+    this.scriptsPanel.items = (project?.scripts ?? []).map((ref) => ({
+      value: ref, label: scriptLabel(projectScriptFor(ref, []), project.owner ?? ''),
     }));
     this.scriptsPanel.select(this.scriptsPanel.items.length ? 0 : -1);
     this._showSource();
@@ -228,7 +231,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
   _showSource() {
     const item = this.scriptsPanel.selectedItem;
     if (!item) { this.sourcePanel.text = ''; return; }
-    const script = this.full?.scripts?.find((s) => s.id === item.value);
+    const script = this.full?.scripts?.find((s) => s.ref === item.value);
     this.sourcePanel.text = !this.full ? 'Loading...' : script?.content ?? '';
   }
 

@@ -1,13 +1,12 @@
 // src/ui/physics.js (the engine of the Physics class), its binding to the
 // Physics tab (PhysicsBinding in src/ui/board-host.js), and the physics
-// examples run in both languages against a world with no screen.
+// examples against a world with no screen.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { compile } from '../src/index.js';
 import { compile as compilePython } from '../src/vm/compiler/python/loader.js';
 import { VM } from '../src/vm/vm.js';
 import { WidgetError } from '../src/vm/runtime/widgets.js';
@@ -255,13 +254,8 @@ function physicsHost() {
 
 function load(file) {
   const source = readFileSync(join(examples, file), 'utf8');
-  if (file.endsWith('.py')) {
-    const { chunk, loadErrors } = compilePython(source, { filename: file });
-    assert.ok(chunk, JSON.stringify(loadErrors));
-    return chunk;
-  }
-  const { chunk, errors } = compile(source, { filename: file });
-  assert.deepEqual(errors.map((e) => e.message), []);
+  const { chunk, loadErrors } = compilePython(source, { filename: file });
+  assert.ok(chunk, JSON.stringify(loadErrors));
   return chunk;
 }
 
@@ -280,7 +274,7 @@ const EXAMPLES = {
 };
 
 for (const [name, [shapes, adds]] of Object.entries(EXAMPLES)) {
-  for (const ext of ['bas', 'py']) {
+  for (const ext of ['py']) {
     test(`${name}.${ext} makes ${shapes} shapes, handles a click and keeps them in the world`, () => {
       const host = physicsHost();
       const out = [];
@@ -404,23 +398,23 @@ test('a fixed spinning group pushes a ball and stays put', () => {
 test('the Physics binding drives composites and animations', () => {
   const host = physicsHost();
   const out = [];
-  const src = `Dim w = New Physics()
-Dim a = w.addBall(100, 100, 10)
-Dim b = w.addBall(140, 100, 10)
-Dim g = w.combine(a, b)
-Print w.getPartCount(g)
-Print w.getGroup(a) = g
-w.scaleTo(g, 2, 1)
-w.moveTo(g, 200, 200, 1)
+  const src = `w = Physics()
+a = w.add_ball(100, 100, 10)
+b = w.add_ball(140, 100, 10)
+g = w.combine(a, b)
+print(w.get_part_count(g))
+print(w.get_group(a) == g)
+w.scale_to(g, 2, 1)
+w.move_to(g, 200, 200, 1)
 w.oscillate(g, 10, 0, 0, 2)
-Print w.isAnimating(g)
-w.stopAnimation(g)
-Print w.isAnimating(g)
+print(w.is_animating(g))
+w.stop_animation(g)
+print(w.is_animating(g))
 w.detach(b)
-Print w.getPartCount(g)
+print(w.get_part_count(g))
 `;
-  const { chunk, errors } = compile(src, { filename: 'composites.bas' });
-  assert.deepEqual(errors.map((e) => e.message), []);
+  const { chunk, loadErrors } = compilePython(src, { filename: 'composites.py' });
+  assert.deepEqual(loadErrors, []);
   const vm = new VM(chunk, { gui: host, out: (t) => out.push(t.trim()) });
   settle(vm);
   assert.deepEqual(out, ['2', 'True', 'True', 'False', '1']);
@@ -429,7 +423,7 @@ Print w.getPartCount(g)
 // ------------------------------------------------------------ launch screens
 
 // A launch window's screen has a Physics page of its own (AppScreen's
-// physicsPanel), which a program's New Physics() shows.
+// physicsPanel), which a program's Physics() shows.
 function screenHost(withPhysics = true) {
   const layer = { id: '', children: [], element: { style: {} }, add() {}, remove() {}, layout() {} };
   const panel = { ...fakePanel(), visible: false };
@@ -437,7 +431,7 @@ function screenHost(withPhysics = true) {
   return { panel, host: new ProgramWidgetHost(layer, withPhysics ? { physics: panel } : {}) };
 }
 
-test('on a launch screen, New Physics() shows the screen\'s Physics page with a new world', () => {
+test('on a launch screen, Physics() shows the screen\'s Physics page with a new world', () => {
   const { panel, host } = screenHost();
   const id = host.create('Physics', []);
   assert.equal(panel.visible, true);
@@ -460,7 +454,7 @@ test('a screen without a Physics page says so', () => {
   assert.throws(() => host.create('Physics', []), { name: 'WidgetError', message: /no Physics on this screen/ });
 });
 
-for (const file of ['physics-composites.bas', 'physics-composites.py', 'physics-balls.bas', 'physics-balls.py']) {
+for (const file of ['physics-composites.py', 'physics-balls.py']) {
   test(`${file} runs on a launch screen and fills its Physics page`, () => {
     const { panel, host } = screenHost();
     const out = [];

@@ -2,7 +2,7 @@
 // server (rails/server) - the projects of the page's space listed on the
 // left (only those with an owner), the selected one edited on the right:
 // its name, its description and its scripts, in order. Add puts a script in
-// it, chosen from the user's own and those others have shared; Edit opens the
+// it, chosen from the user's own and those in the shared space; Edit opens the
 // selected one in an edit window; Remove takes it out; Up and Down move it. Projects can be created, edited
 // and deleted. Opened from the Navbar's My Projects button.
 
@@ -16,12 +16,11 @@ import { Separator } from '../widgets/separator.js';
 import { ScriptPickerWindow } from './script-picker-window.js';
 import { ScriptEditWindow } from './script-edit-window.js';
 import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
-import { BasicConsoleWindow } from './basic-console-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
-import { projectStore, scriptStore, byName, projectScript, availableScripts, sameList } from '../projects.js';
+import { projectStore, scriptStore, byName, projectScriptFor, findScript, availableScripts, sameList } from '../projects.js';
 
 // The console class that compiles and runs a script, by the language it is saved with.
-const LANGUAGES = { basic: BasicConsoleWindow, python: PythonConsoleWindow };
+const LANGUAGES = { python: PythonConsoleWindow };
 
 let instance = null;
 
@@ -36,7 +35,7 @@ export class ProjectsWindow extends HSplitWindow {
    * @param {object} options - Window options, plus `store` and `scripts`:
    *   the SourceStores for projects (the page's space on the server in use,
    *   by default) and for scripts (every space: Add offers the user's own
-   *   and the ones others have shared).
+   *   and the ones in the shared space).
    */
   constructor({ store, scripts, ...options } = {}) {
     super({
@@ -110,8 +109,8 @@ export class ProjectsWindow extends HSplitWindow {
     this.updateButtons();
   }
 
-  /** The ids of the scripts in the project as it was last saved, in order. */
-  get savedIds() { return (this.current?.scripts ?? []).map((s) => s.id); }
+  /** The "owner/name" references of the scripts in the project as it was last saved, in order. */
+  get savedRefs() { return [...(this.current?.scripts ?? [])]; }
 
   /** True when the project being edited has changes that are not saved. */
   get dirty() {
@@ -119,7 +118,7 @@ export class ProjectsWindow extends HSplitWindow {
     return this.projectPanel.name !== (this.current.name ?? '')
       || this.projectPanel.description !== (this.current.description ?? '')
       || this.projectPanel.shared !== Boolean(this.current.shared)
-      || !sameList(this.projectPanel.ids, this.savedIds);
+      || !sameList(this.projectPanel.refs, this.savedRefs);
   }
 
   open(viewport) {
@@ -184,11 +183,11 @@ export class ProjectsWindow extends HSplitWindow {
   /** The space the project being edited is in: a user name, '' for shared. */
   get space() { return this.store.space ?? ''; }
 
-  /** Opens the picker to add a script to the project: the user's own or another user's shared one. */
+  /** Opens the picker to add a script to the project: the user's own or one in the shared space. */
   addScript() {
     if (!this.current) return;
     this.picker?.close();
-    const scripts = availableScripts(this.scripts, this.projectPanel.ids, this.space);
+    const scripts = availableScripts(this.scripts, this.projectPanel.refs, this.space);
     const picker = new ScriptPickerWindow({
       scripts,
       space: this.space,
@@ -206,9 +205,12 @@ export class ProjectsWindow extends HSplitWindow {
 
   /** Opens the selected script in an edit window (one per script). */
   editScript() {
-    console.log('editScript');
     const script = this.projectPanel.selectedScript;
     if (!script) return null;
+    if (script.id === undefined) {
+      this.setStatus(`There is no script "${script.ref}": remove it from the project`, 'error');
+      return null;
+    }
     const open = this.editors.get(script.id);
     if (open) return open.open(this.parent);
     const language = this.scripts.find((s) => s.id === script.id)?.language
@@ -245,17 +247,16 @@ export class ProjectsWindow extends HSplitWindow {
   launch(target) {
     if (target === 'web') {
       const name = this.current?.id == null ? '' : String(this.current.name ?? '').trim();
-      if (!name || this.savedIds.length === 0) {
+      if (!name || this.savedRefs.length === 0) {
         this.setStatus('Save the project first: Web runs the saved project', 'error');
         return null;
       }
       return launchWeb(name, this.current.owner ?? this.space, { project: true });
     }
-    const records = new Map(this.scripts.map((s) => [s.id, s]));
     const programs = [];
     let missing = 0;
-    for (const id of this.projectPanel.ids) {
-      const record = records.get(id);
+    for (const ref of this.projectPanel.refs) {
+      const record = findScript(ref, this.scripts);
       const language = LANGUAGES[record?.language];
       if (!record || !language) { missing += 1; continue; }
       programs.push({
@@ -294,7 +295,7 @@ export class ProjectsWindow extends HSplitWindow {
     }
     const fields = {
       name, description: this.projectPanel.description, shared: this.projectPanel.shared,
-      script_ids: this.projectPanel.ids,
+      scripts: this.projectPanel.refs,
     };
     this.setStatus('Saving…');
     try {
@@ -305,7 +306,7 @@ export class ProjectsWindow extends HSplitWindow {
       this.projectPanel.name = saved.name ?? '';
       this.projectPanel.description = saved.description ?? '';
       this.projectPanel.shared = Boolean(saved.shared);
-      this.projectPanel.scripts = (saved.scripts ?? []).map(projectScript);
+      this.projectPanel.scripts = (saved.scripts ?? []).map((ref) => projectScriptFor(ref, this.scripts));
       await this.refresh();
       this._selectId(saved.id);
       const n = (saved.scripts ?? []).length;
@@ -363,7 +364,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.projectPanel.description = project?.description ?? '';
     this.projectPanel.shared = Boolean(project?.shared);
     this.projectPanel.space = this.space;
-    this.projectPanel.scripts = project ? (project.scripts ?? []).map(projectScript) : [];
+    this.projectPanel.scripts = project ? (project.scripts ?? []).map((ref) => projectScriptFor(ref, this.scripts)) : [];
     this.projectPanel.enabled = Boolean(project);
     this.projectPanel.caption = !project ? ''
       : project.id == null ? 'new project'

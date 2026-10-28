@@ -1,7 +1,7 @@
 {
   "name": "crumb-lang",
   "version": "0.1.0",
-  "description": "Crumb v0.1 and MiniPy: two front ends, one bytecode and VM",
+  "description": "MiniPy (a Python subset): front end, bytecode and VM. The Basic (Crumb) front end is archived.",
   "type": "module",
   "main": "src/index.js",
   "bin": {
@@ -9,13 +9,9 @@
   },
   "exports": {
     ".": "./src/index.js",
-    "./lexer": "./src/vm/compiler/basic/lexer.js",
-    "./parser": "./src/vm/compiler/basic/parser.js",
-    "./compiler": "./src/vm/compiler/basic/compiler.js",
     "./vm": "./src/vm/vm.js",
     "./opcodes": "./src/vm/opcodes.js",
-    "./python": "./src/vm/compiler/python/loader.js",
-    "./loader": "./src/vm/compiler/basic/loader.js"
+    "./python": "./src/vm/compiler/python/loader.js"
   },
   "scripts": {
     "test": "node --test \"test/*.test.js\"",

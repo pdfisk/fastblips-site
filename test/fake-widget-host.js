@@ -219,7 +219,10 @@ export class FakeHost {
     }
     switch (method) {
       case 'setBounds': [w.props.left, w.props.top, w.props.width, w.props.height] = args; return undefined;
-      case 'add': this.adopt(w, args[0]); return undefined;
+      case 'add':
+        this.adopt(w, args[0]);
+        if (w.className === 'Stack' && w.selected < 0) w.selected = 0;   // the first page is showing
+        return undefined;
       case 'addTab': this.adopt(w, args[1]); w.items.push(args[0]); if (w.selected < 0) w.selected = 0; return undefined;
       case 'setContent': case 'setFirst': case 'setSecond':
         this.adopt(w, args[0]); w.props[method.slice(3).toLowerCase()] = args[0]; return undefined;
@@ -270,8 +273,13 @@ export class FakeHost {
       case 'removeItem': this.checkIndex(w, args[0], w.items.length); w.items.splice(args[0], 1); return undefined;
       case 'setItem': this.checkIndex(w, args[0], w.items.length); w.items[args[0]] = args[1]; return undefined;
       case 'getItem': this.checkIndex(w, args[0], w.items.length); return w.items[args[0]];
+      case 'selectNext': case 'selectPrevious': {
+        const n = w.children.length;
+        if (n) this.call(id, 'select', [(w.selected + (method === 'selectNext' ? 1 : n - 1)) % n]);
+        return undefined;
+      }
       case 'select':
-        if (args[0] !== -1) this.checkIndex(w, args[0], w.items.length);
+        if (args[0] !== -1) this.checkIndex(w, args[0], w.className === 'Stack' ? w.children.length : w.items.length);
         w.selected = args[0];
         this.fire(id, 'select', args[0]);
         return undefined;

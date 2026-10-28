@@ -21,6 +21,8 @@ export const DEFAULT_BOXES = Object.freeze({
   ListPanel: [0, 0, 160, 160],
   Ellipse: [0, 0, 120, 80],
   RoundedRect: [0, 0, 120, 80],
+  Composite: [0, 0, 320, 200],
+  Stack: [0, 0, 320, 200],
 });
 
 /** A new Window's bounds (x, y, width, height). */

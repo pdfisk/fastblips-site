@@ -9,7 +9,7 @@ export class ProgramRunner {
   /**
    * @param {object} options
    * @param {Function|null} options.language - the ConsoleWindow class whose
-   *   static spawn() compiles and runs the source (BasicConsoleWindow or
+   *   static spawn() compiles and runs the source (
    *   PythonConsoleWindow); null runs nothing.
    * @param {string} options.source - the program
    * @param {import('./widgets/text-panel.js').TextPanel} [options.output]

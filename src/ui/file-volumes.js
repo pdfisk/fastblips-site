@@ -8,8 +8,8 @@
 //                    Chrome or Edge, or the browser's private file system,
 //                    which every modern browser has). It has folders.
 //   DatabaseVolume   the scripts in one space (a user's, or the shared one) of
-//                    a database server, local or remote. A Basic script is
-//                    listed as name.bas and a Python one as name.py. It has
+//                    a database server, local or remote. A Python script is
+//                    listed as name.py (scripts in any other language are not listed). It has
 //                    no folders.
 //
 // Every volume has the same methods, all asynchronous. A path is an array of
@@ -28,9 +28,9 @@ import { SourceStore, REMOTE_SERVER_URL, LOCAL_SERVER_URL, spaceName } from './d
 
 // ---------------------------------------------------------------- names
 
-const LANGUAGE_EXTENSIONS = { basic: ['.bas'], python: ['.py'] };
+const LANGUAGE_EXTENSIONS = { python: ['.py'] };
 
-/** The language a file name stands for ('basic' or 'python'), or null for any other kind of file. */
+/** The language a file name stands for ('python'), or null for any other kind of file. */
 export function languageOf(fileName) {
   const lower = String(fileName).toLowerCase();
   for (const [language, extensions] of Object.entries(LANGUAGE_EXTENSIONS)) {
@@ -39,16 +39,16 @@ export function languageOf(fileName) {
   return null;
 }
 
-/** The name without a .bas or .py extension. */
+/** The name without a .py extension. */
 export function stripExtension(fileName) {
   const name = String(fileName);
   return languageOf(name) ? name.slice(0, name.lastIndexOf('.')) : name;
 }
 
-/** The file name of a script: its name, with .bas or .py added unless it has the language's extension already. */
+/** The file name of a script: its name, with .py added unless it has the language's extension already. */
 export function scriptFileName(script) {
   const name = String(script.name ?? '');
-  const language = script.language === 'python' ? 'python' : 'basic';
+  const language = 'python';
   return languageOf(name) === language ? name : `${name}${LANGUAGE_EXTENSIONS[language][0]}`;
 }
 
@@ -135,7 +135,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true });
 export class DatabaseVolume {
   /**
    * @param {SourceStore} store - the scripts of one space of one server, in
-   *   both languages (resource 'scripts'; see db-client.js)
+   *   (resource 'scripts'; see db-client.js)
    * @param {{id?: string, label?: string|(() => string)}} [options]
    */
   constructor(store, { id = 'db', label = 'Database' } = {}) {
@@ -148,7 +148,7 @@ export class DatabaseVolume {
   get label() { return typeof this._label === 'function' ? this._label() : this._label; }
 
   async list() {
-    const records = await this.store.list();
+    const records = (await this.store.list()).filter((r) => r.language === 'python');
     return sortEntries(records.map((r) => ({
       name: scriptFileName(r),
       dir: false,
@@ -172,7 +172,7 @@ export class DatabaseVolume {
 
   async write(path, name, bytes) {
     const language = languageOf(name);
-    if (!language) throw new Error('a database keeps only scripts: .bas and .py files');
+    if (!language) throw new Error('a database keeps only scripts: .py files');
     let content;
     try { content = decoder.decode(bytes); } catch { throw new Error('it is not a text file, so a database cannot keep it'); }
     const records = await this.store.list();
@@ -184,7 +184,7 @@ export class DatabaseVolume {
     }
     // A user's space allows one script to a name, whatever the language.
     const clash = this.store.space ? records.find((r) => same(r.name, stored)) : null;
-    if (clash) throw new Error(`there is already a ${clash.language === 'python' ? 'Python' : 'Basic'} script called ${clash.name}`);
+    if (clash) throw new Error(`there is already a ${clash.language === 'python' ? 'Python' : clash.language} script called ${clash.name}`);
     await this.store.create({ name: stored, content, language });
   }
 
@@ -203,12 +203,12 @@ export function databaseVolumes({ fetch: fetchFn, remoteUrl = REMOTE_SERVER_URL,
     new SourceStore({ resource: 'scripts', key: 'script', owner: space, baseUrl: url, fetch: fetchFn }),
     { id, label });
   const mine = () => spaceName();
-  const title = (server) => () => `${server} database: ${spaceName() ? `${spaceName()}'s scripts` : 'shared scripts'}`;
+  const title = (server) => () => `${server} database: ${spaceName() ? `${spaceName()}'s scripts` : 'shared projects'}`;
   return [
     make('remote-mine', 'Remote', remoteUrl, mine, title('Remote')),
-    make('remote-shared', 'Remote', remoteUrl, '', 'Remote database: shared scripts'),
+    make('remote-shared', 'Remote', remoteUrl, '', 'Remote database: shared projects'),
     make('local-mine', 'Local', localUrl, mine, title('Local')),
-    make('local-shared', 'Local', localUrl, '', 'Local database: shared scripts'),
+    make('local-shared', 'Local', localUrl, '', 'Local database: shared projects'),
   ];
 }
 

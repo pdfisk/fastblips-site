@@ -3,24 +3,26 @@
 // Projects window that needs no DOM, so it also runs (and is tested) under
 // Node.
 //
-// A project record is { id, name, description, owner, scripts }, where
-// scripts is [{ id, name, language, owner, shared }] in the project's order.
-// A script can be in any number of projects. It can be one of the user's
-// own, one that another user has shared, or one in the shared space. Saving
-// a project with script_ids makes those its scripts, in that order.
+// A project record is { id, name, description, owner, shared, scripts }, where
+// scripts is a list of "<owner>/<name>" strings in the project's order, kept
+// in the project's own record (there are no foreign keys: a name may be of a
+// script that has gone). "/name" is a script in the shared space. A script can
+// be in any number of projects. It can be one of the user's own or one in the
+// shared space. Saving a project with scripts makes those its scripts, in that
+// order.
 
 import { SourceStore, spaceName } from './db-client.js';
 
 /** The projects in the page's space. */
 export const PROJECTS = { resource: 'projects', key: 'project', owner: spaceName };
 
-/** The scripts in every space: the project's own and those others have shared. */
+/** The scripts in every space: the project's own and those in the shared space. */
 export const SCRIPTS = { resource: 'scripts', key: 'script' };
 
 export const projectStore = () => new SourceStore(PROJECTS);
 export const scriptStore = () => new SourceStore(SCRIPTS);
 
-const LANGUAGE_TITLES = { basic: 'Basic', python: 'Python' };
+const LANGUAGE_TITLES = { python: 'Python' };
 
 /** Records by name, ignoring case, then by id (the server gives them by id). */
 export function byName(records) {
@@ -28,14 +30,65 @@ export function byName(records) {
     .localeCompare(String(y.name ?? ''), undefined, { sensitivity: 'base' }) || x.id - y.id);
 }
 
-/** A project's script as { id, name, language, owner, shared }, language by title. */
+/** The "owner/name" reference of a script record ("/name" for one in the shared space). */
+export function scriptRef(script) {
+  return `${script.owner ?? ''}/${script.name ?? ''}`;
+}
+
+/** "owner/name" as { owner, name } (the owner may be ''), or null if it is not one. */
+export function splitScriptRef(ref) {
+  const text = String(ref ?? '');
+  const slash = text.indexOf('/');
+  if (slash < 0 || text.slice(slash + 1).trim() === '') return null;
+  return { owner: text.slice(0, slash).trim(), name: text.slice(slash + 1).trim() };
+}
+
+const refKey = (ref) => String(ref ?? '').trim().toLowerCase();
+
+/** The script record a reference names among records (ignoring case), or undefined. */
+export function findScript(ref, records) {
+  const key = refKey(ref);
+  return (records ?? []).find((s) => refKey(scriptRef(s)) === key);
+}
+
+/**
+ * A project's scripts, from its references and the script records of every
+ * space: [{ ref, script }] in order, where script is the record, or undefined
+ * for a script that has gone.
+ */
+export function resolveScripts(project, records) {
+  return (project?.scripts ?? []).map((ref) => ({ ref, script: findScript(ref, records) }));
+}
+
+/**
+ * The project with its scripts resolved to the script records (each with a
+ * `ref`), in order, those that have gone left out; `missing` counts them.
+ */
+export function withScripts(project, records) {
+  const resolved = resolveScripts(project, records);
+  return {
+    ...project,
+    scripts: resolved.filter((r) => r.script).map((r) => ({ ...r.script, ref: r.ref })),
+    missing: resolved.filter((r) => !r.script).length,
+  };
+}
+
+/** The entry of a project's list for a reference: projectScript() of the record, or a bare one if it has gone. */
+export function projectScriptFor(ref, records) {
+  const found = findScript(ref, records);
+  if (found) return projectScript(found);
+  const split = splitScriptRef(ref) ?? { owner: '', name: String(ref ?? '') };
+  return { ref, id: undefined, name: split.name, language: '', owner: split.owner, missing: true };
+}
+
+/** A project's script as { ref, id, name, language, owner }, language by title. */
 export function projectScript(script) {
   return {
+    ref: scriptRef(script),
     id: script.id,
     name: script.name ?? '',
     language: LANGUAGE_TITLES[script.language] ?? String(script.language ?? ''),
     owner: script.owner ?? '',
-    shared: Boolean(script.shared),
   };
 }
 
@@ -48,19 +101,18 @@ export function scriptLabel(script, space = '') {
 
 /**
  * The scripts that can be added to a project in a space, by name: the
- * space's own, those other users have shared and those in the shared space,
- * without the ones already in the project.
+ * space's own and those in the shared space, without the ones already in the project.
  * @param {object[]} scripts - script records, from every space
- * @param {number[]} inProject - ids of the scripts the project has
+ * @param {string[]} inProject - references ("owner/name") of the scripts the project has
  * @param {string} space - the project's space: a user name, '' for shared
  * @returns {object[]} projectScript()s
  */
 export function availableScripts(scripts, inProject, space = '') {
-  const have = new Set(inProject);
+  const have = new Set([...inProject].map(refKey));
   const mine = String(space ?? '').toLowerCase();
   return byName(scripts)
-    .filter((s) => !have.has(s.id))
-    .filter((s) => !s.owner || s.shared || String(s.owner).toLowerCase() === mine)
+    .filter((s) => !have.has(refKey(scriptRef(s))))
+    .filter((s) => !s.owner || String(s.owner).toLowerCase() === mine)
     .map(projectScript);
 }
 
@@ -121,12 +173,11 @@ export function uniqueName(name, taken) {
  * Copies a project into the space of the stores (the user's own: My
  * Projects), as a project of that user with their own copies of its scripts.
  * The scripts have to be copied too: a project can only list scripts that its
- * owner has or that are shared, and the author could change theirs. Each is
- * made from the snapshot the source holds (the scripts as the project was
- * last saved), keeping its name unless the user already has a script of that
+ * owner has or that are in the shared space, and the author could change theirs. Each is
+ * made from the scripts the source has (see withScripts), keeping its name unless the user already has a script of that
  * name, which then gets ' 2', ' 3'... added. If the project cannot be made,
  * the scripts made for it are removed again.
- * @param {object} source - a project with its snapshots (GET /projects/:id)
+ * @param {object} source - a project with its scripts resolved to records (see withScripts)
  * @param {{name?: string, projects: SourceStore, scripts: SourceStore}} options -
  *   name: the new project's name (the source's by default); projects and
  *   scripts: stores for the target space, the scripts one without a language
@@ -156,7 +207,7 @@ export async function copyProject(source, { name, projects, scripts }) {
       name: newName,
       description: source.description ?? '',
       shared: false,
-      script_ids: made.map((s) => s.id),
+      scripts: made.map((s) => scriptRef({ owner: s.owner ?? scripts.space ?? '', name: s.name })),
     });
     return { project, renamed };
   } catch (e) {

@@ -31,11 +31,11 @@ function installStyle() {
 
 // Every console, of any language, cascades from the same starting point.
 let opened = 0;
-// Each subclass numbers its own windows: Basic Console, Basic Console 2, ...
+// Each subclass numbers its own windows: Python Console, Python Console 2, ...
 const counts = new Map();
 
 export class ConsoleWindow extends HSplitWindow {
-  /** The title prefix, e.g. 'Basic Console'. Subclasses override. */
+  /** The title prefix, e.g. 'Python Console'. Subclasses override. */
   static get titlePrefix() { return 'Console'; }
 
   /**
@@ -52,7 +52,7 @@ export class ConsoleWindow extends HSplitWindow {
   /** The file types this console opens and saves. Subclasses override. */
   static get fileTypes() { return [{ description: 'Text', accept: { 'text/plain': ['.txt'] } }]; }
 
-  /** Extension for a new file's suggested name, e.g. '.bas'. */
+  /** Extension for a new file's suggested name, e.g. '.py'. */
   static get fileExtension() { return this.fileTypes[0].accept[Object.keys(this.fileTypes[0].accept)[0]][0]; }
 
   /** True if this console's language uses files with this name. */

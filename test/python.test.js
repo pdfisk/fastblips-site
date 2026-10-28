@@ -4,7 +4,6 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { run, compile } from '../src/vm/compiler/python/loader.js';
-import { compile as compileCrumb } from '../src/index.js';
 import { OP_INFO, SECTIONS, FORMAT } from '../src/vm/opcodes.js';
 import { NOTHING } from '../src/vm/values.js';
 import { VM } from '../src/vm/vm.js';
@@ -72,14 +71,6 @@ test('every opcode has a unique name, a section and known operand kinds', () => 
   assert.equal(SECTIONS.core.length + SECTIONS.crumb.length + SECTIONS.python.length, OP_INFO.length);
 });
 
-test('the Crumb compiler emits only core and crumb opcodes', () => {
-  const allowed = new Set([...SECTIONS.core, ...SECTIONS.crumb]);
-  for (const file of readdirSync(examples).filter((f) => f.endsWith('.bas') && f !== 'broken.bas')) {
-    const { chunk } = compileCrumb(readFileSync(join(examples, file), 'utf8'), { filename: file });
-    for (const name of opcodesOf(chunk)) assert.ok(allowed.has(name), `${file} uses ${name}`);
-  }
-});
-
 test('the MiniPy compiler emits only core and python opcodes', () => {
   const allowed = new Set([...SECTIONS.core, ...SECTIONS.python]);
   for (const file of readdirSync(corpus).filter((f) => f.endsWith('.py'))) {
@@ -88,24 +79,11 @@ test('the MiniPy compiler emits only core and python opcodes', () => {
   }
 });
 
-test('both languages lean on the same core opcodes', () => {
-  const crumb = opcodesOf(compileCrumb('Dim x = 1\nIf x = 1 Then\n  Print x\nEnd If\n').chunk);
-  const py = opcodesOf(compile('x = 1\nif x == 1:\n    print(x)\n').chunk);
-  for (const name of ['CONST', 'SET_GLOBAL', 'GET_GLOBAL', 'JUMP_IF_FALSE', 'PRINT', 'HALT']) {
-    assert.ok(crumb.has(name), `Crumb: ${name}`);
-    assert.ok(py.has(name), `MiniPy: ${name}`);
-  }
-});
-
 test('Nothing and None are one value; PRINT picks the formatter per instruction', () => {
   const { chunk } = compile('print(None, True, 2.0, 7)\n');
   const printAt = chunk.code.indexOf(OP_INFO.find((i) => i.name === 'PRINT').code);
   assert.equal(chunk.code[printAt + 2], FORMAT.PYTHON);
   assert.deepEqual(out('print(None, True, 2.0, 7)\n'), ['None True 2.0 7']);
-  const crumb = compileCrumb('Print Nothing, True, 2.0\n');
-  const lines = [];
-  new VM(crumb.chunk, { out: (t) => lines.push(t) }).run();
-  assert.deepEqual(lines, [' True 2']);
   assert.equal(NOTHING, null);
 });
 
@@ -224,21 +202,7 @@ test('MiniPy runs in slices: runSlice resumes where it stopped', () => {
   assert.deepEqual(lines, ['499500']);
 });
 
-test('Crumb and MiniPy processes take turns on one scheduler', async () => {
-  const lines = [];
-  let clock = 0;
-  const scheduler = new Scheduler({ quantum: 30, now: () => clock });
-  const crumb = compileCrumb('For i = 1 To 3\n  Print "crumb " & i\nNext\n').chunk;
-  const py = compile('for i in range(1, 4):\n    print("py", i)\n').chunk;
-  scheduler.spawn(crumb, { name: 'crumb', out: (t) => lines.push(t) });
-  scheduler.spawn(py, { name: 'py', out: (t) => lines.push(t) });
-  scheduler.runAll();
-  assert.deepEqual([...lines].sort(), ['crumb 1', 'crumb 2', 'crumb 3', 'py 1', 'py 2', 'py 3']);
-  // Interleaved, not one after the other.
-  assert.notDeepEqual(lines.slice(0, 3), ['crumb 1', 'crumb 2', 'crumb 3']);
-});
-
-test('sleep() parks a MiniPy process like Crumb Sleep', () => {
+test('sleep() parks a MiniPy process', () => {
   let clock = 0;
   const lines = [];
   const scheduler = new Scheduler({ quantum: 100, now: () => clock });

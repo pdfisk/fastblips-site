@@ -32,6 +32,9 @@ import { Button } from './widgets/button.js';
 import { Label } from './widgets/label.js';
 import { Menu } from './widgets/menu.js';
 import { Spacer } from './widgets/spacer.js';
+import { Composite } from './widgets/composite.js';
+import { Stack } from './widgets/stack.js';
+import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
 import { Window } from './windows/window.js';
 import { WidgetError, CLASS_BY_NAME } from '../vm/runtime/widgets.js';
@@ -216,6 +219,29 @@ const CLASSES = {
   ListPanel: { make: () => new ListPanel(), box: DEFAULT_BOXES.ListPanel },
   Ellipse: { make: () => new Ellipse(), box: DEFAULT_BOXES.Ellipse },
   RoundedRect: { make: () => new RoundedRect(), box: DEFAULT_BOXES.RoundedRect },
+  Composite: { make: () => new Composite(), box: DEFAULT_BOXES.Composite },
+  Stack: { make: () => new Stack(), box: DEFAULT_BOXES.Stack },
+};
+
+/** Container classes whose children are a plain list. */
+const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack'];
+
+/** Runs a layout operation, turning a LayoutError into the WidgetError a program sees. */
+function layoutCall(body) {
+  try {
+    return body();
+  } catch (err) {
+    if (err instanceof LayoutError) throw new WidgetError(err.message);
+    throw err;
+  }
+}
+
+/** Composite method -> [axis, setting] of a grid column or row. */
+const GRID_TRACKS = {
+  setColumnFlex: ['column', 'flex'], setRowFlex: ['row', 'flex'],
+  setColumnWidth: ['column', 'size'], setRowHeight: ['row', 'size'],
+  setColumnMinWidth: ['column', 'min'], setRowMinHeight: ['row', 'min'],
+  setColumnMaxWidth: ['column', 'max'], setRowMaxHeight: ['row', 'max'],
 };
 
 
@@ -484,6 +510,15 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         put('spacing', w.spacing, 0);
         break;
+      case 'Composite': {
+        put('layout', w.layoutName, 'basic');
+        const options = w.layoutManager.toJSON();
+        if (Object.keys(options).length) node.layoutOptions = options;
+        break;
+      }
+      case 'Stack':
+        put('selected', w.selectedIndex, 0);
+        break;
       case 'HSplitPanel': case 'VSplitPanel':
         node.position = w.position;
         node.first = w.first ? this._save(w.first) : null;
@@ -495,7 +530,7 @@ export class ProgramWidgetHost {
         break;
       default: break;
     }
-    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(cls)) {
+    if (LIST_CONTAINERS.includes(cls)) {
       node.children = w.children.map((c) => this._save(c));
     }
 
@@ -506,7 +541,9 @@ export class ProgramWidgetHost {
     }
     put('flex', w.flex ?? undefined, cls === 'Spacer' ? 1 : undefined);
     put('fill', w.fillParent ? true : undefined);
-    if (!(w.parent instanceof TabPanel)) put('visible', w.visible, true);   // tabs show their own page
+    if (w.layoutProps && Object.keys(w.layoutProps).length) node.layoutProps = JSON.parse(JSON.stringify(w.layoutProps));
+    // Tabs and a Stack show their own page.
+    if (!(w.parent instanceof TabPanel || w.parent instanceof Stack)) put('visible', w.visible, true);
     put('background', w._background || undefined);
     put('color', w._color || undefined);
     if (cls !== 'Window') {
@@ -639,6 +676,7 @@ export class ProgramWidgetHost {
     if (num(node.height) !== undefined) w.fixedHeight = node.height;
     if (num(node.flex) !== undefined) w.flex = node.flex;
     if (node.fill === true) w.fillParent = true;
+    if (node.layoutProps !== undefined) w.layoutProps = layoutCall(() => cleanChildProps(node.layoutProps));
     if (node.visible === false) w.visible = false;
     if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
     if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
@@ -684,6 +722,13 @@ export class ProgramWidgetHost {
       case 'HPanel': case 'VPanel':
         if (num(node.spacing) !== undefined) w.spacing = node.spacing;
         break;
+      case 'Composite':
+        w.layoutManager = layoutCall(() => {
+          const layout = makeLayout(node.layout ?? 'basic');
+          layout.load(node.layoutOptions);
+          return layout;
+        });
+        break;
       case 'HSplitPanel': case 'VSplitPanel':
         if (node.first) w.first = child(node.first);
         if (node.second) w.second = child(node.second);
@@ -695,8 +740,11 @@ export class ProgramWidgetHost {
         break;
       default: break;
     }
-    if (['Panel', 'HPanel', 'VPanel', 'ButtonBar'].includes(cls)) {
+    if (LIST_CONTAINERS.includes(cls)) {
       for (const n of node.children ?? []) w.add(child(n));
+    }
+    if (cls === 'Stack' && Number.isInteger(node.selected) && node.selected > 0 && node.selected < w.children.length) {
+      w.select(node.selected);
     }
     for (const event of node.events ?? []) {
       if (event?.handler) pending.push({ w, event: { method: String(event.method), handler: String(event.handler) } });
@@ -753,6 +801,9 @@ export class ProgramWidgetHost {
       // A box of four sides reads back as its top side; the sides themselves are set, not read.
       case 'getMargin': case 'getPadding': case 'getBorderWidth': return w[method.slice(3).replace(/^./, (c) => c.toLowerCase())][0];
       case 'getBorderColor': return w.borderColor;
+      case 'setEdge': case 'getEdge': case 'setCell': case 'getRow': case 'getColumn': case 'setSpan':
+      case 'getRowSpan': case 'getColumnSpan': case 'setAlign': case 'setCanvasBounds':
+        return this._layoutProp(w, method, args);
       case 'getParent': return this._idOf(w.parent);
       case 'remove': {
         const parent = w.parent;
@@ -805,17 +856,20 @@ export class ProgramWidgetHost {
       case 'Viewport.load': return fetchDoc(a, 'screen').then((doc) => { this._loadViewport(doc, b); });
       case 'Viewport.loadComposite': return this._loadComposite(a, b);
 
-      case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': {
+      case 'Panel.add': case 'HPanel.add': case 'VPanel.add': case 'ButtonBar.add': case 'Composite.add': case 'Stack.add': {
         const child = this._placeable(w, a);
         w.add(child);
         w.layout();
         return undefined;
       }
       case 'Panel.getCount': case 'HPanel.getCount': case 'VPanel.getCount': case 'ButtonBar.getCount':
+      case 'Composite.getCount': case 'Stack.getCount':
         return w.children.length;
       case 'Panel.getChild': case 'HPanel.getChild': case 'VPanel.getChild': case 'ButtonBar.getChild':
+      case 'Composite.getChild': case 'Stack.getChild':
         return this._idOf(w.children[this._index(a, w.children.length)]);
       case 'Panel.clear': case 'HPanel.clear': case 'VPanel.clear': case 'ButtonBar.clear':
+      case 'Composite.clear': case 'Stack.clear':
         for (const child of w.children) w.remove(child);
         w.layout();
         return undefined;
@@ -828,6 +882,19 @@ export class ProgramWidgetHost {
         w.add(button);
         return buttonId;
       }
+
+      // ---- Composite and Stack
+      case 'Composite.setLayout': w.layoutManager = layoutCall(() => makeLayout(a)); return undefined;
+      case 'Composite.getLayout': return w.layoutName;
+      case 'Composite.setSpacing': case 'Composite.setSpacingX': case 'Composite.setSpacingY':
+      case 'Composite.setContentAlign': case 'Composite.setReversed':
+        layoutCall(() => this._layoutOption(w.layoutManager, method, a, b));
+        w.layout();
+        return undefined;
+      case 'Stack.select': w.select(this._index(a, w.children.length)); return undefined;
+      case 'Stack.getSelectedIndex': return w.selectedIndex;
+      case 'Stack.selectNext': w.selectNext(); return undefined;
+      case 'Stack.selectPrevious': w.selectPrevious(); return undefined;
 
       // ---- split panels
       case 'HSplitPanel.setFirst': case 'VSplitPanel.setFirst': w.first = this._placeable(w, a); return undefined;
@@ -882,7 +949,86 @@ export class ProgramWidgetHost {
       case 'ListPanel.setEmptyText': w.emptyText = a; w.items = w.items; return undefined;
 
       default:
+        if (cls === 'Composite' && method in GRID_TRACKS) {
+          const layout = w.layoutManager;
+          if (layout.kind !== 'grid') throw new WidgetError(`the ${layout.kind} layout has no columns or rows: ${method} is for a grid`);
+          const [axis, key] = GRID_TRACKS[method];
+          layoutCall(() => layout.setTrack(axis, a, key, b));
+          w.layout();
+          return undefined;
+        }
         throw new WidgetError(`a ${cls} has no method '${method}'`);
+    }
+  }
+
+  /** The settings of a widget as a member of a Composite's layout (edge, cell, span, align, canvas bounds). */
+  _layoutProp(w, method, args) {
+    if (w instanceof Window) throw new WidgetError('a Window floats on the screen: it has no place in a layout');
+    const [a, b] = args;
+    const word = (v) => String(v).trim().toLowerCase();
+    const read = w.layoutProps ?? {};
+    switch (method) {
+      case 'getEdge': return read.edge ?? '';
+      case 'getRow': return read.row ?? 0;
+      case 'getColumn': return read.column ?? 0;
+      case 'getRowSpan': return read.rowSpan ?? 1;
+      case 'getColumnSpan': return read.columnSpan ?? 1;
+      default: break;
+    }
+    const props = propsOf(w);
+    layoutCall(() => {
+      switch (method) {
+        case 'setEdge':
+          if (word(a) === '') delete props.edge; else props.edge = cleanChildProps({ edge: word(a) }).edge;
+          break;
+        case 'setCell': case 'setSpan':
+          Object.assign(props, cleanChildProps(method === 'setCell' ? { row: a, column: b } : { rowSpan: a, columnSpan: b }));
+          // The defaults are not kept, so a widget saves only what it changed.
+          for (const [key, dflt] of [['row', 0], ['column', 0], ['rowSpan', 1], ['columnSpan', 1]]) {
+            if (props[key] === dflt) delete props[key];
+          }
+          break;
+        case 'setAlign':
+          if (word(a) === '') delete props.alignX; else props.alignX = cleanChildProps({ alignX: word(a) }).alignX;
+          if (word(b) === '') delete props.alignY; else props.alignY = cleanChildProps({ alignY: word(b) }).alignY;
+          break;
+        case 'setCanvasBounds': {
+          const lengths = cleanChildProps({ canvas: args.map(String) }).canvas;
+          if (lengths.every((x) => x === '')) delete props.canvas; else props.canvas = lengths;
+          break;
+        }
+        default: break;
+      }
+    });
+    return this._relayout(w);
+  }
+
+  /** Composite.setSpacing, setSpacingX/Y, setContentAlign and setReversed on a layout. */
+  _layoutOption(layout, method, a, b) {
+    switch (method) {
+      case 'setSpacing':
+        if (layout.has('spacing')) layout.set('spacing', a);
+        else if (layout.has('spacingX')) { layout.set('spacingX', a); layout.set('spacingY', a); }
+        else throw new LayoutError(`the ${layout.kind} layout has no spacing`);
+        break;
+      case 'setSpacingX': layout.set('spacingX', a); break;
+      case 'setSpacingY': layout.set('spacingY', a); break;
+      case 'setReversed': layout.set('reversed', a); break;
+      case 'setContentAlign': {
+        const x = String(a).trim().toLowerCase();
+        const y = String(b).trim().toLowerCase();
+        if (layout.has('alignX')) {
+          if (y !== '') throw new LayoutError(`the ${layout.kind} layout aligns its children along x only: give '' for y`);
+          layout.set('alignX', x === '' ? layout.defaults.alignX : x);
+        } else if (layout.has('alignY')) {
+          if (x !== '') throw new LayoutError(`the ${layout.kind} layout aligns its children along y only: give '' for x`);
+          layout.set('alignY', y === '' ? layout.defaults.alignY : y);
+        } else {
+          throw new LayoutError(`the ${layout.kind} layout has no content alignment`);
+        }
+        break;
+      }
+      default: break;
     }
   }
 }

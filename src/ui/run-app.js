@@ -13,22 +13,19 @@
 //
 // The source is read from the database server (db-client.js). ?app=abc is
 // the program abc in the shared space; ?app=peter/abc is abc in the user
-// peter's space. A Basic program is found before a Python one of the same
-// name, and the record's language decides how it runs. The screens the
+// peter's space. The record's language decides how it runs. The screens the
 // program loads by name are its owner's (setSpace).
 
 import { Viewport } from './widgets/viewport.js';
 import { AppScreen } from './widgets/app-screen.js';
 import { ButtonBar } from './widgets/button-bar.js';
 import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
-import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { ProgramRunner, ProgramSetRunner } from './program-runner.js';
-import { PROJECTS, SCRIPTS } from './projects.js';
+import { PROJECTS, SCRIPTS, findScript } from './projects.js';
 
 /** The tables searched for the program, in order, and their languages. */
 export const RUN_TABLES = [
-  ['basic', BasicConsoleWindow],
   ['python', PythonConsoleWindow],
 ];
 
@@ -126,12 +123,11 @@ export async function findProject(value, { stores } = {}) {
       ?? records.find((r) => String(r.name ?? '').toLowerCase() === lower);
     if (!record) continue;
     const scripts = (await (stores?.scripts ?? new SourceStore(SCRIPTS)).list()) ?? [];
-    const byId = new Map(scripts.map((s) => [s.id, s]));
     const languages = Object.fromEntries(RUN_TABLES);
     const programs = [];
     let missing = 0;
-    for (const { id } of record.scripts ?? []) {
-      const script = byId.get(id);
+    for (const ref of record.scripts ?? []) {
+      const script = findScript(ref, scripts);
       const language = languages[script?.language];
       if (!script || !language) { missing += 1; continue; }
       programs.push({

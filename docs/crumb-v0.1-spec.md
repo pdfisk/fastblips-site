@@ -1,5 +1,7 @@
 # Crumb — language specification, draft v0.1
 
+> **Archived.** Basic (Crumb) was removed from FastBlips on 2026-10-27; this spec describes the archived language (see `../archive/crumb-basic-2026-10-27/`).
+
 A small imperative language with Visual Basic's surface syntax. One statement per line,
 blocks closed with `End`, four value types plus arrays and widget objects, dynamically
 typed, no coercion.

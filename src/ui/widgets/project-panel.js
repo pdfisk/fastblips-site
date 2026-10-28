@@ -60,7 +60,7 @@ export class ProjectPanel extends Panel {
     super();
     installStyle();
     this.element.classList.add('cr-project-panel');
-    this._scripts = [];      // [{ id, name, language, owner, shared }], in order
+    this._scripts = [];      // [{ ref, name, language, owner }], in order
     this._selectedId = null;
     this._space = '';
     this._enabled = false;
@@ -172,41 +172,40 @@ export class ProjectPanel extends Panel {
   set caption(text) { this.info.textContent = text; }
 
   /**
-   * The scripts in the project, in order: [{ id, name, language, owner,
-   * shared }] (see projectScript in ../projects.js). Setting it replaces the
+   * The scripts in the project, in order: [{ ref, id, name, language, owner }] (see projectScript in ../projects.js). Setting it replaces the
    * list, keeping the selection if that script is still in it.
    */
   get scripts() { return this._scripts.map((script) => ({ ...script })); }
   set scripts(scripts) {
     this._scripts = (scripts ?? []).map((script) => ({ ...script }));
-    if (!this._scripts.some((script) => script.id === this._selectedId)) this._selectedId = null;
+    if (!this._scripts.some((script) => script.ref === this._selectedId)) this._selectedId = null;
     this._render();
   }
 
-  /** The ids of the scripts, in order. */
-  get ids() { return this._scripts.map((script) => script.id); }
+  /** The "owner/name" references of the scripts, in order. */
+  get refs() { return this._scripts.map((script) => script.ref); }
 
   /** The space the project is in; scripts of other users show their owner. */
   get space() { return this._space; }
   set space(value) { this._space = value ?? ''; this._render(); }
 
   /** Index of the selected script, -1 for none. */
-  get selectedIndex() { return this._scripts.findIndex((script) => script.id === this._selectedId); }
+  get selectedIndex() { return this._scripts.findIndex((script) => script.ref === this._selectedId); }
   get selectedScript() { return this._scripts[this.selectedIndex] ?? null; }
 
   /** Selects the script at index (-1 for none); fires scriptselect. */
   selectIndex(index) {
     const script = this._scripts[index];
-    const id = script ? script.id : null;
-    if (id === this._selectedId) return;
-    this._selectedId = id;
+    const ref = script ? script.ref : null;
+    if (ref === this._selectedId) return;
+    this._selectedId = ref;
     this._render();
     this.element.dispatchEvent(new CustomEvent('scriptselect', { detail: { index, script: script ?? null } }));
   }
 
   /** Adds a script at the end of the list and selects it. A script already in it is just selected. */
   addScript(script) {
-    const at = this._scripts.findIndex((s) => s.id === script.id);
+    const at = this._scripts.findIndex((s) => s.ref === script.ref);
     if (at < 0) {
       this._scripts.push({ ...script });
       this._selectedId = null;   // so the selection is reported

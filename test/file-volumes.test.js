@@ -91,17 +91,15 @@ const names = async (vol, path = []) => (await vol.list(path)).map((e) => (e.dir
 // ------------------------------------------------------------ names
 
 test('script file names carry the language in an extension', () => {
-  assert.equal(languageOf('a.bas'), 'basic');
-  assert.equal(languageOf('a.BAS'), 'basic');
   assert.equal(languageOf('a.py'), 'python');
+  assert.equal(languageOf('a.PY'), 'python');
+  assert.equal(languageOf('a.bas'), null, 'Basic was removed');
   assert.equal(languageOf('.py'), null);
   assert.equal(languageOf('a.txt'), null);
-  assert.equal(stripExtension('hello.bas'), 'hello');
+  assert.equal(stripExtension('hello.py'), 'hello');
   assert.equal(stripExtension('notes.txt'), 'notes.txt');
-  assert.equal(scriptFileName({ name: 'hello', language: 'basic' }), 'hello.bas');
   assert.equal(scriptFileName({ name: 'hello', language: 'python' }), 'hello.py');
   assert.equal(scriptFileName({ name: 'hello.py', language: 'python' }), 'hello.py');
-  assert.equal(scriptFileName({ name: 'hello.py', language: 'basic' }), 'hello.py.bas');
 });
 
 test('entries sort folders first, then by name; sizes are short', () => {
@@ -139,12 +137,12 @@ test('a DirectoryVolume lists, reads, writes, makes folders and deletes', async 
 
 test('a DatabaseVolume lists scripts as files and reads, writes and deletes them', async () => {
   const store = new FakeStore('peter', [
-    { name: 'hello', language: 'basic', content: 'Print 1' },
+    { name: 'hello', language: 'python', content: 'Print 1' },
     { name: 'tool.py', language: 'python', content: 'print(2)' },
   ]);
   const vol = new DatabaseVolume(store, { id: 'db', label: 'DB' });
   assert.equal(vol.folders, false);
-  assert.deepEqual(await names(vol), ['hello.bas', 'tool.py']);
+  assert.deepEqual(await names(vol), ['hello.py', 'tool.py']);
   assert.equal((await vol.list([]))[0].size, 7);
   const entries = await vol.list([]);
   assert.equal(dec.decode(await vol.read([], entries[0])), 'Print 1');
@@ -153,7 +151,7 @@ test('a DatabaseVolume lists scripts as files and reads, writes and deletes them
   await vol.write([], 'new.py', enc.encode('print(3)'));
   assert.deepEqual(store.calls.at(-1), ['create', 'new', 'python']);
   assert.equal(store.records.at(-1).owner, 'peter');
-  await vol.write([], 'hello.bas', enc.encode('Print 9'));   // replaces
+  await vol.write([], 'hello.py', enc.encode('Print 9'));   // replaces
   assert.deepEqual(store.calls.at(-1), ['update', 1]);
   assert.equal(store.records[0].content, 'Print 9');
   assert.equal(store.records.length, 3);
@@ -163,17 +161,19 @@ test('a DatabaseVolume lists scripts as files and reads, writes and deletes them
   await assert.rejects(vol.mkdir([], 'x'), /no folders/);
 });
 
-test('a database refuses what is not a text script, or a name another language has', async () => {
-  const store = new FakeStore('peter', [{ name: 'hello', language: 'basic', content: 'x' }]);
+test('a database refuses what is not a text script, or a name that is taken', async () => {
+  const store = new FakeStore('peter', [{ name: 'hello', language: 'python', content: 'x' }]);
   const vol = new DatabaseVolume(store);
   await assert.rejects(vol.write([], 'photo.png', enc.encode('x')), /only scripts/);
   await assert.rejects(vol.write([], 'bin.py', new Uint8Array([0xff, 0xfe, 0x00, 0xc3])), /not a text file/);
-  await assert.rejects(vol.write([], 'hello.py', enc.encode('x')), /already a Basic script called hello/);
+  await assert.rejects(vol.write([], 'hello', enc.encode('x')), /only scripts/);
   assert.equal(store.records.length, 1);
-  // The shared space allows repeats.
-  const shared = new DatabaseVolume(new FakeStore('', [{ name: 'hello', language: 'basic', content: 'x' }]));
+  assert.equal(store.records.length, 1);
+  // Writing a name that exists replaces it, in the shared space too.
+  const shared = new DatabaseVolume(new FakeStore('', [{ name: 'hello', language: 'python', content: 'x' }]));
   await shared.write([], 'hello.py', enc.encode('y'));
-  assert.equal(shared.store.records.length, 2);
+  assert.equal(shared.store.records.length, 1);
+  assert.equal(shared.store.records[0].content, 'y');
 });
 
 test('databaseVolumes makes the user\'s and the shared scripts of both servers', () => {
@@ -294,7 +294,7 @@ test('folders to or from a database: files go, folders and non-scripts are repor
   const dir = new DirectoryVolume(new MemDir(), { id: 'd', label: 'D' });
   const store = new FakeStore('peter');
   const db = new DatabaseVolume(store, { id: 'db', label: 'DB' });
-  await dir.write([], 'a.bas', enc.encode('Print "a"'));
+  await dir.write([], 'a.py', enc.encode('Print "a"'));
   await dir.write([], 'b.py', enc.encode('print("b")'));
   await dir.write([], 'c.txt', enc.encode('not a script'));
   await dir.mkdir([], 'folder');
@@ -302,20 +302,20 @@ test('folders to or from a database: files go, folders and non-scripts are repor
   assert.equal(result.copied, 2);
   assert.deepEqual(result.failed.map((f) => f.name).sort(), ['c.txt', 'folder']);
   assert.match(result.failed.find((f) => f.name === 'folder').message, /no folders/);
-  assert.deepEqual(store.records.map((r) => [r.name, r.language]), [['a', 'basic'], ['b', 'python']]);
+  assert.deepEqual(store.records.map((r) => [r.name, r.language]), [['a', 'python'], ['b', 'python']]);
 
   // and back out, to another folder
   const other = new DirectoryVolume(new MemDir(), { id: 'o', label: 'O' });
   const back = await transfer({ from: db, fromPath: [], entries: await db.list([]), to: other, toPath: [] });
   assert.equal(back.copied, 2);
-  assert.deepEqual(await names(other), ['a.bas', 'b.py']);
-  assert.equal(await text(other, [], 'a.bas'), 'Print "a"');
+  assert.deepEqual(await names(other), ['a.py', 'b.py']);
+  assert.equal(await text(other, [], 'a.py'), 'Print "a"');
 });
 
 test('copying between two databases, local to remote, and moving', async () => {
   const local = new DatabaseVolume(new FakeStore('peter', [
-    { name: 'one', language: 'basic', content: '1' }, { name: 'two', language: 'python', content: '2' }]), { id: 'l', label: 'L' });
-  const remote = new DatabaseVolume(new FakeStore('peter', [{ name: 'one', language: 'basic', content: 'older' }]), { id: 'r', label: 'R' });
+    { name: 'one', language: 'python', content: '1' }, { name: 'two', language: 'python', content: '2' }]), { id: 'l', label: 'L' });
+  const remote = new DatabaseVolume(new FakeStore('peter', [{ name: 'one', language: 'python', content: 'older' }]), { id: 'r', label: 'R' });
   const result = await transfer({
     from: local, fromPath: [], entries: await local.list([]), to: remote, toPath: [], move: true,
     ask: async () => 'overwrite',

@@ -8,7 +8,7 @@
 //   Browser files               the page's private file system (any browser)
 //   a database                  the scripts of the signed-in user, or the
 //                               shared ones, on the remote or the local server
-//                               (shown as name.bas and name.py)
+//                               (shown as name.py)
 //
 // Keys:  Tab           switch pane
 //        Up Down Home End PgUp PgDn   move

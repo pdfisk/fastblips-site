@@ -98,6 +98,33 @@ const FIND = [
   method('toJson', [], 'text'),
 ];
 
+/**
+ * How a widget sits in the layout of the Composite it is in (the layout
+ * managers, docs/widgets.txt). The settings belong to the widget, so they
+ * can be made before the widget is added; a layout ignores the ones it has
+ * no use for.
+ *   edge     dock: which edge the widget attaches to (north, south, west,
+ *            east, center; '' for the default, center)
+ *   cell     grid: its row and column (from 0); span: how many it covers
+ *   align    hbox, vbox, flow, grid: where the widget sits in the space its
+ *            layout gives it, instead of stretching across it. x is left,
+ *            center or right; y is top, middle or bottom; '' for none
+ *   canvas   canvas: left, top, right, bottom, width, height, each '' (not
+ *            set), a number of pixels or a percentage such as '50%'
+ */
+const CHILD_LAYOUT = [
+  method('setEdge', ['text']),
+  method('getEdge', [], 'text'),
+  method('setCell', ['index', 'index']),
+  method('getRow', [], 'int'),
+  method('getColumn', [], 'int'),
+  method('setSpan', ['index', 'index']),
+  method('getRowSpan', [], 'int'),
+  method('getColumnSpan', [], 'int'),
+  method('setAlign', ['text', 'text']),
+  method('setCanvasBounds', ['text', 'text', 'text', 'text', 'text', 'text']),
+];
+
 /** Every widget has these. */
 const COMMON = [
   ...FIND,
@@ -130,6 +157,7 @@ const COMMON = [
   method('getBorderColor', [], 'text'),
   method('getParent', [], 'widget'),
   method('remove'),
+  ...CHILD_LAYOUT,
 ];
 
 const TEXT = [method('setText', ['text']), method('getText', [], 'text')];
@@ -141,6 +169,35 @@ const CONTAINER = [
   method('clear'),
 ];
 const ROW = [...CONTAINER, method('setSpacing', ['size'])];
+/**
+ * What a Composite adds to a container: the layout it places its children
+ * with (basic, canvas, dock, flow, grid, grow, hbox, vbox) and that layout's
+ * settings. A setting the layout does not have is an error.
+ *   spacing        hbox, vbox: space between children; dock, flow, grid:
+ *                  both spacingX and spacingY
+ *   contentAlign   hbox, flow: x (left, center, right); vbox: y (top,
+ *                  middle, bottom): where the children sit as a group
+ *   reversed       hbox, vbox, flow: children placed from the far end
+ *   column/row     grid: a track's flex, size, min and max
+ */
+const COMPOSITE = [
+  ...CONTAINER,
+  method('setLayout', ['text']),
+  method('getLayout', [], 'text'),
+  method('setSpacing', ['size']),
+  method('setSpacingX', ['size']),
+  method('setSpacingY', ['size']),
+  method('setContentAlign', ['text', 'text']),
+  method('setReversed', ['boolean']),
+  method('setColumnFlex', ['index', 'number']),
+  method('setRowFlex', ['index', 'number']),
+  method('setColumnWidth', ['index', 'size']),
+  method('setRowHeight', ['index', 'size']),
+  method('setColumnMinWidth', ['index', 'size']),
+  method('setRowMinHeight', ['index', 'size']),
+  method('setColumnMaxWidth', ['index', 'size']),
+  method('setRowMaxHeight', ['index', 'size']),
+];
 const SPLIT = [
   method('setFirst', ['widget']),
   method('setSecond', ['widget']),
@@ -368,6 +425,17 @@ export const WIDGET_CLASSES = Object.freeze([
     ...CLICK,
     method('setRadius', ['size']),
     method('getRadius', [], 'int'),
+  ]),
+  // Containers after qooxdoo's: a Composite places its children with a layout
+  // manager, a Stack shows one of its children at a time.
+  cls('Composite', [], COMPOSITE),
+  cls('Stack', [], [
+    ...CONTAINER,
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('selectNext'),
+    method('selectPrevious'),
+    method('onSelect', ['handler:int']),
   ]),
 ]);
 

@@ -4,10 +4,6 @@
 import { parse, compile, run } from '../index.js';
 import { disassemble } from '../vm/disasm.js';
 import * as python from '../vm/compiler/python/loader.js';
-import { formatAst, formatTokens } from '../vm/compiler/basic/format.js';
-import { formatDiagnostics } from '../vm/compiler/basic/diagnostics.js';
-import { tokenize } from '../vm/compiler/basic/lexer.js';
-import { KEYWORDS, BUILTINS } from '../vm/compiler/basic/tokens.js';
 import { Widget } from './widgets/widget.js';
 import { Panel } from './widgets/panel.js';
 import { Viewport } from './widgets/viewport.js';
@@ -21,12 +17,14 @@ import { SplitPanel } from './widgets/split-panel.js';
 import { HSplitPanel } from './widgets/hsplit-panel.js';
 import { VSplitPanel } from './widgets/vsplit-panel.js';
 import { VPanel } from './widgets/vpanel.js';
+import { Composite } from './widgets/composite.js';
+import { Stack } from './widgets/stack.js';
+import * as layouts from './layouts/index.js';
 import { ProgramWidgetHost } from './program-widgets.js';
 import { DesignerWindow } from './windows/designer-window.js';
 import { Window } from './windows/window.js';
 import { HSplitWindow } from './windows/hsplit-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
-import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { TextPanel } from './widgets/text-panel.js';
 import { MonacoPanel } from './widgets/monaco-panel.js';
@@ -36,7 +34,7 @@ import { SchedulerWindow } from './windows/scheduler-window.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
-import { DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
+import { DatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
 import { RecordPanel } from './widgets/record-panel.js';
 import { ProjectsWindow } from './windows/projects-window.js';
 import { ProjectPanel } from './widgets/project-panel.js';
@@ -61,19 +59,18 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, VPanel, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
+  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
-  Window, HSplitWindow, ConsoleWindow, BasicConsoleWindow, PythonConsoleWindow,
+  Window, HSplitWindow, ConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, CommunityProjectsWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel, PhysicsPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
-  DatabaseWindow, BasicDatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,
+  DatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,
   scheduler, db, start, startDesktop, startMobile, startRuntime, findProgram, startProjectRuntime, findProject,
   ProgramRunner, AppScreen, ProgramWidgetHost, DesignerWindow, isMobileDevice,
   THEMES, setTheme, themeName, resolvedTheme, CODE_FONTS, setCodeFont, codeFontName,
 };
 
 export {
-  parse, compile, run, disassemble, formatAst, formatTokens,
-  formatDiagnostics, tokenize, KEYWORDS, BUILTINS, python, ui,
+  parse, compile, run, disassemble, python, ui,
 };

@@ -9,7 +9,6 @@ import { Button } from './widgets/button.js';
 import { Spacer } from './widgets/spacer.js';
 import { Label } from './widgets/label.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
-import { BasicConsoleWindow } from './windows/basic-console-window.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { SignInWindow } from './windows/sign-in-window.js';
@@ -19,7 +18,7 @@ import { DesignerWindow } from './windows/designer-window.js';
 import { ConsoleWindow } from './windows/console-window.js';
 import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
-import { BasicDatabaseWindow, PythonDatabaseWindow } from './windows/database-window.js';
+import { PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
 import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
@@ -101,10 +100,9 @@ function schedulerSummary() {
 //   Sign In      the Sign In window: the user this browser works as
 //                (Sign Out, the Sign Out window, while a user is signed in)
 //   Register...  the Register window: a new user on the database server
-//   New Basic    a new, empty Basic console
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
-//                (.bas: Basic, .py: Python)
+//                (.py)
 //   Save         the front-most console's source, to its file
 //   Save As...   the front-most console's source, to a new file
 //   Delete       the front-most console's file, after confirming
@@ -127,10 +125,9 @@ function fileMenu(viewport) {
   );
   menu.addItem('Register...', () => RegisterWindow.instance.open(viewport));
   menu.addSeparator();
-  menu.addItem('New Basic', newConsole(BasicConsoleWindow));
   menu.addItem('New Python', newConsole(PythonConsoleWindow));
   menu.addSeparator();
-  menu.addItem('Open...', () => ConsoleWindow.openInNewConsole([BasicConsoleWindow, PythonConsoleWindow], viewport));
+  menu.addItem('Open...', () => ConsoleWindow.openInNewConsole([PythonConsoleWindow], viewport));
   menu.addItem('Save', () => frontConsole()?.save(), { enabled: hasConsole });
   menu.addItem('Save As...', () => frontConsole()?.saveAs(), { enabled: hasConsole });
   menu.addSeparator();
@@ -234,10 +231,7 @@ function viewsMenu(viewport, transcript) {
   const menu = new Menu('Views');
   menu.addItem('Transcript', () => transcript.open(viewport));
   menu.addSeparator();
-  menu.addItem('Basic Console', () => new BasicConsoleWindow().open(viewport));
   menu.addItem('Python Console', () => new PythonConsoleWindow().open(viewport));
-  menu.addSeparator();
-  menu.addItem('Basic Database', () => BasicDatabaseWindow.instance.open(viewport));
   menu.addItem('Python Database', () => PythonDatabaseWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('Process Browser', () => SchedulerWindow.instance.open(viewport));

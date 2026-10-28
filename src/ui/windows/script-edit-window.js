@@ -9,7 +9,7 @@ import { Spacer } from '../widgets/spacer.js';
 import { Label } from '../widgets/label.js';
 
 // Monaco language by the language a script is saved with.
-const MONACO = { basic: 'vb', python: 'python' };
+const MONACO = { python: 'python' };
 
 export class ScriptEditWindow extends Window {
   /**
@@ -17,10 +17,10 @@ export class ScriptEditWindow extends Window {
    * @param {object} options.store - the SourceStore for scripts
    * @param {number} options.id - the script to edit
    * @param {string} [options.name] - its name, for the title until it loads
-   * @param {string} [options.language] - 'basic' or 'python'
+   * @param {string} [options.language] - 'python'
    * @param {(script: object) => void} [options.onSave] - called with the saved record
    */
-  constructor({ store, id, name = '', language = 'basic', onSave = () => {}, ...options } = {}) {
+  constructor({ store, id, name = '', language = 'python', onSave = () => {}, ...options } = {}) {
     super({
       title: `Edit ${name || 'Script'}`,
       x: 230, y: 120, width: 560, height: 380, minWidth: 320, minHeight: 200,

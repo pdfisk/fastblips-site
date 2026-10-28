@@ -17,6 +17,8 @@ Class hierarchy
         StatusBar (singleton)
         ButtonBar
       VPanel
+      Composite
+      Stack
       SplitPanel (abstract)
         HSplitPanel
         VSplitPanel
@@ -146,6 +148,83 @@ Panels that arrange their children in a single row or column.
     among flex children in proportion to their weights.
   - On the cross axis, children stretch to fill the panel by default.
   - Nesting HPanels and VPanels builds grid-like layouts.
+
+
+Composite, Stack and the layouts
+--------------------------------
+(src/ui/widgets/composite.js, stack.js; src/ui/layouts/)
+Modelled on qooxdoo's containers (qx.ui.container.Composite and Stack) and
+layout managers (qx.ui.layout). Not to be confused with a saved composite
+(a widget kept by name in the database): the class Composite is a container.
+
+Composite is a Panel whose children are placed by a layout manager.
+  - composite.layoutManager is the layout: set it from a name ('hbox') or a
+    Layout; layoutName reads the name. The default is 'basic'. Changing the
+    layout places the children again and drops the old layout's settings.
+  - A layout works out a box for each visible child and calls
+    child.setBounds(...). The box includes the child's margin. Positions are
+    inside the Composite's border and padding, so padding is the space
+    between the Composite's edge and the layout's area.
+  - A child's size comes from, in order: the size the program fixed
+    (setWidth / setHeight), what the layout says (flex, a stretch, a cell),
+    and the size the child asks for (preferredWidth / preferredHeight).
+
+Stack is a Panel that shows one child at a time, each filling the area. The
+first child added is showing. select(i), selectNext() and selectPrevious()
+(wrapping round) change it and fire select with the index. The Stack sets its
+children's visibility (a TabPanel without the tabs); a saved Stack records
+which page shows, and its pages are not saved as hidden. Its layout is
+'grow'.
+
+The layouts (LAYOUTS in src/ui/layouts/index.js), after qooxdoo's:
+
+  basic   Children sit where their box says (left, top, width, height), or
+          fill the area after fill(). The default.
+  canvas  Like basic, but a child can instead be placed by its distance from
+          the edges and its size: left, top, right, bottom, width, height,
+          each a number of pixels or a percentage ('50%'). Two of the three
+          on an axis fix both position and size.
+  grow    Every child fills the area. (What a Stack uses.)
+  hbox    A row. Each child is as wide as, in order: its fixed width; a
+  vbox    share of the space left over, by its flex; the width it asks for.
+          Across the row it fills the height unless it has an alignment
+          (alignY), when it takes the height it asks for and sits at the top,
+          middle or bottom. A VBox is the same down a column (alignX across).
+          Options: spacing; alignX (hbox) / alignY (vbox): where the group
+          sits when there is space left and no child has flex; reversed.
+  dock    Children attach to the edges in the order they were added: a north
+          or south child takes the full width left and the height it asks
+          for, a west or east child the full height left and its width;
+          what remains goes to the center children (the default edge).
+          Options: spacingX, spacingY.
+  flow    Children side by side, wrapping onto a new line when the next one
+          would not fit. Options: spacingX, spacingY, alignX (where each
+          line sits), reversed. A child's alignY sits it in its line.
+  grid    Rows and columns. A child names its cell (row, column) and how
+          many rows and columns it covers (rowSpan, columnSpan). Each track
+          is as big as its biggest child unless it has a size; it may have a
+          flex, a min and a max. Spare space (or a shortfall) is shared
+          among the tracks with flex, within their min and max. A child that
+          spans tracks widens the last one it covers that has no size. A
+          child fills its cell unless it has an alignment. Options:
+          spacingX, spacingY, and per column / row: flex, size, min, max.
+
+Left out: qooxdoo's Atom layout (an icon and a label), as the toolkit has no
+icons.
+
+A child's own settings in its parent's layout are child.layoutProps:
+{ edge, row, column, rowSpan, columnSpan, alignX, alignY, canvas }, where
+alignX is left, center or right, alignY is top, middle or bottom, edge is
+north, south, west, east or center, and canvas is six lengths (left, top,
+right, bottom, width, height; '' for not set). A layout ignores the ones it
+has no use for. cleanChildProps() checks them.
+
+A Composite is saved as { class: 'Composite', layout, layoutOptions,
+children }: layout is left out when it is 'basic', and layoutOptions holds
+only the settings that differ from the layout's defaults (a grid's as
+columns / rows: { index: { flex, size, min, max } }). A child's settings are
+saved as layoutProps. A saved Stack has selected (the page showing, left out
+when 0) and children.
 
 
 HSplitPanel and VSplitPanel
@@ -876,7 +955,7 @@ CopyProjectWindow
 The dialog behind the Copy button of the CommunityProjectsWindow.
 
   - new CopyProjectWindow({ project, onCopied }): project is the project to
-    copy, with its scripts' snapshots (GET /projects/:id). It says what is
+    copy, with its scripts read as records (withScripts in projects.js). It says what is
     being copied and has a Name field, filled with the project's name (or
     'Name 2'... if the user already has a project called that).
   - Copy (also Enter) stores the copy in My Projects with copyProject() of
@@ -994,6 +1073,83 @@ Panels that arrange their children in a single row or column.
     among flex children in proportion to their weights.
   - On the cross axis, children stretch to fill the panel by default.
   - Nesting HPanels and VPanels builds grid-like layouts.
+
+
+Composite, Stack and the layouts
+--------------------------------
+(src/ui/widgets/composite.js, stack.js; src/ui/layouts/)
+Modelled on qooxdoo's containers (qx.ui.container.Composite and Stack) and
+layout managers (qx.ui.layout). Not to be confused with a saved composite
+(a widget kept by name in the database): the class Composite is a container.
+
+Composite is a Panel whose children are placed by a layout manager.
+  - composite.layoutManager is the layout: set it from a name ('hbox') or a
+    Layout; layoutName reads the name. The default is 'basic'. Changing the
+    layout places the children again and drops the old layout's settings.
+  - A layout works out a box for each visible child and calls
+    child.setBounds(...). The box includes the child's margin. Positions are
+    inside the Composite's border and padding, so padding is the space
+    between the Composite's edge and the layout's area.
+  - A child's size comes from, in order: the size the program fixed
+    (setWidth / setHeight), what the layout says (flex, a stretch, a cell),
+    and the size the child asks for (preferredWidth / preferredHeight).
+
+Stack is a Panel that shows one child at a time, each filling the area. The
+first child added is showing. select(i), selectNext() and selectPrevious()
+(wrapping round) change it and fire select with the index. The Stack sets its
+children's visibility (a TabPanel without the tabs); a saved Stack records
+which page shows, and its pages are not saved as hidden. Its layout is
+'grow'.
+
+The layouts (LAYOUTS in src/ui/layouts/index.js), after qooxdoo's:
+
+  basic   Children sit where their box says (left, top, width, height), or
+          fill the area after fill(). The default.
+  canvas  Like basic, but a child can instead be placed by its distance from
+          the edges and its size: left, top, right, bottom, width, height,
+          each a number of pixels or a percentage ('50%'). Two of the three
+          on an axis fix both position and size.
+  grow    Every child fills the area. (What a Stack uses.)
+  hbox    A row. Each child is as wide as, in order: its fixed width; a
+  vbox    share of the space left over, by its flex; the width it asks for.
+          Across the row it fills the height unless it has an alignment
+          (alignY), when it takes the height it asks for and sits at the top,
+          middle or bottom. A VBox is the same down a column (alignX across).
+          Options: spacing; alignX (hbox) / alignY (vbox): where the group
+          sits when there is space left and no child has flex; reversed.
+  dock    Children attach to the edges in the order they were added: a north
+          or south child takes the full width left and the height it asks
+          for, a west or east child the full height left and its width;
+          what remains goes to the center children (the default edge).
+          Options: spacingX, spacingY.
+  flow    Children side by side, wrapping onto a new line when the next one
+          would not fit. Options: spacingX, spacingY, alignX (where each
+          line sits), reversed. A child's alignY sits it in its line.
+  grid    Rows and columns. A child names its cell (row, column) and how
+          many rows and columns it covers (rowSpan, columnSpan). Each track
+          is as big as its biggest child unless it has a size; it may have a
+          flex, a min and a max. Spare space (or a shortfall) is shared
+          among the tracks with flex, within their min and max. A child that
+          spans tracks widens the last one it covers that has no size. A
+          child fills its cell unless it has an alignment. Options:
+          spacingX, spacingY, and per column / row: flex, size, min, max.
+
+Left out: qooxdoo's Atom layout (an icon and a label), as the toolkit has no
+icons.
+
+A child's own settings in its parent's layout are child.layoutProps:
+{ edge, row, column, rowSpan, columnSpan, alignX, alignY, canvas }, where
+alignX is left, center or right, alignY is top, middle or bottom, edge is
+north, south, west, east or center, and canvas is six lengths (left, top,
+right, bottom, width, height; '' for not set). A layout ignores the ones it
+has no use for. cleanChildProps() checks them.
+
+A Composite is saved as { class: 'Composite', layout, layoutOptions,
+children }: layout is left out when it is 'basic', and layoutOptions holds
+only the settings that differ from the layout's defaults (a grid's as
+columns / rows: { index: { flex, size, min, max } }). A child's settings are
+saved as layoutProps. A saved Stack has selected (the page showing, left out
+when 0) and children.
 
 
 HSplitPanel and VSplitPanel
@@ -2043,7 +2199,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
 
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
-    MonacoPanel and ListPanel, and the Board and the Canvas (below). Left
+    MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite and Stack, and
+    the Board and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).
@@ -2117,6 +2274,27 @@ changed through methods, and in MiniPy the same way with Python spellings:
     findByClass.
   - A program's Panel is a FreePanel: its children sit where the program
     puts them (the toolkit's Panel is abstract).
+  - Composite and Stack (above). A Composite has setLayout(name) and
+    getLayout(), where the name (any case) is basic, canvas, dock, flow,
+    grid, grow, hbox or vbox, and the layout's settings: setSpacing(n)
+    (hbox, vbox: the gap; dock, flow, grid: both spacingX and spacingY),
+    setSpacingX / setSpacingY, setContentAlign(x, y) (x for hbox and flow:
+    left, center, right; y for vbox: top, middle, bottom; '' for the other
+    and for the default), setReversed(b), and for a grid setColumnFlex /
+    setRowFlex(index, flex), setColumnWidth / setRowHeight(index, size),
+    setColumnMinWidth / setRowMinHeight and setColumnMaxWidth /
+    setRowMaxHeight. A setting the layout does not have is a runtime error
+    that says what the layout lacks. Every widget has the settings for its
+    place in its parent's layout: setEdge(edge) / getEdge, setCell(row,
+    column) / getRow / getColumn, setSpan(rows, columns) / getRowSpan /
+    getColumnSpan, setAlign(x, y) and setCanvasBounds(left, top, right,
+    bottom, width, height). They belong to the widget, so they can be set
+    before it is added, and a widget keeps them when it moves. A Stack has
+    the container methods, select(i), getSelectedIndex, selectNext,
+    selectPrevious and onSelect. A Composite and a Stack are saved, built
+    and generated by the designer like the other containers; the designer
+    offers the layout's settings and the child's place in the Inspector.
+    examples/layouts-tour.py uses each layout.
   - The classes and their methods are one table, WIDGET_CLASSES in
     src/vm/runtime/widgets.js, shared by both languages: each method's
     Crumb name (camelCase), MiniPy name (snake_case), argument kinds and

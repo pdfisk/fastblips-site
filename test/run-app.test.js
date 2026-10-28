@@ -19,8 +19,7 @@ test('splitRunName: a user name, a slash and a name', () => {
 
 test('findProgram: owner/name in that space, a bare name in the shared space', async () => {
   const stores = {
-    basic: store({ '': [{ id: 1, name: 'abc' }, { id: 2, name: 'docs/intro' }], peter: [{ id: 3, name: 'abc' }] }),
-    python: store({ peter: [{ id: 4, name: 'Snake' }] }),
+    python: store({ '': [{ id: 1, name: 'abc' }, { id: 2, name: 'docs/intro' }], peter: [{ id: 3, name: 'abc' }, { id: 4, name: 'Snake' }] }),
   };
   const id = async (value) => { const f = await findProgram(value, { stores }); return f && `${f.owner}#${f.record.id}`; };
   assert.equal(await id('abc'), '#1');
@@ -33,19 +32,19 @@ test('findProgram: owner/name in that space, a bare name in the shared space', a
 
 test('findProject: owner/name in that space, its scripts in order, as programs', async () => {
   const projects = store({
-    peter: [{ id: 1, name: 'Demo', scripts: [{ id: 12 }, { id: 11 }, { id: 99 }] }],
+    peter: [{ id: 1, name: 'Demo', scripts: ['peter/B', '/A', 'peter/gone'] }],
     '': [{ id: 2, name: 'Shared', scripts: [] }],
   });
   const scripts = { list: async () => [
-    { id: 11, name: 'A', language: 'python', content: 'print(1)', priority: 2 },
-    { id: 12, name: 'B', language: 'basic', content: 'PRINT 2', compiled_code: '{}' },
+    { id: 11, name: 'A', owner: null, language: 'python', content: 'print(1)', priority: 2 },
+    { id: 12, name: 'B', owner: 'Peter', language: 'python', content: 'PRINT 2', compiled_code: '{}' },
   ] };
   const found = await findProject('peter/demo', { stores: { projects, scripts } });
   assert.equal(found.owner, 'peter');
   assert.deepEqual(found.programs.map((p) => p.name), ['B', 'A']);     // the project's order
   assert.equal(found.programs[0].compiled, '{}');
   assert.equal(found.programs[1].priority, 2);
-  assert.equal(found.missing, 1);                                      // script 99 is gone
+  assert.equal(found.missing, 1);                                      // peter/gone does not exist
   assert.equal((await findProject('Shared', { stores: { projects, scripts } })).owner, '');
   assert.equal(await findProject('peter/nope', { stores: { projects, scripts } }), null);
 });
@@ -66,10 +65,10 @@ test('runParameter: ?app= first, the older ?run= as a fallback', () => {
 });
 
 test('findApp: a project of that name, else a program, else null', async () => {
-  const projects = store({ admin: [{ id: 1, name: 'abc', scripts: [{ id: 11 }] }] });
-  const scripts = { list: async () => [{ id: 11, name: 'Main', language: 'basic', content: 'PRINT 1' }] };
-  const basic = store({ admin: [{ id: 5, name: 'abc' }, { id: 6, name: 'solo' }] });
-  const stores = { projects, scripts, basic, python: store({}) };
+  const projects = store({ admin: [{ id: 1, name: 'abc', scripts: ['admin/Main'] }] });
+  const scripts = { list: async () => [{ id: 11, name: 'Main', owner: 'admin', language: 'python', content: 'PRINT 1' }] };
+  const python = store({ admin: [{ id: 5, name: 'abc' }, { id: 6, name: 'solo' }] });
+  const stores = { projects, scripts, python };
 
   const project = await findApp('admin/abc', { stores });    // project wins over a same-named program
   assert.equal(project.kind, 'project');

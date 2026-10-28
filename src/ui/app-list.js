@@ -1,4 +1,4 @@
-// The compiled apps: Basic and Python programs whose compiled code has been
+// The compiled apps: Python programs whose compiled code has been
 // saved (the Database window's Compile button), in the user's space and in
 // the shared one. The desktop's
 // mobile app list show them. No DOM is needed, so
@@ -7,7 +7,7 @@
 import { SourceStore, TABLES } from './db-client.js';
 
 /** The tables searched, in order: the same order ?app= uses (run-app.js). */
-export const APP_TABLES = ['basic', 'python'];
+export const APP_TABLES = ['python'];
 
 /** True if record has compiled code saved with it. */
 export function isCompiled(record) {
@@ -15,8 +15,7 @@ export function isCompiled(record) {
 }
 
 /**
- * Every compiled app, as { name, table, owner, record } (table: 'basic' or
- * 'python'; owner: the user whose space it is in, '' for the shared space),
+ * Every compiled app, as { name, table, owner, record } (table: 'python'; owner: the user whose space it is in, '' for the shared space),
  * sorted by name ignoring case, the user's own before a shared one. A table that cannot be read is
  * skipped; rejects with that table's StoreError if neither can be read.
  * @param {{stores?: Record<string, SourceStore>}} [options] - stores to read,

@@ -1,17 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { compile } from '../src/index.js';
 import { compile as compilePython } from '../src/vm/compiler/python/loader.js';
 import { chunkToJson, chunkToJsonString } from '../src/vm/chunk-json.js';
-
-test('a Crumb chunk round-trips through JSON', () => {
-  const { chunk } = compile('Sub Hi()\n  Print "hi"\nEnd Sub\nHi()\n', { filename: 'a.bas' });
-  const json = chunkToJson(chunk);
-  assert.equal(json.format, 'crumb-chunk');
-  assert.deepEqual(json.code, chunk.code);
-  assert.deepEqual(json.procedures, chunk.procedures);
-  assert.deepEqual(JSON.parse(chunkToJsonString(chunk)), json);
-});
 
 test('a MiniPy chunk drops runtime objects and tags BigInt constants', () => {
   const { chunk } = compilePython('def f(a):\n  return a * 2\nprint(f(3))\n', { filename: 'a.py' });
@@ -35,16 +25,6 @@ const outputOf = (chunk) => {
   const { output, error } = runChunk(chunk, { ...deterministic, maxDepth: 1000 });
   return { output, error: error ? `${error.line}: ${error.message}` : null };
 };
-
-test('every Crumb example runs the same from compiled code as from source', () => {
-  for (const file of readdirSync('examples').filter((f) => f.endsWith('.bas'))) {
-    const { chunk } = compile(readFileSync(`examples/${file}`, 'utf8'), { filename: file });
-    if (!chunk || file === 'api-tour.bas' || file === 'button-demo.bas' || file === 'json-explorer.bas') continue;   // needs network / a screen
-    const loaded = chunkFromJson(chunkToJsonString(chunk));
-    assert.deepEqual(loaded.code, chunk.code, file);
-    assert.deepEqual(outputOf(loaded), outputOf(chunk), file);
-  }
-});
 
 test('every MiniPy test program runs the same from compiled code as from source', () => {
   for (const file of readdirSync('test/python').filter((f) => f.endsWith('.py'))) {
@@ -74,15 +54,15 @@ test('each load is a fresh chunk: two programs share no runtime', () => {
 });
 
 test('compiled code carries the instruction set and, if given, its source hash', () => {
-  const source = 'Print 1\n';
-  const json = chunkToJson(compile(source).chunk, { sourceHash: sourceHash(source) });
+  const source = 'print(1)\n';
+  const json = chunkToJson(compilePython(source).chunk, { sourceHash: sourceHash(source) });
   assert.equal(json.opcodes, OPCODE_SIGNATURE);
   assert.equal(json.sourceHash, sourceHash(source));
-  assert.notEqual(sourceHash('Print 1\n'), sourceHash('Print 2\n'));
+  assert.notEqual(sourceHash('print(1)\n'), sourceHash('print(2)\n'));
 });
 
 test('compiled code that cannot be loaded is rejected with a reason', () => {
-  const good = chunkToJson(compile('Print 1\n').chunk);
+  const good = chunkToJson(compilePython('print(1)\n').chunk);
   const bad = (change) => ({ ...good, ...change });
   assert.throws(() => chunkFromJson('{not json'), ChunkFormatError);
   assert.throws(() => chunkFromJson(''), ChunkFormatError);
@@ -92,5 +72,5 @@ test('compiled code that cannot be loaded is rejected with a reason', () => {
   assert.throws(() => chunkFromJson(bad({ language: 'cobol' })), /language/);
   assert.throws(() => chunkFromJson(bad({ lines: [] })), /code or lines/);
   assert.throws(() => chunkFromJson(bad({ constants: [{ $weird: 1 }] })), /unknown constant/);
-  assert.equal(parseChunkJson(JSON.stringify(good)).language, 'crumb');
+  assert.equal(parseChunkJson(JSON.stringify(good)).language, 'python');
 });

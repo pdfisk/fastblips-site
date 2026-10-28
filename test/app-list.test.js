@@ -15,29 +15,23 @@ test('isCompiled: only records with non-empty compiled code', () => {
   assert.equal(isCompiled(null), false);
 });
 
-test('listApps: compiled records of both tables, sorted by name ignoring case', async () => {
+test('listApps: compiled records, sorted by name ignoring case', async () => {
   const apps = await listApps({ stores: {
-    basic: store([
-      { id: 1, name: 'zebra', content: 'Print 1', compiled_code: 'c1' },
-      { id: 2, name: 'draft', content: 'Print 2', compiled_code: null },
-      { id: 3, name: 'Apple', content: 'Print 3', compiled_code: 'c3' },
-      { id: 4, name: '  ', content: '', compiled_code: 'c4' },
-    ]),
     python: store([
       { id: 1, name: 'mango', content: 'print(1)', compiled_code: 'p1' },
-      { id: 2, name: 'apple', content: 'print(2)', compiled_code: 'p2' },
+      { id: 2, name: 'Apple', content: 'print(2)', compiled_code: 'p2' },
       { id: 3, name: 'plain', content: 'print(3)' },
+      { id: 4, name: '  ', content: '', compiled_code: 'c4' },
     ]),
   } });
-  assert.deepEqual(apps.map((a) => `${a.name}/${a.table}`), ['Apple/basic', 'apple/python', 'mango/python', 'zebra/basic']);
-  assert.equal(apps[0].record.content, 'Print 3');
+  assert.deepEqual(apps.map((a) => `${a.name}/${a.table}`), ['Apple/python', 'mango/python']);
+  assert.equal(apps[0].record.content, 'print(2)');
 });
 
-test('listApps: a table that cannot be read is skipped; both failing rejects', async () => {
-  const apps = await listApps({ stores: { basic: failing('down'), python: store([{ name: 'p', compiled_code: 'x' }]) } });
-  assert.deepEqual(apps.map((a) => a.name), ['p']);
-  await assert.rejects(listApps({ stores: { basic: failing('no basic'), python: failing('no python') } }), /no basic/);
-  assert.deepEqual(await listApps({ stores: { basic: store(null), python: store([]) } }), []);
+test('listApps: a table that cannot be read rejects; an empty one lists nothing', async () => {
+  await assert.rejects(listApps({ stores: { python: failing('no python') } }), /no python/);
+  assert.deepEqual(await listApps({ stores: { python: store(null) } }), []);
+  assert.deepEqual(await listApps({ stores: { python: store([]) } }), []);
 });
 
 test('runUrl: this page with ?app=<name>, keeping only db=', () => {
