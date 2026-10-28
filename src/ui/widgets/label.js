@@ -6,7 +6,7 @@ export class Label extends Widget {
   constructor(text = '') {
     super('span');
     this.element.classList.add('cr-label');
-    this.element.style.cssText += ';display:flex;align-items:center;white-space:nowrap;'
+    this.element.style.cssText += ';box-sizing:border-box;display:flex;align-items:center;white-space:nowrap;'
       + 'overflow:hidden;text-overflow:ellipsis;padding:0 6px;color:var(--cr-text-muted)';
     this.text = text;
   }
