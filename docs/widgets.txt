@@ -22,6 +22,7 @@ Class hierarchy
           CheckGroupBox
           RadioGroupBox
       Stack
+      SplitButton
       SplitPanel (abstract)
         HSplitPanel
         VSplitPanel
@@ -63,8 +64,11 @@ Class hierarchy
     Button
     Label
     Image
-    TextField
-      PasswordField
+    TextInput (abstract)
+      TextField
+        PasswordField
+      TextArea
+    SelectBox
     Spacer
     Separator
 
@@ -1033,8 +1037,11 @@ SchedulerWindow (singleton)
     Button
     Label
     Image
-    TextField
-      PasswordField
+    TextInput (abstract)
+      TextField
+        PasswordField
+      TextArea
+    SelectBox
     Spacer
     Separator
 
@@ -2132,8 +2139,9 @@ TextField and PasswordField
 ---------------------------
 (src/ui/widgets/text-field.js)
 A single line of text the user can edit, after qooxdoo's qx.ui.form.TextField
-and PasswordField. A Widget (not a Panel) on an <input>. A TextPanel is the
-box of several lines.
+and PasswordField. A Widget (not a Panel) on an <input>. Both, and TextArea
+(below), are TextInputs: the base that has the text, placeholder, maxLength,
+readOnly, enabled, focus() and selectAll().
 
   - text, placeholder (grey text while it is empty), maxLength (the most the
     user can type; 0 for no limit, and text already there is not cut),
@@ -2155,6 +2163,71 @@ box of several lines.
     setReadOnly / isReadOnly, setEnabled / isEnabled, focus, selectAll,
     onChange (called with the field and its text) and onSubmit (called with
     the field). The default box is 160 by 28.
+
+
+TextArea
+--------
+(src/ui/widgets/text-area.js)
+Several lines of text the user can edit, after qooxdoo's qx.ui.form.TextArea.
+A TextInput on a <textarea>, so it has everything a TextField has. (A TextPanel
+is the older Panel that holds a text area and fills it; a TextArea is a Widget
+of its own, with a placeholder, a limit and enabled that a TextPanel lacks.)
+
+  - wrap (true at first): long lines wrap; false lets them run off to the side,
+    and the area scrolls. append(text) adds text at the end and scrolls there.
+  - Events: input on every edit by the user (not when the program sets the
+    text), and submit on Ctrl+Enter or Cmd+Enter. Enter on its own is a new
+    line.
+  - For a program: TextArea(text), with a TextField's methods, setWrap /
+    isWrap and append. The default box is 240 by 120. It is saved with text
+    (unlike a PasswordField's), placeholder, maxLength, readOnly, enabled and
+    wrap (when not the defaults).
+
+
+SplitButton
+-----------
+(src/ui/widgets/split-button.js)
+A button with a drop-down arrow beside it, after qooxdoo's
+qx.ui.form.SplitButton: clicking the button does its usual thing, and the arrow
+opens a menu of related actions ("Save", with "Save As..." under the arrow).
+
+  - A Panel of two parts that it lays out itself (nothing else can be added): a
+    Button (the main part, `button`, ending in a straight edge) and a Menu
+    (`arrow`, ARROW_WIDTH, 24, wide, labelled with a down arrow). The menu opens
+    as any Menu does.
+  - label, action and enabled are the Button's (enabled greys out both parts and
+    closes the menu); addItem, addSeparator, items, open and close are the
+    Menu's. preferredWidth() is the button's plus the arrow.
+  - For a program: SplitButton(text), with setText / getText, setEnabled /
+    isEnabled, onClick (the button part only: the arrow and the menu are not
+    clicks) and the Menu's addItem (the item's handler is called with the button
+    and the item's label), addSeparator and clear. setBackground and setColor
+    paint both parts. It is saved like a Menu, with its items and handler names,
+    and enabled when not true.
+
+
+SelectBox
+---------
+(src/ui/widgets/select-box.js)
+A drop-down that shows the item chosen from a list, after qooxdoo's
+qx.ui.form.SelectBox. A Widget on a <select>, so the list is the browser's own,
+and works with the keyboard, a screen reader and a touch screen.
+
+  - Like qooxdoo's, a SelectBox with items always has one chosen: the first item
+    added is chosen, and removing the chosen item chooses its neighbour (the next,
+    or the last when there is none after). select(-1) chooses none. items,
+    count, selectedIndex (-1 for none), selectedText and enabled read the state;
+    addItem, removeItem, setItem, getItem, clear and select change it. An index
+    out of range is an error.
+  - It fires select, a CustomEvent with detail { index, text }, whenever the
+    item chosen changes, by the user or the program, including when the first
+    item is added. Removing an item before the chosen one changes the index
+    without changing the choice, and fires nothing.
+  - For a program: SelectBox() with addItem, removeItem, setItem, getItem,
+    getCount, clear, select, getSelectedIndex, getSelectedText, setEnabled /
+    isEnabled and onSelect (called with the box and the index). The default
+    box is 160 by 28. It is saved with items, selected (when not the first, or
+    -1 for none) and enabled (when not true).
 
 
 Image
@@ -2378,8 +2451,8 @@ changed through methods, and in MiniPy the same way with Python spellings:
   - The classes: Viewport (the screen itself, below), Label, Button, Menu, Spacer, Panel, HPanel, VPanel,
     ButtonBar, HSplitPanel, VSplitPanel, TabPanel, Window, TextPanel,
     MonacoPanel, ListPanel, Ellipse, RoundedRect, Composite, Stack, Image,
-    CheckGroupBox, RadioGroupBox, TextField and PasswordField, and the Board
-    and the Canvas (below). Left
+    CheckGroupBox, RadioGroupBox, TextField, PasswordField, TextArea,
+    SplitButton and SelectBox, and the Board and the Canvas (below). Left
     out on purpose: the singletons (Navbar, StatusBar, TranscriptWindow,
     SchedulerWindow), the IDE's own windows (consoles, DatabaseWindow,
     LaunchWindows) and panels made for them (RecordPanel, OutputPanel).

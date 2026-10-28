@@ -226,6 +226,30 @@ never saved with a screen or composite (to_json, save, save_composite). A
 password typed into a program goes to that program, so only type one into a
 program you trust.`,
 
+  TextArea: `Several lines of text the user can edit. TextArea(text) starts it with some text.
+It has the methods of a TextField (see TextField): set_text, get_text,
+set_placeholder, set_max_length, set_read_only, set_enabled, focus and
+select_all, with on_change(function) on every edit by the user. Enter is a new
+line, so on_submit(function) is called when the user presses Ctrl+Enter.
+set_wrap(False) lets long lines run off to the side instead of wrapping (and
+is_wrap() says which); append(text) adds text at the end and scrolls to it.`,
+
+  SplitButton: `A button with a drop-down arrow beside it. Clicking the button does its usual
+thing: on_click(function) is called with the button. Clicking the arrow opens a
+menu of related actions: add_item(label, function) adds one (the function is
+called with the button and the item's label), add_separator() adds a line and
+clear() removes them all. set_text(text) is the button's label and
+set_enabled(b) greys out both parts.`,
+
+  SelectBox: `A drop-down that shows the item chosen from a list. add_item(text), remove_item(i),
+set_item(i, text), get_item(i) and get_count(); clear() empties it. Once it has
+items one is always chosen: the first added, and, when the chosen item is
+removed, its neighbour. select(i) chooses item i, select(-1) none;
+get_selected_index() is -1 when none is chosen, and get_selected_text() is ""
+then. on_select(function) is called with the box and the index chosen (-1 for
+none) whenever the choice changes, by the user or the program, including when
+the first item is added. set_enabled(b) greys it out.`,
+
   Image: `A picture. Image(source) starts it; the source is an http: or https: address
 or a data:image/ URI ("" for none); anything else is an error.
 set_source(text) and get_source(); set_fit(text) says how the picture fills its

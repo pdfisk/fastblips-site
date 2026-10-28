@@ -35,7 +35,10 @@ import { Spacer } from './widgets/spacer.js';
 import { Composite } from './widgets/composite.js';
 import { Image as ImageWidget } from './widgets/image.js';
 import { GroupBox, CheckGroupBox, RadioGroupBox } from './widgets/group-box.js';
-import { TextField, PasswordField } from './widgets/text-field.js';
+import { TextInput, TextField, PasswordField } from './widgets/text-field.js';
+import { TextArea } from './widgets/text-area.js';
+import { SplitButton } from './widgets/split-button.js';
+import { SelectBox } from './widgets/select-box.js';
 import { Stack } from './widgets/stack.js';
 import { LayoutError, cleanChildProps, makeLayout, propsOf } from './layouts/index.js';
 import { Ellipse, RoundedRect, DEFAULT_BORDER_WIDTH } from './widgets/shape.js';
@@ -231,10 +234,16 @@ const CLASSES = {
   RadioGroupBox: { make: (text) => new RadioGroupBox(text), box: DEFAULT_BOXES.RadioGroupBox },
   TextField: { make: (text) => new TextField(text), box: DEFAULT_BOXES.TextField },
   PasswordField: { make: () => new PasswordField(), box: DEFAULT_BOXES.PasswordField },
+  TextArea: { make: (text) => new TextArea(text), box: DEFAULT_BOXES.TextArea },
+  SplitButton: { make: (text) => new SplitButton(text), box: DEFAULT_BOXES.SplitButton },
+  SelectBox: { make: () => new SelectBox(), box: DEFAULT_BOXES.SelectBox },
 };
 
 /** Container classes whose children are a plain list. */
 const LIST_CONTAINERS = ['Panel', 'HPanel', 'VPanel', 'ButtonBar', 'Composite', 'Stack', 'CheckGroupBox', 'RadioGroupBox'];
+
+/** True for a widget with a pop-up menu that has to be closed when it goes: a Menu or a SplitButton. */
+const opensMenu = (w) => w instanceof Menu || w instanceof SplitButton;
 
 /** Runs an Image operation, turning the Error it throws (a bad source or fit) into a WidgetError. */
 function imageCall(body) {
@@ -310,10 +319,10 @@ export class ProgramWidgetHost {
       binding.reset();
     }
     for (const child of this.layer.children) {
-      if (child instanceof Menu) child.close();
+      if (opensMenu(child)) child.close();
       this.layer.remove(child);
     }
-    for (const w of this._widgets.values()) if (w instanceof Menu) w.close();
+    for (const w of this._widgets.values()) if (opensMenu(w)) w.close();
     this._widgets.clear();
     this._ids.clear();
     this._windows.clear();
@@ -423,6 +432,12 @@ export class ProgramWidgetHost {
     return w.element;
   }
 
+  /** Sets a style (background, color) on the parts of a widget that show it: both parts of a SplitButton. */
+  _paint(w, property, value) {
+    const targets = w instanceof SplitButton ? [w.button.element, w.arrow.button] : [this._surface(w)];
+    for (const element of targets) element.style[property] = value;
+  }
+
   /** Sets part of the program's box, and the fixed size a row or column uses. */
   _setBox(w, left, top, width, height) {
     if (w instanceof Window) {
@@ -445,12 +460,13 @@ export class ProgramWidgetHost {
     (w._events ??= []).push({ method, handler: callback.handlerName ?? null });
     const own = (type, f) => w.element.addEventListener(type, (e) => { if (e.target === w.element) f(e); });
     switch (method) {
-      case 'onClick': w.element.addEventListener('click', () => callback()); break;
+      // A SplitButton's click is its button's: the arrow and the menu are not clicks.
+      case 'onClick': (w instanceof SplitButton ? w.button.element : w.element).addEventListener('click', () => callback()); break;
       case 'onSelect': own('select', (e) => callback(e.detail.index)); break;
       case 'onChange':
         if (w instanceof HSplitPanel || w instanceof VSplitPanel) own('change', (e) => callback(e.detail.position));
         else if (w instanceof GroupBox) own('change', (e) => callback(e.detail.checked));
-        else if (w instanceof TextField) own('input', () => callback(w.text));
+        else if (w instanceof TextInput) own('input', () => callback(w.text));
         else own('change', () => callback(w.text));
         break;
       case 'onSubmit': own('submit', () => callback()); break;
@@ -478,7 +494,7 @@ export class ProgramWidgetHost {
   /** Removes every widget from the Viewport, Windows included. */
   _clearViewport() {
     for (const child of this.layer.children) {
-      if (child instanceof Menu) child.close();
+      if (opensMenu(child)) child.close();
       this.layer.remove(child);
     }
     for (const win of this._windows) if (win.parent) win.parent.remove(win);
@@ -507,8 +523,9 @@ export class ProgramWidgetHost {
     switch (cls) {
       case 'Label': node.text = w.text; break;
       case 'Button': node.text = w.label; put('enabled', w.enabled, true); break;
-      case 'Menu':
+      case 'Menu': case 'SplitButton':
         node.text = w.label;
+        if (cls === 'SplitButton') put('enabled', w.enabled, true);
         node.items = (w._items ?? []).map((item) => ({ ...item }));
         break;
       case 'Window': {
@@ -550,9 +567,15 @@ export class ProgramWidgetHost {
       case 'Stack':
         put('selected', w.selectedIndex, 0);
         break;
-      case 'TextField': case 'PasswordField':
+      case 'SelectBox':
+        node.items = w.items;
+        put('selected', w.selectedIndex, w.count > 0 ? 0 : -1);
+        put('enabled', w.enabled, true);
+        break;
+      case 'TextField': case 'PasswordField': case 'TextArea':
         // A password is never saved: a saved screen or composite is kept in the database.
-        if (cls === 'TextField') node.text = w.text;
+        if (cls !== 'PasswordField') node.text = w.text;
+        if (cls === 'TextArea') put('wrap', w.wrap, true);
         put('placeholder', w.placeholder, '');
         put('maxLength', w.maxLength, 0);
         put('readOnly', w.readOnly, false);
@@ -705,7 +728,7 @@ export class ProgramWidgetHost {
       Window: [str(node.title)], TextPanel: [str(node.text)],
       MonacoPanel: [str(node.text), str(node.language, 'plaintext')],
       Image: [str(node.source)], CheckGroupBox: [str(node.text)], RadioGroupBox: [str(node.text)],
-      TextField: [str(node.text)],
+      TextField: [str(node.text)], TextArea: [str(node.text)], SplitButton: [str(node.text)],
     }[cls] ?? [];
     const w = spec.make(...args);
     if (spec.box) {
@@ -726,8 +749,8 @@ export class ProgramWidgetHost {
     if (node.fill === true) w.fillParent = true;
     if (node.layoutProps !== undefined) w.layoutProps = layoutCall(() => cleanChildProps(node.layoutProps));
     if (node.visible === false) w.visible = false;
-    if (node.background) { w._background = String(node.background); this._surface(w).style.background = w._background; }
-    if (node.color) { w._color = String(node.color); this._surface(w).style.color = w._color; }
+    if (node.background) { w._background = String(node.background); this._paint(w, 'background', w._background); }
+    if (node.color) { w._color = String(node.color); this._paint(w, 'color', w._color); }
     if (cls !== 'Window') {
       // A number (all four sides) or [top, right, bottom, left].
       const boxed = (v) => (Number.isFinite(v) || (Array.isArray(v) && v.length === 4 && v.every(Number.isFinite)) ? v : undefined);
@@ -741,7 +764,13 @@ export class ProgramWidgetHost {
     switch (cls) {
       case 'Button': if (node.enabled === false) w.enabled = false; break;
       case 'RoundedRect': if (num(node.radius) !== undefined) w.radius = node.radius; break;
-      case 'TextField': case 'PasswordField':
+      case 'SelectBox':
+        for (const item of node.items ?? []) w.addItem(str(item));
+        if (Number.isInteger(node.selected) && node.selected >= -1 && node.selected < w.count) w.select(node.selected);
+        if (node.enabled === false) w.enabled = false;
+        break;
+      case 'TextField': case 'PasswordField': case 'TextArea':
+        if (cls === 'TextArea' && node.wrap === false) w.wrap = false;
         if (typeof node.placeholder === 'string') w.placeholder = node.placeholder;
         if (num(node.maxLength) !== undefined) w.maxLength = node.maxLength;
         if (node.readOnly === true) w.readOnly = true;
@@ -751,7 +780,8 @@ export class ProgramWidgetHost {
         if (typeof node.fit === 'string') imageCall(() => { w.fit = node.fit; });
         if (typeof node.alt === 'string') w.alt = node.alt;
         break;
-      case 'Menu':
+      case 'Menu': case 'SplitButton':
+        if (cls === 'SplitButton' && node.enabled === false) w.enabled = false;
         w._items = [];
         for (const item of node.items ?? []) {
           if (item?.separator) { this._addMenuItem(w, null); continue; }
@@ -849,8 +879,8 @@ export class ProgramWidgetHost {
         if (w instanceof Window) Window.refreshActive(w.parent);
         return this._relayout(w);
       case 'isVisible': return w.visible;
-      case 'setBackground': w._background = a; this._surface(w).style.background = a; return undefined;
-      case 'setColor': w._color = a; this._surface(w).style.color = a; return undefined;
+      case 'setBackground': w._background = a; this._paint(w, 'background', a); return undefined;
+      case 'setColor': w._color = a; this._paint(w, 'color', a); return undefined;
       case 'setMargin': case 'setPadding': case 'setBorderWidth': case 'setBorderColor':
       case 'setMarginSides': case 'setPaddingSides': case 'setBorderWidthSides': {
         if (w instanceof Window) throw new WidgetError('a Window has no margin, padding or border');
@@ -876,9 +906,12 @@ export class ProgramWidgetHost {
       default: break;
     }
 
-    // TextField and PasswordField.
-    if (w instanceof TextField) {
+    // TextField, PasswordField and TextArea.
+    if (w instanceof TextInput) {
       switch (method) {
+        case 'setWrap': if (w instanceof TextArea) { w.wrap = a; return undefined; } break;
+        case 'isWrap': if (w instanceof TextArea) return w.wrap; break;
+        case 'append': if (w instanceof TextArea) { w.append(a); return undefined; } break;
         case 'setText': w.text = a; return undefined;
         case 'getText': return w.text;
         case 'setPlaceholder': w.placeholder = a; return undefined;
@@ -911,10 +944,10 @@ export class ProgramWidgetHost {
       // ---- text
       case 'Label.setText': w.text = a; return undefined;
       case 'Label.getText': return w.text;
-      case 'Button.setText': case 'Menu.setText':
+      case 'Button.setText': case 'Menu.setText': case 'SplitButton.setText':
         w.label = a;
         return this._relayout(w);
-      case 'Button.getText': case 'Menu.getText': return w.label;
+      case 'Button.getText': case 'Menu.getText': case 'SplitButton.getText': return w.label;
       case 'TextPanel.setText': case 'MonacoPanel.setText': w.text = a; return undefined;
       case 'TextPanel.getText': case 'MonacoPanel.getText': return w.text;
 
@@ -931,13 +964,24 @@ export class ProgramWidgetHost {
       case 'RoundedRect.setRadius': w.radius = a; return undefined;
       case 'RoundedRect.getRadius': return w.radius;
 
-      case 'Button.setEnabled': w.enabled = a; return undefined;
-      case 'Button.isEnabled': return w.enabled;
+      case 'Button.setEnabled': case 'SplitButton.setEnabled': case 'SelectBox.setEnabled': w.enabled = a; return undefined;
+      case 'Button.isEnabled': case 'SplitButton.isEnabled': case 'SelectBox.isEnabled': return w.enabled;
 
       // ---- Menu
-      case 'Menu.addItem': this._addMenuItem(w, a, b); return undefined;
-      case 'Menu.addSeparator': this._addMenuItem(w, null); return undefined;
-      case 'Menu.clear': w.close(); w.items = []; w._items = []; return undefined;
+      case 'Menu.addItem': case 'SplitButton.addItem': this._addMenuItem(w, a, b); return undefined;
+      case 'Menu.addSeparator': case 'SplitButton.addSeparator': this._addMenuItem(w, null); return undefined;
+      case 'Menu.clear': case 'SplitButton.clear': w.close(); w.items = []; w._items = []; return undefined;
+
+      // ---- SelectBox
+      case 'SelectBox.addItem': w.addItem(a); return undefined;
+      case 'SelectBox.removeItem': w.removeItem(this._index(a, w.count)); return undefined;
+      case 'SelectBox.setItem': w.setItem(this._index(a, w.count), b); return undefined;
+      case 'SelectBox.getItem': return w.getItem(this._index(a, w.count));
+      case 'SelectBox.getCount': return w.count;
+      case 'SelectBox.clear': w.clear(); return undefined;
+      case 'SelectBox.select': w.select(a === -1 ? -1 : this._index(a, w.count)); return undefined;
+      case 'SelectBox.getSelectedIndex': return w.selectedIndex;
+      case 'SelectBox.getSelectedText': return w.selectedText;
 
       // ---- containers
       // ---- the Viewport

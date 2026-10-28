@@ -1,6 +1,7 @@
 // TextField and PasswordField: a single line of text the user can edit (see
 // docs/widgets.txt). Modelled on qooxdoo's qx.ui.form.TextField and
-// PasswordField. A TextPanel is the multi-line box.
+// PasswordField. TextInput is what they share with TextArea (text-area.js),
+// the box of several lines.
 //
 // The widget is an <input>. It fires the browser's own input event on every
 // edit by the user (not when the program sets the text), and a submit event
@@ -29,22 +30,25 @@ function installStyle() {
   document.head.appendChild(style);
 }
 
-export class TextField extends Widget {
+/**
+ * What a text field and a text area have in common: the text, a placeholder, a
+ * limit on its length, read only, enabled, focus and select all. The element
+ * is an <input> or a <textarea>, as the subclass says.
+ */
+export class TextInput extends Widget {
   /**
+   * @param {string} tag - 'input' or 'textarea'
    * @param {string} [text] - what it holds at first
-   * @param {{type?: 'text'|'password'}} [options]
+   * @param {{type?: 'text'|'password'}} [options] - the type of an <input>
    */
-  constructor(text = '', { type = 'text' } = {}) {
-    super('input');
+  constructor(tag, text = '', { type = 'text' } = {}) {
+    super(tag);
     installStyle();
     this.element.classList.add('cr-text-field');
-    this.element.type = type;
+    if (tag === 'input') this.element.type = type;
     this.element.spellcheck = false;
     this.element.autocomplete = type === 'password' ? 'new-password' : 'off';
     this._maxLength = 0;
-    this.element.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') this.element.dispatchEvent(new CustomEvent('submit'));
-    });
     this.text = text;
   }
 
@@ -77,6 +81,19 @@ export class TextField extends Widget {
 
   /** Selects all the text. */
   selectAll() { this.element.select(); }
+}
+
+export class TextField extends TextInput {
+  /**
+   * @param {string} [text] - what it holds at first
+   * @param {{type?: 'text'|'password'}} [options]
+   */
+  constructor(text = '', options = {}) {
+    super('input', text, options);
+    this.element.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.element.dispatchEvent(new CustomEvent('submit'));
+    });
+  }
 }
 
 export class PasswordField extends TextField {

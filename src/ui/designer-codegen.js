@@ -91,7 +91,7 @@ const VARIABLE_BASES = {
   ButtonBar: 'buttons', HSplitPanel: 'split', VSplitPanel: 'split', TabPanel: 'tabs', Window: 'win',
   TextPanel: 'text', MonacoPanel: 'editor', ListPanel: 'list', Ellipse: 'ellipse', RoundedRect: 'box',
   Composite: 'composite', Stack: 'stack', Image: 'image', CheckGroupBox: 'group', RadioGroupBox: 'group',
-  TextField: 'field', PasswordField: 'password',
+  TextField: 'field', PasswordField: 'password', TextArea: 'area', SplitButton: 'splitButton', SelectBox: 'select',
 };
 
 /** The first parameter of every handler is the widget; then the event's values. */
@@ -154,7 +154,7 @@ class Generator {
    * functions and variables in one namespace.
    */
   reserveHandlers(node) {
-    if (node.class === 'Menu') {
+    if (node.class === 'Menu' || node.class === 'SplitButton') {
       for (const item of node.items ?? []) if (!item?.separator) this.reserve(this.menuHandler(node, item));
     }
     const known = new Set(eventsOf(node.class));
@@ -208,7 +208,7 @@ class Generator {
         MonacoPanel: [text(), this.str(node.language || 'plaintext')],
         Window: [this.str(node.title)],
         Image: [this.str(node.source)], CheckGroupBox: [text()], RadioGroupBox: [text()],
-        TextField: [text()],
+        TextField: [text()], TextArea: [text()], SplitButton: [text()],
       }[cls] ?? [];
       this.line(L.declare(v, L.construct(cls, args)));
     }
@@ -310,7 +310,21 @@ class Generator {
       case 'HPanel': case 'VPanel':
         if (Number.isFinite(node.spacing)) this.call(v, 'setSpacing', [num(node.spacing)]);
         break;
-      case 'TextField': case 'PasswordField':
+      case 'SplitButton':
+        if (node.enabled === false) this.call(v, 'setEnabled', [L.bool(false)]);
+        this.menuItems(v, node);
+        break;
+      case 'SelectBox': {
+        const items = node.items ?? [];
+        for (const item of items) this.call(v, 'addItem', [this.str(item)]);
+        if (Number.isInteger(node.selected) && node.selected > 0 && node.selected < items.length) {
+          this.call(v, 'select', [num(node.selected)]);
+        }
+        if (node.enabled === false) this.call(v, 'setEnabled', [L.bool(false)]);
+        break;
+      }
+      case 'TextField': case 'PasswordField': case 'TextArea':
+        if (node.class === 'TextArea' && node.wrap === false) this.call(v, 'setWrap', [L.bool(false)]);
         if (node.placeholder) this.call(v, 'setPlaceholder', [this.str(node.placeholder)]);
         if (node.maxLength > 0) this.call(v, 'setMaxLength', [num(node.maxLength)]);
         if (node.readOnly) this.call(v, 'setReadOnly', [L.bool(true)]);

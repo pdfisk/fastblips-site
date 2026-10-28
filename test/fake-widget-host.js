@@ -169,7 +169,7 @@ export class FakeHost {
       id, className, args, props: { visible: true, enabled: true }, children: [], parent: null,
       handlers: {}, items: [], selected: -1,
     };
-    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox', 'TextField'].includes(className)) w.props.text = args[0];
+    if (['Label', 'Button', 'Menu', 'TextPanel', 'MonacoPanel', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'TextArea', 'SplitButton'].includes(className)) w.props.text = args[0];
     if (className === 'Window') w.props.title = args[0];
     if (className === 'Image') w.props.source = args[0];
     this.widgets.set(id, w);
@@ -228,7 +228,7 @@ export class FakeHost {
       case 'setContent': case 'setFirst': case 'setSecond':
         this.adopt(w, args[0]); w.props[method.slice(3).toLowerCase()] = args[0]; return undefined;
       case 'getContent': case 'getFirst': case 'getSecond': return w.props[method.slice(3).toLowerCase()] ?? 0;
-      case 'getCount': return w.className === 'ListPanel' || w.className === 'TabPanel' ? w.items.length : this.kids(w).length;
+      case 'getCount': return ['ListPanel', 'TabPanel', 'SelectBox'].includes(w.className) ? w.items.length : this.kids(w).length;
       case 'getChild': { const k = this.kids(w); this.checkIndex(w, args[0], k.length); return k[args[0]]; }
       case 'getParent':
         if (w.parent) return w.parent;

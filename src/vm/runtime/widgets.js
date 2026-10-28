@@ -498,6 +498,41 @@ export const WIDGET_CLASSES = Object.freeze([
   // is never saved by toJson or saveComposite.
   cls('TextField', ['text'], FIELD),
   cls('PasswordField', [], FIELD),
+  // Several lines of text, with a TextField's methods. wrap says whether long
+  // lines wrap. onSubmit is Ctrl+Enter (Enter is a new line).
+  cls('TextArea', ['text'], [
+    ...FIELD,
+    method('setWrap', ['boolean']),
+    method('isWrap', [], 'boolean'),
+    method('append', ['text']),
+  ]),
+  // A button with a menu behind an arrow: onClick is the button, addItem
+  // (the item's handler is called with the item's label) the menu.
+  cls('SplitButton', ['text'], [
+    ...TEXT, ...CLICK,
+    method('setEnabled', ['boolean']),
+    method('isEnabled', [], 'boolean'),
+    method('addItem', ['text', 'handler:text']),
+    method('addSeparator'),
+    method('clear'),
+  ]),
+  // A drop-down that shows the item chosen. With items, one is always chosen
+  // (the first added) until select(-1). onSelect is called with the box and the
+  // index chosen (-1 for none), by the user or the program.
+  cls('SelectBox', [], [
+    method('addItem', ['text']),
+    method('removeItem', ['index']),
+    method('setItem', ['index', 'text']),
+    method('getItem', ['index'], 'text'),
+    method('getCount', [], 'int'),
+    method('clear'),
+    method('select', ['index']),
+    method('getSelectedIndex', [], 'int'),
+    method('getSelectedText', [], 'text'),
+    method('setEnabled', ['boolean']),
+    method('isEnabled', [], 'boolean'),
+    method('onSelect', ['handler:int']),
+  ]),
 ]);
 
 /** className -> class */

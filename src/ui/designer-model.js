@@ -46,18 +46,18 @@ export function newNode(cls) {
   if (!PALETTE.includes(cls)) throw new Error(`there is no widget class '${cls}'`);
   const node = { class: cls };
   switch (cls) {
-    case 'Label': case 'Button': case 'Menu': node.text = cls; break;
-    case 'TextPanel': node.text = ''; break;
+    case 'Label': case 'Button': case 'Menu': case 'SplitButton': node.text = cls; break;
+    case 'TextPanel': case 'TextArea': node.text = ''; break;
     case 'MonacoPanel': node.text = ''; node.language = 'vb'; break;
     case 'Window': node.title = 'Window'; node.bounds = [...DEFAULT_WINDOW_BOUNDS]; break;
-    case 'ListPanel': node.items = []; break;
+    case 'ListPanel': case 'SelectBox': node.items = []; break;
     case 'TabPanel': node.tabs = []; break;
     case 'Image': node.source = ''; break;
     case 'CheckGroupBox': case 'RadioGroupBox': node.text = 'Group'; break;
     case 'TextField': node.text = ''; break;   // a PasswordField has no text to keep
     default: break;
   }
-  if (cls === 'Menu') node.items = [];
+  if (cls === 'Menu' || cls === 'SplitButton') node.items = [];
   if (LIST_CONTAINERS.has(cls)) node.children = [];
   if (SPLITS.has(cls)) { node.position = 0.5; node.first = null; node.second = null; }
   if (DEFAULT_BOXES[cls]) node.box = [...DEFAULT_BOXES[cls]];
@@ -225,7 +225,7 @@ export function describe(node) {
   let text = node.class;
   if (node.id) text += ` #${node.id}`;
   const caption = node.class === 'Window' ? node.title : node.text;
-  if (caption !== undefined && caption !== '' && ['Label', 'Button', 'Menu', 'Window', 'CheckGroupBox', 'RadioGroupBox'].includes(node.class)) {
+  if (caption !== undefined && caption !== '' && ['Label', 'Button', 'Menu', 'SplitButton', 'Window', 'CheckGroupBox', 'RadioGroupBox'].includes(node.class)) {
     text += ` "${String(caption).split('\n')[0]}"`;
   }
   return text;
@@ -501,6 +501,7 @@ const FIELDS = {
   group: prop('group', 'Group', 'text', ''),
   placeholder: prop('placeholder', 'Placeholder', 'text', ''),
   maxLength: prop('maxLength', 'Max length (0 for none)', 'number'),
+  wrap: prop('wrap', 'Wrap lines', 'bool', true),
   position: prop('position', 'Divider (0-1)', 'number'),
   selected: prop('selected', 'Selected', 'number'),
   emptyText: prop('emptyText', 'Empty text', 'text'),
@@ -600,6 +601,9 @@ export function fieldsFor(node, { isRoot = false, parent = null } = {}) {
     RadioGroupBox: [f.text, f.group, f.checkedOff],
     TextField: [f.text, f.placeholder, f.maxLength, f.readOnly, f.enabled],
     PasswordField: [f.placeholder, f.maxLength, f.readOnly, f.enabled],
+    TextArea: [f.textArea, f.placeholder, f.maxLength, f.readOnly, f.enabled, f.wrap],
+    SelectBox: [f.listItems, f.selected, f.enabled],
+    SplitButton: [f.text, f.enabled, f.menuItems],
     Window: [f.title, f.maximized],
   }[cls] ?? [];
   const groups = [['Widget', [f.id, ...own]]];

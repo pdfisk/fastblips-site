@@ -22,6 +22,9 @@ import { Stack } from './widgets/stack.js';
 import { Image as ImageWidget } from './widgets/image.js';
 import { GroupBox, CheckGroupBox, RadioGroupBox } from './widgets/group-box.js';
 import { TextField, PasswordField } from './widgets/text-field.js';
+import { TextArea } from './widgets/text-area.js';
+import { SplitButton } from './widgets/split-button.js';
+import { SelectBox } from './widgets/select-box.js';
 import * as layouts from './layouts/index.js';
 import { ProgramWidgetHost } from './program-widgets.js';
 import { DesignerWindow } from './windows/designer-window.js';
@@ -63,7 +66,7 @@ import { THEMES, setTheme, themeName, resolvedTheme } from './theme.js';
 import { CODE_FONTS, setCodeFont, codeFontName } from './fonts.js';
 
 const ui = {
-  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, GroupBox, CheckGroupBox, RadioGroupBox, TextField, PasswordField, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
+  Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, GroupBox, CheckGroupBox, RadioGroupBox, TextField, PasswordField, TextArea, SplitButton, SelectBox, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, PythonConsoleWindow,
   TranscriptWindow, SchedulerWindow, WidgetHelpWindow, CommunityProjectsWindow, RecordPanel, Label,

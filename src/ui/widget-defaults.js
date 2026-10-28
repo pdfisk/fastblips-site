@@ -28,6 +28,9 @@ export const DEFAULT_BOXES = Object.freeze({
   RadioGroupBox: [0, 0, 320, 200],
   TextField: [0, 0, 160, 28],
   PasswordField: [0, 0, 160, 28],
+  TextArea: [0, 0, 240, 120],
+  SplitButton: [0, 0, 120, 32],
+  SelectBox: [0, 0, 160, 28],
 });
 
 /** The classes that place their children with a layout, and the layout each starts with. */
@@ -38,7 +41,7 @@ export const LAYOUT_CLASSES = new Set(Object.keys(DEFAULT_LAYOUTS));
 export const DEFAULT_WINDOW_BOUNDS = Object.freeze([20, 20, 320, 240]);
 
 /** Classes whose natural width is their text's (in a row). */
-export const TEXT_SIZED = new Set(['Label', 'Button', 'Menu']);
+export const TEXT_SIZED = new Set(['Label', 'Button', 'Menu', 'SplitButton']);
 
 /** Classes that ask for their own natural size, not their class's default box (an Image, once loaded). */
 export const NATURAL_SIZED = new Set(['Image']);

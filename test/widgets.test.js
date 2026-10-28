@@ -33,7 +33,7 @@ test('the classes are the toolkit\'s general-purpose widgets', () => {
   assert.deepEqual(WIDGET_CLASSES.map((c) => c.name), [
     'Viewport', 'Label', 'Button', 'Menu', 'Spacer', 'Panel', 'HPanel', 'VPanel', 'ButtonBar',
     'HSplitPanel', 'VSplitPanel', 'TabPanel', 'Window', 'TextPanel', 'MonacoPanel', 'ListPanel', 'Board', 'Canvas', 'Physics',
-    'Ellipse', 'RoundedRect', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'PasswordField',
+    'Ellipse', 'RoundedRect', 'Composite', 'Stack', 'Image', 'CheckGroupBox', 'RadioGroupBox', 'TextField', 'PasswordField', 'TextArea', 'SplitButton', 'SelectBox',
   ]);
   for (const c of WIDGET_CLASSES) {
     for (const m of c.methods) assert.match(m.py, /^[a-z_]+(3d)?$/, `${c.name}.${m.name}`);
@@ -165,6 +165,36 @@ test('MiniPy: TextField and PasswordField, with their methods in snake_case', ()
   assert.deepEqual(named(1, 'selectAll'), [[]]);
   assert.throws(() => runPy('TextField("x").set_max_length(-1)'), /set_max_length\(\) expects a size of 0 or more/);
   assert.throws(() => runPy('PasswordField("secret")'), /PasswordField\(\) takes 0 arguments/);
+});
+
+test('MiniPy: TextArea, SplitButton and SelectBox, with their methods in snake_case', () => {
+  const { host, out } = runPy([
+    'notes = TextArea("a")',
+    'notes.set_wrap(False)',
+    'notes.append("b")',
+    'notes.set_placeholder("Notes")',
+    'save = SplitButton("Save")',
+    'def save_as(button, label):',
+    '    pass',
+    'save.add_item("Save As...", save_as)',
+    'save.add_separator()',
+    'save.set_enabled(False)',
+    'pick = SelectBox()',
+    'for name in ["red", "green"]:',
+    '    pick.add_item(name)',
+    'pick.set_item(1, "blue")',
+    'pick.select(1)',
+    'print(notes.get_text(), notes.is_wrap(), save.get_text(), save.is_enabled(), pick.get_count(), pick.get_item(1), pick.get_selected_index())',
+  ].join('\n'));
+  assert.deepEqual(out, ['ab False Save False 2 blue 1']);
+  const named = (id, method) => host.calls.filter((c) => c[0] === id && c[1] === method).map((c) => c.slice(2));
+  assert.deepEqual(named(1, 'setWrap'), [[false]]);
+  assert.deepEqual(named(1, 'append'), [['b']]);
+  assert.equal(named(2, 'addItem').length, 1);
+  assert.deepEqual(named(3, 'addItem'), [['red'], ['green']]);
+  assert.deepEqual(named(3, 'setItem'), [[1, 'blue']]);
+  assert.throws(() => runPy('SelectBox().select("a")'), /select\(\) expects an int as argument 1/);
+  assert.throws(() => runPy('SelectBox("x")'), /SelectBox\(\) takes 0 arguments/);
 });
 
 test('MiniPy: layout settings are checked before the host sees them', () => {
