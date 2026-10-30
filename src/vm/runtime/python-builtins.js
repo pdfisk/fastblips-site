@@ -228,6 +228,34 @@ const FUNCTIONS = {
   }],
   sorted: [1, 1, (vm, [seq]) => sortValues(vm, toSequenceArray(vm, seq).slice())],
 
+  // Random numbers, from the VM's random source (Math.random unless a test
+  // or host supplies another), so a program can be made repeatable.
+  //   random()          a float, 0 <= x < 1
+  //   randint(a, b)     an int, a <= x <= b (both ends included)
+  //   choice(seq)       one item of a non-empty list, tuple or str
+  //   shuffle(list)     puts the items of a list in a random order, in place
+  random: [0, 0, (vm) => vm.random()],
+  randint: [2, 2, (vm, [a, b]) => {
+    if (!isInt(a) || !isInt(b)) vm.raise('TypeError', 'randint() arguments must be ints');
+    const lo = toBig(a);
+    const hi = toBig(b);
+    if (lo > hi) vm.raise('ValueError', `empty range for randint(${lo}, ${hi})`);
+    return lo + BigInt(Math.floor(vm.random() * Number(hi - lo + 1n)));
+  }],
+  choice: [1, 1, (vm, [seq]) => {
+    const items = toSequenceArray(vm, seq);
+    if (items.length === 0) vm.raise('IndexError', 'Cannot choose from an empty sequence');
+    return items[Math.floor(vm.random() * items.length)];
+  }],
+  shuffle: [1, 1, (vm, [list]) => {
+    if (!Array.isArray(list)) vm.raise('TypeError', `shuffle() expects a list, not '${typeName(list)}'`);
+    for (let i = list.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(vm.random() * (i + 1));
+      [list[i], list[j]] = [list[j], list[i]];
+    }
+    return NOTHING;
+  }],
+
   // dir([object]): with no argument, the names bound in the current scope;
   // with one, the attribute names of the object. Always a sorted list of str.
   dir: [0, 1, (vm, args) => (args.length === 0 ? scopeNames(vm) : attributeNames(args[0])).sort()],

@@ -78,7 +78,11 @@ f-strings, slices and list comprehensions. `int` is arbitrary precision and
 `float` is a double, as in Python. It compiles to the same bytecode as Crumb
 and runs on the same VM, so a MiniPy program also runs on the scheduler,
 yields for `sleep(seconds)`, and prints to the transcript with
-`transcript(*values)`, which takes the same arguments as `print`:
+`transcript(*values)`, which takes the same arguments as `print`. It also has
+random numbers as built-ins (no `import`): `random()` (a float, 0 <= x < 1),
+`randint(a, b)` (an int, both ends included), `choice(seq)` (a list, tuple or
+str) and `shuffle(list)` (in place). They draw from the VM's `random` option
+(`Math.random` by default), so a test can pass its own source:
 
 ```js
 import { run, compile } from './src/vm/compiler/python/loader.js';

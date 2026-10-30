@@ -239,3 +239,42 @@ test('transcript() prints to the transcript sink the way print() prints', () => 
 test('without a transcript sink, transcript() goes to the output', () => {
   assert.deepEqual(out('transcript("a", 1)\nprint("b")\n'), ['a 1', 'b']);
 });
+
+// ------------------------------------------------------------------ random
+
+test('random(), randint(), choice() and shuffle() draw from the VM random source', () => {
+  // A source that counts 0.0, 0.1, 0.2 ... 0.9 and starts again, so the answers are known.
+  let n = 0;
+  const random = () => ((n++) % 10) / 10;
+  assert.deepEqual(out('print(random(), random(), random())', { random }), ['0.0 0.1 0.2']);
+  n = 0;
+  assert.deepEqual(out('print(randint(1, 6), randint(1, 6), randint(1, 6), randint(5, 5))', { random }), ['1 1 2 5']);
+  n = 0;
+  assert.deepEqual(out('print(choice([10, 20, 30, 40]), choice("abc"), choice((1, 2)))', { random }), ['10 a 1']);
+  n = 0;
+  // Fisher-Yates from the end: 0.0, 0.1, 0.2 pick j = 0, 0, 0 for i = 4, 3, 2 and 0 for i = 1
+  assert.deepEqual(out('x = [1, 2, 3, 4, 5]\nshuffle(x)\nprint(x)', { random }), ['[2, 3, 4, 5, 1]']);
+});
+
+test('the default random source covers the whole range of randint and keeps the same items when shuffling', () => {
+  const lines = out(`
+seen = {}
+for i in range(600):
+    seen[randint(-2, 3)] = 1
+print(sorted(list(seen.keys())))
+x = list(range(20))
+shuffle(x)
+print(sorted(x) == list(range(20)))
+f = [random() for i in range(300)]
+print(min(f) >= 0, max(f) < 1)
+`);
+  assert.deepEqual(lines, ['[-2, -1, 0, 1, 2, 3]', 'True', 'True True']);
+});
+
+test('random functions reject bad arguments with Python exceptions', () => {
+  assert.match(failure('randint(2, 1)').error, /ValueError: empty range for randint\(2, 1\)/);
+  assert.match(failure('randint(1, 2.5)').error, /TypeError: randint\(\) arguments must be ints/);
+  assert.match(failure('choice([])').error, /IndexError: Cannot choose from an empty sequence/);
+  assert.match(failure('shuffle("abc")').error, /TypeError: shuffle\(\) expects a list/);
+  assert.match(failure('random(1)').error, /TypeError/);
+});
