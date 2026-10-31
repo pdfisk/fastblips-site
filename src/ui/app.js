@@ -30,6 +30,7 @@ import { CommunityProjectsWindow } from './windows/community-projects-window.js'
 import { FileCopyWindow } from './windows/file-copy-window.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
 import { PythonHelpWindow } from './windows/python-help-window.js';
+import { WelcomeWindow, showWelcomeAtStartup } from './windows/welcome-window.js';
 
 /**
  * Starts the UI the page calls for: with ?app=<owner>/<name>, that project (or
@@ -76,6 +77,7 @@ export function startDesktop() {
   });
 
   transcript.open(viewport);
+  if (showWelcomeAtStartup()) WelcomeWindow.instance.open(viewport);
   return viewport;
 }
 
@@ -290,6 +292,9 @@ function librariesButton(viewport) {
 }
 
 // The Help menu, after Libraries, is where the documentation is:
+//   Welcome                the Welcome window: what FastBlips is, with links
+//                          into the documentation (also shown at startup
+//                          unless its "Show this window" box is cleared)
 //   Python Documentation   the Python Documentation window: the language a
 //                          program is written in, with examples
 //   Widget Documentation   the Widget Documentation window: every widget a
@@ -298,6 +303,8 @@ function librariesButton(viewport) {
 // front.
 function helpMenu(viewport) {
   const menu = new Menu('Help');
+  menu.addItem('Welcome', () => WelcomeWindow.instance.open(viewport));
+  menu.addSeparator();
   menu.addItem('Python Documentation', () => PythonHelpWindow.instance.open(viewport));
   menu.addItem('Widget Documentation', () => WidgetHelpWindow.instance.open(viewport));
   return menu;
