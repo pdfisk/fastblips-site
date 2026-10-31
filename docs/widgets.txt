@@ -672,7 +672,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic, Smalltalk, Apple or Steampunk.
+    - Theme: Classic, Apple or Steampunk.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -1646,7 +1646,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
   - The Settings menu has three items that open submenus, each with a check
     mark on the choice in use. Choosing one takes effect at once and is
     remembered for the next visit.
-    - Theme: Classic, Smalltalk, Apple or Steampunk.
+    - Theme: Classic, Apple or Steampunk.
     - Code Font: JetBrains Mono (the default) or IBM Plex Mono, used for
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
@@ -2370,9 +2370,6 @@ a colour; they write var(--cr-title-bg) and so on.
   - THEMES holds a set of values per theme:
       classic    the default: a Windows 2000-style desktop, with grey 3D
                  bevels, gradient title bars, Tahoma and a blue desktop
-      smalltalk  after Smalltalk-80: black on white, striped title bars
-                 with the title centred on a white label, hard drop
-                 shadows and a dithered grey desktop
       apple      a present-day Mac desktop: a translucent, blurred menu
                  bar, a soft gradient wallpaper, large rounded windows with
                  deep shadows, centred titles, and red, yellow and green
@@ -2397,7 +2394,7 @@ a colour; they write var(--cr-title-bg) and so on.
     need no change. Each also has its own Monaco theme, built by
     toMonacoTheme() and registered when Monaco loads. Another theme of this
     kind is one more entry in that file's `themes`.
-  - Settings > Theme offers Classic, Smalltalk, Apple and Steampunk
+  - Settings > Theme offers Classic, Apple and Steampunk
     (MENU_THEMES). Light and Dark remain available from code. A visitor whose
     saved choice was a theme that has since been removed starts on the default.
   - setTheme(name) switches theme by setting data-cr-theme on <html>, and

@@ -41,6 +41,7 @@ import { ListPanel } from './widgets/list-panel.js';
 import { GridPanel } from './widgets/grid-panel.js';
 import { SchedulerWindow } from './windows/scheduler-window.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
+import { PythonHelpWindow } from './windows/python-help-window.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { scheduler } from './runtime.js';
 import { TranscriptWindow } from './windows/transcript-window.js';
@@ -72,7 +73,7 @@ const ui = {
   Widget, Panel, Viewport, HPanel, VPanel, Composite, Stack, GroupBox, CheckGroupBox, RadioGroupBox, TextField, PasswordField, TextArea, SplitButton, SelectBox, NavigationBar, Carousel, Drawer, Image: ImageWidget, layouts, Navbar, Menu, Button, ButtonBar, Spacer, Separator,
   SplitPanel, HSplitPanel, VSplitPanel, TextPanel, MonacoPanel, ListPanel, GridPanel,
   Window, HSplitWindow, ConsoleWindow, PythonConsoleWindow,
-  TranscriptWindow, SchedulerWindow, WidgetHelpWindow, CommunityProjectsWindow, RecordPanel, Label,
+  TranscriptWindow, SchedulerWindow, WidgetHelpWindow, PythonHelpWindow, CommunityProjectsWindow, RecordPanel, Label,
   TabPanel, OutputPanel, BoardPanel, CanvasPanel, PhysicsPanel,
   LaunchWindow, DesktopLaunchWindow, MobileLaunchWindow,
   DatabaseWindow, PythonDatabaseWindow, ProjectsWindow, ProjectPanel, ScriptPickerWindow, ScriptEditWindow,

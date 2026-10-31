@@ -1,6 +1,8 @@
 // DatabaseWindow: a browser for one table of source records on the database
 // server (rails/server) - the records listed on the left, the selected one
 // edited on the right. Records can be created, viewed, edited and deleted.
+// Save (and Compile, which saves) is shown only to a user whose
+// has_database_write_permission is true; others can browse and open records.
 // PythonDatabaseWindow chooses the table; there is one such window, opened
 // from the Views menu.
 
@@ -10,7 +12,7 @@ import { RecordPanel } from '../widgets/record-panel.js';
 import { Spacer } from '../widgets/spacer.js';
 import { Label } from '../widgets/label.js';
 import { Menu } from '../widgets/menu.js';
-import { SourceStore, TABLES } from '../db-client.js';
+import { SourceStore, TABLES, sessionUser, canWriteDatabase } from '../db-client.js';
 import { PythonConsoleWindow } from './python-console-window.js';
 import { chunkToJsonString, sourceHash } from '../../vm/chunk-json.js';
 
@@ -31,7 +33,7 @@ export class DatabaseWindow extends HSplitWindow {
     return instances.get(this);
   }
 
-  constructor({ store, ...options } = {}) {
+  constructor({ store, session = sessionUser, ...options } = {}) {
     const cls = new.target;
     const table = TABLES[cls.table];
     const offset = instances.size * 24;
@@ -43,6 +45,8 @@ export class DatabaseWindow extends HSplitWindow {
     });
     this.element.classList.add('cr-database-window');
     this.store = store ?? new SourceStore(table);
+    this.sessionCall = session;   // asks the server who is signed in
+    this.canWrite = false;         // until the server says the user may
     this.current = null;   // { id, name, content, updated_at } or, for a new record, id null
     this._loadToken = 0;
     this._suppressSelect = false;
@@ -113,6 +117,7 @@ export class DatabaseWindow extends HSplitWindow {
   /** Reloads the record list from the server, keeping the selection. */
   async refresh() {
     this.setStatus('Loading…');
+    this.canWrite = canWriteDatabase(await this.sessionCall());
     try {
       // Listed by name, ignoring case (the server gives them by id).
       const records = [...(await this.store.list() ?? [])].sort((x, y) => String(x.name ?? '')
@@ -145,7 +150,7 @@ export class DatabaseWindow extends HSplitWindow {
 
   /** Creates or updates the record being edited. */
   async save() {
-    if (!this.current) return null;
+    if (!this.current || !this.canWrite) return null;
     const name = this.recordPanel.name.trim();
     if (!name) {
       this.setStatus('A name is required', 'error');
@@ -197,7 +202,7 @@ export class DatabaseWindow extends HSplitWindow {
    */
   async compile() {
     const Console = this.constructor.consoleClass;
-    if (!Console || !this.current) return null;
+    if (!Console || !this.current || !this.canWrite) return null;
     const source = this.recordPanel.content;
     const filename = `${this.recordPanel.name.trim() || 'record'}${Console.fileExtension}`;
     let result;
@@ -249,10 +254,14 @@ export class DatabaseWindow extends HSplitWindow {
 
   updateButtons() {
     const editing = Boolean(this.current);
-    this.saveButton.enabled = editing && (this.dirty || this.current.id == null);
+    this.saveButton.visible = this.canWrite;
+    this.saveButton.enabled = this.canWrite && editing && (this.dirty || this.current.id == null);
     this.deleteButton.enabled = editing;
     if (this.consoleButton) this.consoleButton.enabled = editing;
-    if (this.compileButton) this.compileButton.enabled = editing;
+    if (this.compileButton) {
+      this.compileButton.visible = this.canWrite;
+      this.compileButton.enabled = this.canWrite && editing;
+    }
     this.buttonBar.layout();
   }
 

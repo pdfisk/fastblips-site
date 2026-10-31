@@ -29,6 +29,7 @@ import { runParameter, projectParameter, startAppRuntime, startProjectRuntime } 
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
 import { FileCopyWindow } from './windows/file-copy-window.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
+import { PythonHelpWindow } from './windows/python-help-window.js';
 
 /**
  * Starts the UI the page calls for: with ?app=<owner>/<name>, that project (or
@@ -289,12 +290,15 @@ function librariesButton(viewport) {
 }
 
 // The Help menu, after Libraries, is where the documentation is:
+//   Python Documentation   the Python Documentation window: the language a
+//                          program is written in, with examples
 //   Widget Documentation   the Widget Documentation window: every widget a
 //                          program can make, its constructor and its methods
-// There is one Widget Documentation window; choosing the item again brings it
-// to the front.
+// There is one window of each; choosing an item again brings its window to the
+// front.
 function helpMenu(viewport) {
   const menu = new Menu('Help');
+  menu.addItem('Python Documentation', () => PythonHelpWindow.instance.open(viewport));
   menu.addItem('Widget Documentation', () => WidgetHelpWindow.instance.open(viewport));
   return menu;
 }

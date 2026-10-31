@@ -392,9 +392,9 @@ function bf(name, fn) {
   });
 }
 
-const LIST_METHODS = ['append', 'extend', 'pop', 'insert', 'remove', 'index', 'count', 'reverse', 'sort', 'clear', 'copy'];
-const DICT_METHODS = ['get', 'keys', 'values', 'items', 'pop', 'update', 'setdefault', 'clear', 'copy'];
-const STR_METHODS = [
+export const LIST_METHODS = ['append', 'extend', 'pop', 'insert', 'remove', 'index', 'count', 'reverse', 'sort', 'clear', 'copy'];
+export const DICT_METHODS = ['get', 'keys', 'values', 'items', 'pop', 'update', 'setdefault', 'clear', 'copy'];
+export const STR_METHODS = [
   'upper', 'lower', 'strip', 'lstrip', 'rstrip', 'split', 'join', 'replace', 'startswith',
   'endswith', 'find', 'count', 'isdigit', 'isalpha', 'format',
 ];

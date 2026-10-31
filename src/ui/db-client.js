@@ -333,6 +333,30 @@ export async function signIn({ name, password } = {}, { baseUrl = getServerUrl, 
 }
 
 /**
+ * The user the server says this browser is signed in as (GET /session):
+ * { id, name, admin, has_database_write_permission }, or null when nobody is
+ * signed in, the token has expired or the server cannot be reached.
+ * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]
+ */
+export async function sessionUser({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  const store = new SourceStore({ resource: 'session', key: 'session', baseUrl, fetch: fetchFn });
+  store.noSignInHint = true;
+  try {
+    return (await store._request('GET', ''))?.user ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Whether this user may save records in the Database windows: only when the
+ * server says has_database_write_permission is true (see the users table).
+ */
+export function canWriteDatabase(user) {
+  return user?.has_database_write_permission === true;
+}
+
+/**
  * Signs out on the server (DELETE /session) and forgets the token. The token
  * is forgotten even if the server cannot be reached.
  * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options]

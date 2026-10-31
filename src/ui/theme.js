@@ -7,14 +7,13 @@
 // setTheme() picks one by setting data-cr-theme on <html>:
 //
 //   setTheme('classic')    the default: a Windows 2000-style desktop
-//   setTheme('smalltalk')  black and white, after Smalltalk-80
 //   setTheme('apple')      a present-day Mac desktop
 //   setTheme('steampunk')  dark walnut and brass (fastblips-themes.js)
 //   setTheme('light')      the original flat look
 //   setTheme('dark')
 //   setTheme('auto')       light or dark, following the operating system
 //
-// Settings > Theme offers Classic, Smalltalk, Apple and Steampunk; the
+// Settings > Theme offers Classic, Apple and Steampunk; the
 // choice is remembered in localStorage. A saved choice that is no longer a
 // theme (one that was removed) is ignored: the default is used.
 //
@@ -50,7 +49,7 @@ const BASE = {
   'board-line': '#6b4a2f',
   'board-text': '#111111',
   'board-selected': '#2f6fcf',
-  // Shape. The defaults suit a flat theme; Classic and Smalltalk override them.
+  // Shape. The defaults suit a flat theme; Classic overrides them.
   'window-padding': '0px',
   'title-font-weight': 'normal',
   'title-label-bg': 'transparent',
@@ -222,81 +221,6 @@ export const THEMES = {
     'status-border': '#ffffff',
     'status-task-bg': '#d4d0c8',
     'status-task-border': '#808080',
-    'monaco': 'vs',
-  },
-  // After Smalltalk-80: black on white, striped title bars with the title
-  // centred on a white label, hard drop shadows, a dithered grey desktop.
-  smalltalk: {
-    'board-light': '#ffffff',
-    'board-dark': '#b0b0b0',
-    'board-line': '#000000',
-    'board-text': '#000000',
-    'board-selected': '#000000',
-    'font-ui': 'Geneva, Verdana, "DejaVu Sans", sans-serif',
-    'font-mono': 'Monaco, "Courier New", monospace',
-    'font-size': '12px',
-    'font-size-nav': '13px',
-    'font-size-small': '11px',
-    'radius-button': '4px',
-    'radius-field': '0px',
-    'desktop-bg': 'repeating-conic-gradient(#8c8c8c 0 25%, #d6d6d6 0 50%) 0 0 / 4px 4px',
-    'text': '#000000',
-    'text-muted': '#000000',
-    'text-faint': '#8c8c8c',
-    'danger': '#000000',
-    'accent': '#000000',
-    'accent-text': '#ffffff',
-    'nav-bg': '#ffffff',
-    'nav-text': '#000000',
-    'nav-hover': '#000000',
-    'nav-hover-text': '#ffffff',
-    'nav-shadow': '0 1px 0 #000000',
-    'window-bg': '#ffffff',
-    'window-border': '#000000',
-    'window-radius': '5px',
-    'window-shadow': '2px 4px 12px rgba(0,0,0,.28)',
-    'window-shadow-inactive': '1px 2px 5px rgba(0,0,0,.18)',
-    'title-bg': 'repeating-linear-gradient(to bottom, #ffffff 0 2px, #000000 2px 3px)',
-    'title-text': '#000000',
-    'title-bg-inactive': '#ffffff',
-    'title-text-inactive': '#8c8c8c',
-    'title-font-weight': 'bold',
-    'title-label-bg': '#ffffff',
-    'title-label-padding': '0 8px',
-    'title-label-margin': '0 auto',
-    'title-hover': '#000000',
-    'close-hover': '#000000',
-    'close-hover-text': '#ffffff',
-    'tool-bg': '#ffffff',
-    'tool-text': '#000000',
-    'tool-shadow': 'inset 0 0 0 1px #000000',
-    'button-bg': '#ffffff',
-    'button-text': '#000000',
-    'button-shadow': 'inset 0 0 0 1px #000000',
-    'button-active-shadow': 'inset 0 0 0 2px #000000',
-    'button-hover': '#e6e6e6',
-    'buttonbar-bg': '#ffffff',
-    'buttonbar-border': '#000000',
-    'input-bg': '#ffffff',
-    'output-bg': '#ffffff',
-    'divider': '#b4b4b4',
-    'list-selected': '#d6d6d6',
-    'list-selected-focus': '#000000',
-    'list-selected-focus-text': '#ffffff',
-    'field-border': '#000000',
-    'field-disabled-bg': '#eeeeee',
-    'header-bg': '#ffffff',
-    'header-text': '#000000',
-    'header-info': '#000000',
-    'menu-bg': '#ffffff',
-    'menu-text': '#000000',
-    'menu-border': '#000000',
-    'menu-separator': '#8c8c8c',
-    'menu-shadow': '2px 2px 0 #000000',
-    'status-bg': '#ffffff',
-    'status-border': '#000000',
-    'status-task-bg': '#ffffff',
-    'status-task-border': '#000000',
     'monaco': 'vs',
   },
   // A present-day Mac desktop: a translucent light menu bar, a soft gradient
@@ -527,7 +451,7 @@ export const DEFAULT_THEME = 'classic';
 
 /** The themes offered in Settings > Theme, as [name, label]. */
 export const MENU_THEMES = [
-  ['classic', 'Classic'], ['smalltalk', 'Smalltalk'], ['apple', 'Apple'],
+  ['classic', 'Classic'], ['apple', 'Apple'],
   ...Object.values(FB_THEMES).map((theme) => [theme.id, theme.label]),
 ];
 

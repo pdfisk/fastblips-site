@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser, signIn, signOut, getToken, setToken } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser, signIn, signOut, getToken, setToken, sessionUser, canWriteDatabase } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
@@ -197,4 +197,26 @@ test('registerUser keeps the token the server answers with', async () => {
   assert.equal(fetch.calls[0].body.user.password, 'secret123');
   assert.equal(getToken('http://db.test'), 'tok-3');
   setToken('', 'http://db.test');
+});
+
+test('sessionUser asks GET /session and canWriteDatabase needs has_database_write_permission to be true', async () => {
+  setToken('tok-s', 'http://db.test');
+  try {
+    const fetch = fakeFetch({ status: 200, body: { user: { id: 7, name: 'Ann', admin: true, has_database_write_permission: false } } },
+      { status: 200, body: { user: { id: 7, name: 'Ann', has_database_write_permission: true } } },
+      { status: 401, body: { error: 'expired' } },
+      new Error('offline'));
+    const opts = { baseUrl: 'http://db.test', fetch };
+    const denied = await sessionUser(opts);
+    assert.equal(denied.name, 'Ann');
+    assert.equal(canWriteDatabase(denied), false, 'false, even for an administrator');
+    assert.equal(canWriteDatabase(await sessionUser(opts)), true);
+    assert.equal(await sessionUser(opts), null, 'an expired token means no user');
+    assert.equal(await sessionUser(opts), null, 'an unreachable server means no user');
+    assert.deepEqual(fetch.calls.slice(0, 2).map((c) => `${c.method} ${c.url} ${c.auth}`),
+      ['GET http://db.test/session Bearer tok-s', 'GET http://db.test/session Bearer tok-s']);
+  } finally { setToken('', 'http://db.test'); }
+  for (const user of [null, undefined, {}, { has_database_write_permission: 'true' }, { has_database_write_permission: 1 }]) {
+    assert.equal(canWriteDatabase(user), false);
+  }
 });

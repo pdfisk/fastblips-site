@@ -44,6 +44,6 @@ test('the Monaco theme is named after the theme and uses its colours', () => {
 test('the Pokemon theme is gone: not a theme, not in the menu', () => {
   assert.equal(THEMES.pokemon, undefined);
   assert.equal(themes.pokemon, undefined);
-  assert.deepEqual(MENU_THEMES.map(([name]) => name), ['classic', 'smalltalk', 'apple', 'steampunk']);
+  assert.deepEqual(MENU_THEMES.map(([name]) => name), ['classic', 'apple', 'steampunk']);
   assert.deepEqual(Object.keys(themes), ['steampunk']);
 });

@@ -216,6 +216,6 @@ Crumb spelling is shown below.
    and a MiniPy (`snake_case` method, function value) spelling, as `onClick`
    / `on_click` already are.
 4. **Theme-aware.** Widgets use the `--cr-*` theme variables, so a BLIP looks
-   right in the Classic, Smalltalk and Apple themes without extra code.
+   right in the Classic, Apple and Steampunk themes without extra code.
 5. **Mobile first.** Touch-sized defaults and automatic layout, so the same
    BLIP works at `?app=` on a phone and in a desktop window.
