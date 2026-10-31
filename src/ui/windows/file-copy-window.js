@@ -42,35 +42,38 @@ let instance = null;
 
 const STYLE = `
 .cr-fc{position:absolute;display:flex;flex-direction:column;gap:4px;box-sizing:border-box;padding:4px;
-  background:#000080;color:#55ffff;font:13px/1.35 var(--cr-font-code,Consolas,monospace);overflow:hidden}
+  background:var(--cr-window-bg);color:var(--cr-text);font:13px/1.35 var(--cr-font-code,Consolas,monospace);overflow:hidden}
 .cr-fc-panes{flex:1;display:flex;gap:4px;min-height:0}
-.cr-fc-pane{flex:1;display:flex;flex-direction:column;min-width:0;box-sizing:border-box;border:3px double #55ffff}
-.cr-fc-pane.cr-fc-active{border-color:#fff}
+.cr-fc-pane{flex:1;display:flex;flex-direction:column;min-width:0;box-sizing:border-box;border:3px double var(--cr-field-border)}
+.cr-fc-pane.cr-fc-active{border-color:var(--cr-accent)}
 .cr-fc-head{display:flex;flex-direction:column;gap:2px;padding:2px 4px}
-.cr-fc-select{width:100%;box-sizing:border-box;font:inherit;background:#000080;color:#fff;border:1px solid #55ffff}
-.cr-fc-path{color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
-.cr-fc-list{flex:1;overflow:auto;outline:0;min-height:0;border-top:1px solid #55ffff;border-bottom:1px solid #55ffff}
+.cr-fc-select{width:100%;box-sizing:border-box;font:inherit;background:var(--cr-input-bg);color:var(--cr-text);border:1px solid var(--cr-field-border)}
+.cr-fc-path{color:var(--cr-text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;text-align:left}
+.cr-fc-list{flex:1;overflow:auto;outline:0;min-height:0;border-top:1px solid var(--cr-divider);border-bottom:1px solid var(--cr-divider)}
 .cr-fc-row{display:flex;padding:0 6px;white-space:pre;cursor:default}
 .cr-fc-row span{overflow:hidden}
 .cr-fc-n{flex:1;text-overflow:ellipsis}
 .cr-fc-s{width:7ch;text-align:right;flex:none}
 .cr-fc-d{width:15ch;text-align:right;flex:none;margin-left:1ch}
-.cr-fc-row.cr-fc-dir .cr-fc-n{color:#fff;font-weight:bold}
-.cr-fc-row.cr-fc-marked{color:#ffff55}
-.cr-fc-row.cr-fc-cursor{outline:1px dotted #55ffff;outline-offset:-1px}
-.cr-fc-active .cr-fc-row.cr-fc-cursor{background:#00aaaa;color:#000;outline:0}
-.cr-fc-active .cr-fc-row.cr-fc-cursor.cr-fc-marked{color:#aa0000}
-.cr-fc-note{padding:4px 6px;color:#ffff55}
+.cr-fc-row.cr-fc-dir .cr-fc-n{color:var(--cr-text);font-weight:bold}
+.cr-fc-row.cr-fc-marked{color:var(--cr-accent);font-weight:bold}
+.cr-fc-row.cr-fc-cursor{outline:1px dotted var(--cr-text-muted);outline-offset:-1px}
+.cr-fc-active .cr-fc-row.cr-fc-cursor{background:var(--cr-list-selected-focus);color:var(--cr-list-selected-focus-text);outline:0}
+.cr-fc-active .cr-fc-row.cr-fc-cursor.cr-fc-marked{color:var(--cr-list-selected-focus-text);text-decoration:underline}
+.cr-fc-note{padding:4px 6px;color:var(--cr-text-muted)}
 .cr-fc-foot{padding:1px 6px;white-space:pre;overflow:hidden;text-overflow:ellipsis}
-.cr-fc-prompt{display:none;align-items:center;gap:6px;padding:3px 6px;background:#aaaaaa;color:#000}
+.cr-fc-prompt{display:none;align-items:center;gap:6px;padding:3px 6px;background:var(--cr-header-bg);color:var(--cr-header-text)}
 .cr-fc-prompt.cr-fc-show{display:flex}
 .cr-fc-prompt-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cr-fc-prompt input{flex:1;min-width:6em;font:inherit;border:1px solid #000;padding:0 3px}
-.cr-fc-prompt button{font:inherit;padding:0 8px;border:1px solid #000;background:#00aaaa;color:#000;cursor:pointer}
-.cr-fc-prompt button.cr-fc-default{background:#fff;font-weight:bold}
-.cr-fc-status{min-height:1.4em;padding:0 6px;background:#00aaaa;color:#000;white-space:nowrap;overflow:hidden;
+.cr-fc-prompt input{flex:1;min-width:6em;font:inherit;border:1px solid var(--cr-field-border);padding:0 3px;
+  background:var(--cr-input-bg);color:var(--cr-text)}
+.cr-fc-prompt button{font:inherit;padding:0 8px;border:1px solid var(--cr-field-border);
+  border-radius:var(--cr-radius-button);background:var(--cr-button-bg);color:var(--cr-button-text);cursor:pointer}
+.cr-fc-prompt button.cr-fc-default{background:var(--cr-accent);color:var(--cr-accent-text);font-weight:bold}
+.cr-fc-status{min-height:1.4em;padding:0 6px;background:var(--cr-status-bg);color:var(--cr-text);
+  border-top:1px solid var(--cr-status-border);white-space:nowrap;overflow:hidden;
   text-overflow:ellipsis}
-.cr-fc-status.cr-fc-error{background:#aa0000;color:#fff}
+.cr-fc-status.cr-fc-error{background:var(--cr-danger);color:#fff}
 `;
 
 function installStyle() {
