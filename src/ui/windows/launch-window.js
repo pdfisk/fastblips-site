@@ -7,6 +7,7 @@ import { Window } from './window.js';
 import { AppScreen } from '../widgets/app-screen.js';
 import { ProgramRunner, ProgramSetRunner } from '../program-runner.js';
 import { runUrl, projectUrl } from '../app-list.js';
+import { SourceWindow } from './source-window.js';
 
 /**
  * Fills a Launch menu with the standard items: Desktop, Mobile, a separator
@@ -81,6 +82,8 @@ export class LaunchWindow extends Window {
     this.screen.element.classList.add('cr-launch-screen');
     this.textPanel = this.screen.textPanel;
     this.content = this.screen;
+    this.programs = programs;
+    this.sourceWindow = null;   // the open SourceWindow, if any
     this.runner = programs ? new ProgramSetRunner({ programs, screen: this.screen }) : new ProgramRunner({
       language: this.language,
       source: this.source,
@@ -93,6 +96,7 @@ export class LaunchWindow extends Window {
     });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());
+    this.sourceButton = this.buttonBar.addButton('Show source', () => this.showSource());
     this.autoStart = Boolean(autoStart);
     this._autoStarted = false;
   }
@@ -130,17 +134,39 @@ export class LaunchWindow extends Window {
    *  program and clears the text panel. */
   reset() { this.runner.reset(); }
 
+  /**
+   * Opens a read-only window with the source this window runs (the Show
+   * source button): the copy taken at launch, or each script of a project,
+   * one tab each. Pressed again, it brings that window to the front.
+   */
+  showSource() {
+    if (!this.parent) return null;
+    if (this.sourceWindow?.isOpen) return this.sourceWindow.open(this.parent);
+    const scripts = this.programs
+      ? this.runner.programs.map((p) => ({ name: p.name, source: p.source }))
+      : [{ name: this.title, source: this.source }];
+    // Just below and right of this window, kept inside the screen.
+    const b = this.bounds;
+    const width = 520;
+    const x = Math.max(0, Math.min(b.x + 32, this.parent.element.clientWidth - width - 8));
+    const win = new SourceWindow({ title: this.title, scripts, x, y: b.y + 32, width });
+    win.element.addEventListener('close', () => { if (this.sourceWindow === win) this.sourceWindow = null; });
+    this.sourceWindow = win;
+    return win.open(this.parent);
+  }
+
   /** The running Process, or null. */
   get process() { return this.runner.process; }
 
   close() {
     const closed = super.close();
-    if (closed) this.stop();
+    if (closed) { this.stop(); this.sourceWindow?.close(); }
     return closed;
   }
 
   dispose() {
     this.stop();
+    this.sourceWindow?.close();
     super.dispose();
   }
 }

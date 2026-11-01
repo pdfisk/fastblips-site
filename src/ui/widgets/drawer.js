@@ -5,8 +5,10 @@
 //
 // The Drawer covers the whole area of the container it is in (give it fill(),
 // or put it in a container whose layout lets it fill: it is made to fill the
-// screen). Closed, it is out of sight, takes no clicks, and its children are
-// inert. Open, a panel panelSize pixels wide (high, for the top and bottom)
+// screen). Closed, it is out of sight, takes no clicks (its pointer-events:none
+// is !important, as a program's widgets are given an inline pointer-events:auto,
+// which would otherwise let the closed drawer catch every tap on the page), and
+// its children are inert. Open, a panel panelSize pixels wide (high, for the top and bottom)
 // has slid in from `side`, the rest of the area is dimmed, and a tap on the
 // dimmed part closes it unless dismissOnTap is false. A swipe on the panel
 // toward its edge, and Escape, also close it. The panel holds children placed
@@ -26,7 +28,7 @@ export const DEFAULT_PANEL_SIZE = 260;
 export const SWIPE_DISTANCE = 50;
 
 const STYLE = `
-.cr-drawer{z-index:10;overflow:hidden;pointer-events:none}
+.cr-drawer{z-index:10;overflow:hidden;pointer-events:none !important}
 .cr-drawer-scrim{position:absolute;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;
   transition:opacity .25s ease}
 .cr-drawer-panel{position:absolute;box-sizing:border-box;overflow:hidden;pointer-events:none;
@@ -39,6 +41,7 @@ const STYLE = `
 .cr-drawer-top .cr-drawer-panel{left:0;right:0;top:0;transform:translateY(-100%)}
 .cr-drawer-bottom .cr-drawer-panel{left:0;right:0;bottom:0;transform:translateY(100%)}
 .cr-drawer-open .cr-drawer-panel{transform:none}
+.cr-drawer-panel:focus{outline:0}
 `;
 
 function installStyle() {
@@ -63,6 +66,7 @@ export class Drawer extends Composite {
     this.scrim.className = 'cr-drawer-scrim';
     this.panel = document.createElement('div');
     this.panel.className = 'cr-drawer-panel';
+    this.panel.tabIndex = -1;   // focused when it opens, so Escape reaches it
     this.element.appendChild(this.scrim);
     this.element.appendChild(this.panel);
     this.scrim.addEventListener('click', () => { if (this._dismissOnTap) this.open = false; });
@@ -100,6 +104,8 @@ export class Drawer extends Composite {
     this._open = next;
     this.element.classList.toggle('cr-drawer-open', next);
     this._syncContent();
+    // Open, the panel takes the focus, so the keyboard (Escape) works in it at once.
+    if (next) this.panel.focus?.({ preventScroll: true });
     this.element.dispatchEvent(new CustomEvent('change', { detail: { open: next } }));
   }
 

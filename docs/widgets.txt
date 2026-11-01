@@ -811,8 +811,13 @@ opened from a console's Launch menu; any number can be open at once.
     TextPanel (window.textPanel) that fills all of it, which the program
     prints to, with the program's widgets (New Button, ...) over it. The
     same in DesktopLaunchWindow and MobileLaunchWindow.
-  - Its ButtonBar has Go and Reset buttons (window.goButton and
-    window.resetButton), which call go() and reset().
+  - Its ButtonBar has Go, Reset and Show source buttons (window.goButton,
+    window.resetButton and window.sourceButton), which call go(), reset()
+    and showSource(). Show source opens a read-only SourceWindow
+    (src/ui/windows/source-window.js) with the source the window runs - the
+    copy taken at launch, or for a project one tab per script, in order;
+    pressed again it brings that window to the front, and it closes with
+    the launch window.
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
@@ -1785,8 +1790,13 @@ opened from a console's Launch menu; any number can be open at once.
     TextPanel (window.textPanel) that fills all of it, which the program
     prints to, with the program's widgets (New Button, ...) over it. The
     same in DesktopLaunchWindow and MobileLaunchWindow.
-  - Its ButtonBar has Go and Reset buttons (window.goButton and
-    window.resetButton), which call go() and reset().
+  - Its ButtonBar has Go, Reset and Show source buttons (window.goButton,
+    window.resetButton and window.sourceButton), which call go(), reset()
+    and showSource(). Show source opens a read-only SourceWindow
+    (src/ui/windows/source-window.js) with the source the window runs - the
+    copy taken at launch, or for a project one tab per script, in order;
+    pressed again it brings that window to the front, and it closes with
+    the launch window.
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
