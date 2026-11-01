@@ -1,9 +1,12 @@
 // ProjectsWindow: the singleton window for the projects on the database
 // server (rails/server) - the projects of the page's space listed on the
 // left (only those with an owner), the selected one edited on the right:
-// its name, its description and its scripts, in order. Add puts a script in
-// it, chosen from the user's own and those in the shared space; Edit opens the
-// selected one in an edit window; Remove takes it out; Up and Down move it. Projects can be created, edited
+// its name, its description and its scripts, in order. A project keeps its
+// own copy of each script's source: Add copies a script into it, chosen from
+// the user's own and those in the shared space; Edit opens the project's copy
+// of the selected one in an edit window, whose Save changes that copy and
+// saves the project (the script it was copied from is left as it was);
+// Remove takes it out; Up and Down move it. Projects can be created, edited
 // and deleted. Opened from the Navbar's My Projects button.
 
 import { HSplitWindow } from './hsplit-window.js';
@@ -17,7 +20,9 @@ import { ScriptPickerWindow } from './script-picker-window.js';
 import { ScriptEditWindow } from './script-edit-window.js';
 import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
 import { PythonConsoleWindow } from './python-console-window.js';
-import { projectStore, scriptStore, byName, projectScriptFor, findScript, availableScripts, sameList } from '../projects.js';
+import {
+  projectStore, scriptStore, byName, availableScripts, projectScriptCopy, findProjectScript, projectPrograms, sameScripts,
+} from '../projects.js';
 
 // The console class that compiles and runs a script, by the language it is saved with.
 const LANGUAGES = { python: PythonConsoleWindow };
@@ -34,8 +39,8 @@ export class ProjectsWindow extends HSplitWindow {
   /**
    * @param {object} options - Window options, plus `store` and `scripts`:
    *   the SourceStores for projects (the page's space on the server in use,
-   *   by default) and for scripts (every space: Add offers the user's own
-   *   and the ones in the shared space).
+   *   by default) and for scripts (every space: Add copies one of the
+   *   user's own or one in the shared space into the project).
    */
   constructor({ store, scripts, ...options } = {}) {
     super({
@@ -49,9 +54,9 @@ export class ProjectsWindow extends HSplitWindow {
     this.store = store ?? projectStore();
     this.scriptStore = scripts ?? scriptStore();
     this.projects = [];    // the projects in the space, by name
-    this.scripts = [];     // the scripts in every space, to choose from
+    this.scripts = [];     // the script records in every space, to copy from
     this.picker = null;    // the open ScriptPickerWindow, if any
-    this.editors = new Map();   // the open ScriptEditWindows, by script id
+    this.editors = new Map();   // the open ScriptEditWindows, by the key of the project script
     this.current = null;   // the project being edited; id null for a new one
     this._refreshToken = 0;
     this._suppressSelect = false;
@@ -71,7 +76,7 @@ export class ProjectsWindow extends HSplitWindow {
     projectsMenu.addItem('Delete', () => this.deleteProject(), { enabled: editing });
     projectsMenu.addItem('Refresh', () => { if (this._confirmDiscard()) this.refresh({ clear: true }); });
     const scriptsMenu = new Menu('Scripts');
-    const selected = () => { console.log('**SELECT**', editing(), at(), this.projectPanel.selectedIndex); return editing() && at() >= 0 };
+    const selected = () => editing() && at() >= 0;
     scriptsMenu.addItem('Edit', () => this.editScript(), { enabled: selected });
     scriptsMenu.addSeparator();
     scriptsMenu.addItem('Add', () => this.addScript(), { enabled: editing });
@@ -79,7 +84,7 @@ export class ProjectsWindow extends HSplitWindow {
     scriptsMenu.addSeparator();
     scriptsMenu.addItem('Up', () => this.moveScript(-1), { enabled: () => editing() && at() > 0 });
     scriptsMenu.addItem('Down', () => this.moveScript(1),
-      { enabled: () => editing() && at() >= 0 && at() < this.projectPanel.ids.length - 1 });
+      { enabled: () => editing() && at() >= 0 && at() < this.projectPanel.names.length - 1 });
     this.projectsMenu = this.buttonBar.add(projectsMenu);
     this.scriptsMenu = this.buttonBar.add(scriptsMenu);
     this.buttonBar.add(new Separator());
@@ -87,7 +92,7 @@ export class ProjectsWindow extends HSplitWindow {
     // Desktop or Mobile launch window or, for the saved project, as a web page.
     this.launchMenu = this.buttonBar.add(new Menu('Launch'));
     addLaunchItems(this.launchMenu, (target) => this.launch(target),
-      (target) => (target === 'web' ? this.savedIds.length > 0 && this.current?.id != null : this.projectPanel.ids.length > 0));
+      (target) => (target === 'web' ? this.savedScripts.length > 0 && this.current?.id != null : this.projectPanel.names.length > 0));
     this.buttonBar.add(new Spacer());
     this.status = this.buttonBar.add(new Label());
 
@@ -109,8 +114,8 @@ export class ProjectsWindow extends HSplitWindow {
     this.updateButtons();
   }
 
-  /** The "owner/name" references of the scripts in the project as it was last saved, in order. */
-  get savedRefs() { return [...(this.current?.scripts ?? [])]; }
+  /** The scripts of the project as it was last saved, in order. */
+  get savedScripts() { return [...(this.current?.scripts ?? [])]; }
 
   /** True when the project being edited has changes that are not saved. */
   get dirty() {
@@ -118,7 +123,7 @@ export class ProjectsWindow extends HSplitWindow {
     return this.projectPanel.name !== (this.current.name ?? '')
       || this.projectPanel.description !== (this.current.description ?? '')
       || this.projectPanel.shared !== Boolean(this.current.shared)
-      || !sameList(this.projectPanel.refs, this.savedRefs);
+      || !sameScripts(this.projectPanel.copies, this.savedScripts);
   }
 
   open(viewport) {
@@ -183,19 +188,21 @@ export class ProjectsWindow extends HSplitWindow {
   /** The space the project being edited is in: a user name, '' for shared. */
   get space() { return this.store.space ?? ''; }
 
-  /** Opens the picker to add a script to the project: the user's own or one in the shared space. */
+  /** Opens the picker to copy a script into the project: the user's own or one in the shared space. */
   addScript() {
     if (!this.current) return;
     this.picker?.close();
-    const scripts = availableScripts(this.scripts, this.projectPanel.refs, this.space);
+    const scripts = availableScripts(this.scripts, this.projectPanel.names, this.space);
     const picker = new ScriptPickerWindow({
       scripts,
       space: this.space,
       onPick: (script) => {
         if (!this.current) return;
-        this.projectPanel.addScript(script);
+        const record = this.scripts.find((s) => s.id === script.id);
+        if (!record) return;
+        this.projectPanel.addScript(projectScriptCopy(record));
         this.projectPanel.list.focus();
-        this.setStatus(`Added "${script.name}" — Save to keep it`);
+        this.setStatus(`Added a copy of "${record.name}" — Save to keep it`);
       },
     });
     picker.element.addEventListener('close', () => { if (this.picker === picker) this.picker = null; });
@@ -203,28 +210,49 @@ export class ProjectsWindow extends HSplitWindow {
     picker.open(this.parent);
   }
 
-  /** Opens the selected script in an edit window (one per script). */
+  /**
+   * Opens the project's copy of the selected script in an edit window (one
+   * per script). Its Save changes the copy and saves the project.
+   */
   editScript() {
     const script = this.projectPanel.selectedScript;
     if (!script) return null;
-    if (script.id === undefined) {
-      this.setStatus(`There is no script "${script.ref}": remove it from the project`, 'error');
-      return null;
-    }
-    const open = this.editors.get(script.id);
+    const { key } = script;
+    const open = this.editors.get(key);
     if (open) return open.open(this.parent);
-    const language = this.scripts.find((s) => s.id === script.id)?.language
-      ?? String(script.language).toLowerCase();
     const editor = new ScriptEditWindow({
-      store: this.scriptStore,
-      id: script.id,
+      store: this._scriptCopyStore(key),
+      id: key,
       name: script.name,
-      language,
-      onSave: (saved) => { this.setStatus(`Saved script "${saved.name}"`); this.refresh(); },
+      language: script.language,
+      onSave: (saved) => this.setStatus(`Saved "${saved.name}" in "${this.current?.name ?? ''}"`),
     });
-    editor.element.addEventListener('close', () => { if (this.editors.get(script.id) === editor) this.editors.delete(script.id); });
-    this.editors.set(script.id, editor);
+    editor.element.addEventListener('close', () => { if (this.editors.get(key) === editor) this.editors.delete(key); });
+    this.editors.set(key, editor);
     return editor.open(this.parent);
+  }
+
+  // The store a ScriptEditWindow edits the project script with key through:
+  // get reads it from the list; update changes it there, then saves the project.
+  _scriptCopyStore(key) {
+    const read = () => {
+      const script = this.projectPanel.scriptByKey(key);
+      if (!script) throw new Error('This script is no longer in the project');
+      return { name: script.name, language: script.language, content: script.content };
+    };
+    return {
+      get: async () => read(),
+      update: async (_id, fields) => {
+        const name = String(fields.name ?? '').trim();
+        const other = findProjectScript(name, this.projectPanel.scripts.filter((s) => s.key !== key));
+        if (other) throw new Error(`The project already has a script called "${other.name}"`);
+        read();
+        this.projectPanel.updateScript(key, fields);
+        const saved = await this.save();
+        if (!saved) throw new Error(this.status.text || 'The project was not saved');
+        return read();
+      },
+    };
   }
 
   /** Takes the selected script out of the project (the script itself is kept). */
@@ -239,7 +267,7 @@ export class ProjectsWindow extends HSplitWindow {
    * Opens a launch window ('mobile' for a MobileLaunchWindow, otherwise a
    * DesktopLaunchWindow) that runs every script of the project in the list,
    * in order, on one screen - the list as it is in the window, saved or not.
-   * Scripts not among those last loaded (Refresh) are skipped and reported.
+   * Scripts in a language that cannot run are skipped and reported.
    * 'web' instead opens the project as it was last saved as a full page in a
    * new browser tab (?project=), and returns the address; a project that has
    * not been saved has none (null, with a message in the status line).
@@ -247,35 +275,22 @@ export class ProjectsWindow extends HSplitWindow {
   launch(target) {
     if (target === 'web') {
       const name = this.current?.id == null ? '' : String(this.current.name ?? '').trim();
-      if (!name || this.savedRefs.length === 0) {
+      if (!name || this.savedScripts.length === 0) {
         this.setStatus('Save the project first: Web runs the saved project', 'error');
         return null;
       }
       return launchWeb(name, this.current.owner ?? this.space, { project: true });
     }
-    const programs = [];
-    let missing = 0;
-    for (const ref of this.projectPanel.refs) {
-      const record = findScript(ref, this.scripts);
-      const language = LANGUAGES[record?.language];
-      if (!record || !language) { missing += 1; continue; }
-      programs.push({
-        name: record.name,
-        language,
-        source: record.content ?? '',
-        compiled: record.compiled_code ?? null,
-        priority: record.priority ?? undefined,
-      });
-    }
+    const { programs, skipped } = projectPrograms(this.projectPanel.copies, LANGUAGES);
     if (programs.length === 0) {
-      this.setStatus(missing ? 'The scripts are not loaded: Refresh' : 'No scripts to launch', 'error');
+      this.setStatus('No scripts to launch', 'error');
       return null;
     }
     const Cls = target === 'mobile' ? MobileLaunchWindow : DesktopLaunchWindow;
     const title = this.projectPanel.name.trim() || 'Project';
     const win = new Cls({ title, programs }).open(this.parent);
     this.setStatus(`Launched "${title}": ${programs.length} script${programs.length === 1 ? '' : 's'}`
-      + `${missing ? `, ${missing} not loaded (Refresh)` : ''}`, missing ? 'error' : undefined);
+      + `${skipped ? `, ${skipped} in a language that cannot run` : ''}`, skipped ? 'error' : undefined);
     return win;
   }
 
@@ -284,7 +299,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.projectPanel.moveSelected(delta);
   }
 
-  /** Creates or updates the project being edited, with the checked scripts in it. */
+  /** Creates or updates the project being edited, with the copies of its scripts in the list. */
   async save() {
     if (!this.current) return null;
     const name = this.projectPanel.name.trim();
@@ -295,7 +310,7 @@ export class ProjectsWindow extends HSplitWindow {
     }
     const fields = {
       name, description: this.projectPanel.description, shared: this.projectPanel.shared,
-      scripts: this.projectPanel.refs,
+      scripts: this.projectPanel.copies,
     };
     this.setStatus('Saving…');
     try {
@@ -306,7 +321,7 @@ export class ProjectsWindow extends HSplitWindow {
       this.projectPanel.name = saved.name ?? '';
       this.projectPanel.description = saved.description ?? '';
       this.projectPanel.shared = Boolean(saved.shared);
-      this.projectPanel.scripts = (saved.scripts ?? []).map((ref) => projectScriptFor(ref, this.scripts));
+      this.projectPanel.scripts = saved.scripts ?? [];
       await this.refresh();
       this._selectId(saved.id);
       const n = (saved.scripts ?? []).length;
@@ -318,12 +333,12 @@ export class ProjectsWindow extends HSplitWindow {
     }
   }
 
-  /** Deletes the project being edited, after asking. Its scripts are kept. */
+  /** Deletes the project being edited, with its copies of its scripts, after asking. */
   async deleteProject() {
     const project = this.current;
     if (!project) return;
     if (project.id == null) { this._showProject(null); this.setStatus('New project discarded'); return; }
-    if (!confirm(`Delete the project "${project.name}"? Its scripts are kept.`)) return;
+    if (!confirm(`Delete the project "${project.name}" and its copies of its scripts?`)) return;
     this.setStatus('Deleting…');
     try {
       await this.store.remove(project.id);
@@ -359,12 +374,16 @@ export class ProjectsWindow extends HSplitWindow {
   }
 
   _showProject(project) {
+    // The edit windows are for the scripts of the project shown until now.
+    if ((project?.id ?? null) !== (this.current?.id ?? null) || !project) {
+      for (const editor of [...this.editors.values()]) editor.close();
+    }
     this.current = project ? { ...project } : null;
     this.projectPanel.name = project?.name ?? '';
     this.projectPanel.description = project?.description ?? '';
     this.projectPanel.shared = Boolean(project?.shared);
     this.projectPanel.space = this.space;
-    this.projectPanel.scripts = project ? (project.scripts ?? []).map((ref) => projectScriptFor(ref, this.scripts)) : [];
+    this.projectPanel.scripts = project ? (project.scripts ?? []) : [];
     this.projectPanel.enabled = Boolean(project);
     this.projectPanel.caption = !project ? ''
       : project.id == null ? 'new project'

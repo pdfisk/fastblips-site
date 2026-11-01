@@ -22,7 +22,7 @@ import { ButtonBar } from './widgets/button-bar.js';
 import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { ProgramRunner, ProgramSetRunner } from './program-runner.js';
-import { PROJECTS, SCRIPTS, findScript } from './projects.js';
+import { PROJECTS, projectPrograms } from './projects.js';
 
 /** The tables searched for the program, in order, and their languages. */
 export const RUN_TABLES = [
@@ -104,11 +104,11 @@ export function projectParameter(g = globalThis) {
  * Finds the project a ?project= value names: "owner/name" in that user's
  * space, else (or failing that) the whole value in the shared space. Resolves
  * to { record, owner, programs } or null if there is none: programs is one
- * { name, language, source, compiled, priority } per script of the project,
- * in order (a script that no longer exists is left out; missing counts them).
- * Rejects with a StoreError if the database could not be read.
+ * { name, language, source, compiled, priority } per script of the project
+ * (its own copies), in order (one in a language that cannot run is left out;
+ * missing counts them). Rejects with a StoreError if the database could not be read.
  * @param {string} value
- * @param {{stores?: {projects: object, scripts: object}}} [options] - stores
+ * @param {{stores?: {projects: object}}} [options] - stores
  *   to read (tests); by default the database server in use
  */
 export async function findProject(value, { stores } = {}) {
@@ -122,23 +122,8 @@ export async function findProject(value, { stores } = {}) {
     const record = records.find((r) => r.name === name)
       ?? records.find((r) => String(r.name ?? '').toLowerCase() === lower);
     if (!record) continue;
-    const scripts = (await (stores?.scripts ?? new SourceStore(SCRIPTS)).list()) ?? [];
-    const languages = Object.fromEntries(RUN_TABLES);
-    const programs = [];
-    let missing = 0;
-    for (const ref of record.scripts ?? []) {
-      const script = findScript(ref, scripts);
-      const language = languages[script?.language];
-      if (!script || !language) { missing += 1; continue; }
-      programs.push({
-        name: script.name,
-        language,
-        source: script.content ?? '',
-        compiled: script.compiled_code ?? null,
-        priority: script.priority ?? undefined,
-      });
-    }
-    return { record, owner, programs, missing };
+    const { programs, skipped } = projectPrograms(record.scripts, Object.fromEntries(RUN_TABLES));
+    return { record, owner, programs, missing: skipped };
   }
   return null;
 }

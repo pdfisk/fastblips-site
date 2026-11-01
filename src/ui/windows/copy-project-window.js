@@ -8,8 +8,7 @@ import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { Toast } from '../toast.js';
 import { installStyle } from './sign-in-window.js';
-import { projectStore, scriptStore, copyProject, uniqueName } from '../projects.js';
-import { spaceName } from '../db-client.js';
+import { projectStore, copyProject, uniqueName } from '../projects.js';
 
 /** The form: what is being copied, a Name field and an error line. */
 class CopyProjectPanel extends Panel {
@@ -38,19 +37,17 @@ class CopyProjectPanel extends Panel {
 export class CopyProjectWindow extends Window {
   /**
    * @param {object} options
-   * @param {object} options.project - the project to copy, with its scripts read (see withScripts in ../projects.js)
-   * @param {(result: {project: object, renamed: object[]}) => void} [options.onCopied] - called after the copy is stored
+   * @param {object} options.project - the project to copy, with its scripts
+   * @param {(result: {project: object}) => void} [options.onCopied] - called after the copy is stored
    * @param {object} [options.projects] - the store for the target space's projects (tests); My Projects by default
-   * @param {object} [options.scripts] - the store for the target space's scripts, in every language (tests)
    */
-  constructor({ project, onCopied, projects, scripts } = {}) {
+  constructor({ project, onCopied, projects } = {}) {
     if (!project) throw new TypeError('CopyProjectWindow needs a project');
     super({ title: 'Copy Project', x: 140, y: 100, width: 380, height: 160, resizable: false });
     this.element.classList.add('cr-sign-in-window');
     this.source = project;
     this.onCopied = onCopied;
     this.projects = projects ?? projectStore();
-    this.scripts = scripts ?? scriptStore().inSpace(spaceName());
     this.busy = false;   // waiting for the server
     this.panel = new CopyProjectPanel();
     this.content = this.panel;
@@ -93,7 +90,7 @@ export class CopyProjectWindow extends Window {
     this.updateButtons();
     let result;
     try {
-      result = await copyProject(this.source, { name, projects: this.projects, scripts: this.scripts });
+      result = await copyProject(this.source, { name, projects: this.projects });
     } catch (e) {
       this.busy = false;
       this.panel.error.textContent = e?.message || 'Could not copy the project';
@@ -107,14 +104,7 @@ export class CopyProjectWindow extends Window {
     if (wasOpen) this.close();
     document.dispatchEvent(new CustomEvent('cr-projectscopied', { detail: { project: result.project } }));
     this.onCopied?.(result);
-    if (viewport) {
-      const { renamed } = result;
-      Toast.show(viewport, {
-        kind: 'success',
-        message: `Copied to My Projects as "${result.project.name}"`
-          + (renamed.length ? `; renamed ${renamed.length} script${renamed.length === 1 ? '' : 's'} that you already had` : ''),
-      });
-    }
+    if (viewport) Toast.show(viewport, { kind: 'success', message: `Copied to My Projects as "${result.project.name}"` });
     return result.project;
   }
 

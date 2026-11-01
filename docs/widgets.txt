@@ -1011,11 +1011,11 @@ CopyProjectWindow
 The dialog behind the Copy button of the CommunityProjectsWindow.
 
   - new CopyProjectWindow({ project, onCopied }): project is the project to
-    copy, with its scripts read as records (withScripts in projects.js). It says what is
+    copy, with its copies of its scripts. It says what is
     being copied and has a Name field, filled with the project's name (or
     'Name 2'... if the user already has a project called that).
   - Copy (also Enter) stores the copy in My Projects with copyProject() of
-    projects.js, then closes, calls onCopied, fires cr-projectscopied on
+    projects.js (an unshared project with the same scripts), then closes, calls onCopied, fires cr-projectscopied on
     document (the ProjectsWindow reloads) and shows a toast. A name that is
     taken, or a server error, is shown in the window instead. Cancel (Escape)
     closes it.
@@ -2035,7 +2035,7 @@ edited in a ProjectPanel on the right.
   - There is only one; ProjectsWindow.instance creates it on first use, and
     closing it keeps its state.
   - Its ButtonBar has two pulldown Menus - Projects (New, Save, Delete,
-    Refresh) and Scripts (Add, Remove, Up, Down) - then a Separator, a
+    Refresh) and Scripts (Edit, Add, Remove, Up, Down) - then a Separator, a
     Launch menu and a status line at the right end. A menu item is greyed
     out when it cannot be used.
   - Launch is the same menu as in a console: Desktop, Mobile, a separator
@@ -2050,17 +2050,22 @@ edited in a ProjectPanel on the right.
     the screen once and starts the scripts one after the other on the shared
     scheduler, so they run side by side, printing to the same text panel and
     putting their widgets on the same screen. The list as shown is run,
-    saved or not, from the scripts last loaded (Refresh to reload); a script
+    saved or not, with the project's copies as they are; a script
     with load errors is reported in the StatusBar and the rest still start.
     The items are greyed out while the project has no scripts.
-  - The panel lists the scripts in the project, Basic and Python, in order.
-    Add opens a ScriptPickerWindow with the user's own scripts, the ones
-    other users have shared and the ones in the shared space, without those
-    already in the project; the one picked goes at the end of the list and is
-    selected. Remove takes the selected script out of the project (the
-    script is kept), and Up and Down move it one place. A script can be in
-    any number of projects. Add needs a project being edited; the others a
-    selected script, and Up and Down room to move.
+  - The panel lists the scripts in the project, in order. A project keeps
+    its own copy of each script (name, language, source, and priority and
+    compiled code if it has them), saved in the project's record.
+    Add opens a ScriptPickerWindow with the user's own scripts and the ones
+    in the shared space, without any whose name the project already has (names
+    are unique in a project, ignoring case); a copy of the one picked goes at
+    the end of the list and is selected. Edit opens the project's copy of the
+    selected script in a ScriptEditWindow: its Save changes the copy and
+    saves the project; the script it was copied from is not changed, and
+    changing that script later does not change the copy. Remove takes the
+    selected script out of the project, and Up and Down move it one place.
+    Add needs a project being edited; the others a selected script, and Up
+    and Down room to move.
   - New starts an empty project, which Save creates on the server; Save on
     an existing project updates its name, its description, whether it is
     shared and its scripts in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
@@ -2070,7 +2075,8 @@ edited in a ProjectPanel on the right.
     projects table's boolean "shared", false for a new project): checking
     or clearing it is an unsaved change until Save.
   - Renaming a project keeps its scripts. Delete asks for confirmation,
-    then deletes the project; its scripts are kept.
+    then deletes the project with its copies of its scripts (the scripts
+    they were copied from are kept).
   - Selecting another project, starting a new one or closing the window
     with unsaved changes (including added, removed or moved scripts) asks before discarding them.
   - The lists are reloaded each time the window opens, by Refresh, and when

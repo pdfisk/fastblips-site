@@ -4,8 +4,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { SourceStore, setUser, setSpace } from '../src/ui/db-client.js';
 import {
-  PROJECTS, SCRIPTS, byName, projectScript, scriptRef, splitScriptRef, findScript, withScripts, projectScriptFor, scriptLabel, availableScripts, moved, sameList,
-  uniqueName, copyProject, projectDetails,
+  PROJECTS, SCRIPTS, byName, projectScript, projectScriptCopy, sameScripts, findProjectScript, projectPrograms, scriptLabel,
+  availableScripts, moved, sameList, uniqueName, copyProject, projectDetails, languageTitle,
 } from '../src/ui/projects.js';
 
 function fakeFetch(...responses) {
@@ -34,17 +34,19 @@ test('the project store reads the page\'s space, the script store every space', 
   ]);
 });
 
-test('a project is saved with its description and the references of its scripts', async () => {
+const BALL = { name: 'Ball', language: 'python', content: 'print(1)' };
+
+test('a project is saved with its description and its copies of its scripts', async () => {
   setUser('ann');
   const fetch = fakeFetch({ status: 201, body: { id: 1 } }, { status: 200, body: { id: 1 } });
   const s = new SourceStore({ ...PROJECTS, baseUrl: 'http://db.test', fetch });
-  await s.create({ name: 'Games', description: 'Small games', scripts: ['ann/a', '/b'] });
+  await s.create({ name: 'Games', description: 'Small games', scripts: [BALL] });
   await s.update(1, { name: 'Games', description: '', scripts: [] });
   setUser('');
   assert.deepEqual(fetch.calls.map((c) => `${c.method} ${c.url}`),
     ['POST http://db.test/projects', 'PATCH http://db.test/projects/1']);
   assert.deepEqual(fetch.calls[0].body,
-    { project: { name: 'Games', description: 'Small games', scripts: ['ann/a', '/b'], owner: 'ann' } });
+    { project: { name: 'Games', description: 'Small games', scripts: [BALL], owner: 'ann' } });
   // An empty list is sent: it takes every script out of the project.
   assert.deepEqual(fetch.calls[1].body, { project: { name: 'Games', description: '', scripts: [] } });
 });
@@ -55,42 +57,62 @@ test('byName: by name ignoring case, then by id', () => {
   assert.deepEqual(byName(null), []);
 });
 
-test('projectScript: reference, language by title and owner always there', () => {
+test('projectScript: an entry of the Add list, language by title and owner always there', () => {
   assert.deepEqual(projectScript({ id: 1, name: 'snake', language: 'python', owner: 'ann', content: 'x' }),
-    { ref: 'ann/snake', id: 1, name: 'snake', language: 'Python', owner: 'ann' });
+    { id: 1, name: 'snake', language: 'Python', owner: 'ann' });
   assert.deepEqual(projectScript({ id: 2, name: 'x', language: 'python', owner: null }),
-    { ref: '/x', id: 2, name: 'x', language: 'Python', owner: '' });
+    { id: 2, name: 'x', language: 'Python', owner: '' });
+  assert.equal(languageTitle('python'), 'Python');
+  assert.equal(languageTitle('lua'), 'lua');
 });
 
-test('script references: "owner/name", with "/name" in the shared space', () => {
-  assert.equal(scriptRef({ owner: 'ann', name: 'a/b' }), 'ann/a/b');
-  assert.equal(scriptRef({ owner: null, name: 'x' }), '/x');
-  assert.deepEqual(splitScriptRef('ann/a/b'), { owner: 'ann', name: 'a/b' });
-  assert.deepEqual(splitScriptRef('/x'), { owner: '', name: 'x' });
-  for (const bad of ['x', 'ann/', '', null]) assert.equal(splitScriptRef(bad), null);
+test('projectScriptCopy: a script record or a project script as the project keeps it', () => {
+  const record = { id: 3, name: ' Ball ', language: 'python', content: 'print(1)', owner: 'ann', priority: 2,
+    compiled_code: '{}', visibility: 'public', version: 4, key: 'k' };
+  assert.deepEqual(projectScriptCopy(record),
+    { name: 'Ball', language: 'python', content: 'print(1)', priority: 2, compiled_code: '{}' });
+  assert.deepEqual(projectScriptCopy({ name: 'x', language: 'python', content: null, priority: null, compiled_code: '' }),
+    { name: 'x', language: 'python', content: '' });
 });
 
-test('references are resolved against script records, ignoring case; a script that has gone is missing', () => {
-  const records = [{ id: 1, name: 'Ball', owner: 'Ann', language: 'python', content: 'a' }, { id: 2, name: 'common', owner: null, language: 'python' }];
-  assert.equal(findScript('ann/ball', records).id, 1);
-  assert.equal(findScript('/COMMON', records).id, 2);
-  assert.equal(findScript('ann/gone', records), undefined);
-  const full = withScripts({ id: 9, name: 'P', scripts: ['/common', 'ann/gone', 'Ann/Ball'] }, records);
-  assert.deepEqual(full.scripts.map((s) => [s.ref, s.id]), [['/common', 2], ['Ann/Ball', 1]]);
-  assert.equal(full.missing, 1);
-  assert.deepEqual(projectScriptFor('ann/gone', records),
-    { ref: 'ann/gone', id: undefined, name: 'gone', language: '', owner: 'ann', missing: true });
-  assert.equal(projectScriptFor('ann/ball', records).ref, 'Ann/Ball');
+test('sameScripts compares the copies, in order, whatever else the entries carry', () => {
+  const a = { name: 'A', language: 'python', content: '1' };
+  const b = { name: 'B', language: 'python', content: '2' };
+  assert.equal(sameScripts([a, b], [{ ...a, key: 'k1' }, { content: '2', language: 'python', name: 'B' }]), true);
+  assert.equal(sameScripts([a, b], [b, a]), false);
+  assert.equal(sameScripts([a], [{ ...a, content: '1 ' }]), false);
+  assert.equal(sameScripts(null, []), true);
+});
+
+test('findProjectScript finds a project script by name, ignoring case', () => {
+  const scripts = [{ name: 'Ball' }, { name: 'Paddle' }];
+  assert.equal(findProjectScript(' ball', scripts), scripts[0]);
+  assert.equal(findProjectScript('net', scripts), undefined);
+});
+
+test('projectPrograms: the programs to run, in order, skipping languages that cannot run', () => {
+  class Py {}
+  const { programs, skipped } = projectPrograms([
+    { name: 'B', language: 'python', content: 'print(2)', compiled_code: '{}' },
+    { name: 'Old', language: 'basic', content: 'Print 1' },
+    { name: 'A', language: 'python', content: 'print(1)', priority: 2 },
+  ], { python: Py });
+  assert.deepEqual(programs, [
+    { name: 'B', language: Py, source: 'print(2)', compiled: '{}', priority: undefined },
+    { name: 'A', language: Py, source: 'print(1)', compiled: null, priority: 2 },
+  ]);
+  assert.equal(skipped, 1);
+  assert.deepEqual(projectPrograms(undefined, {}), { programs: [], skipped: 0 });
 });
 
 test('scriptLabel shows the owner of other users\' scripts only', () => {
-  const mine = { name: 'snake', language: 'Python', owner: 'Peter' };
+  const mine = { name: 'snake', language: 'python', owner: 'Peter' };
   assert.equal(scriptLabel(mine, 'peter'), 'snake  Python');
   assert.equal(scriptLabel({ ...mine, owner: 'ann' }, 'peter'), 'snake  Python  \u00b7 ann');
   assert.equal(scriptLabel({ ...mine, owner: '' }, ''), 'snake  Python');
 });
 
-test('availableScripts: the space\'s own and the shared space, not already in', () => {
+test('availableScripts: the space\'s own and the shared space, not named like one already in', () => {
   const scripts = [
     { id: 1, name: 'snake', language: 'python', owner: 'peter' },
     { id: 2, name: 'Pong', language: 'python', owner: 'ann' },
@@ -99,7 +121,7 @@ test('availableScripts: the space\'s own and the shared space, not already in', 
     { id: 5, name: 'chart', language: 'python', owner: 'Peter' },
   ];
   assert.deepEqual(availableScripts(scripts, [], 'peter').map((s) => s.id), [5, 4, 1]);
-  assert.deepEqual(availableScripts(scripts, ['peter/chart'], 'peter').map((s) => s.id), [4, 1]);
+  assert.deepEqual(availableScripts(scripts, ['Chart'], 'peter').map((s) => s.id), [4, 1]);
   // The shared space has only the scripts of no one.
   assert.deepEqual(availableScripts(scripts, [], '').map((s) => s.id), [4]);
   assert.deepEqual(availableScripts(null, [], 'peter'), []);
@@ -166,44 +188,24 @@ test('uniqueName adds a number until the name is free, ignoring case', () => {
   assert.equal(uniqueName('Pong', ['Pong', 'Pong 2', 'pong 3']), 'Pong 4');
 });
 
-test('copyProject makes the user\'s own copies of the scripts, then an unshared project listing them in order', async () => {
+test('copyProject makes an unshared project of the user with copies of the scripts, in order', async () => {
   const projects = memoryStore();
-  const scripts = memoryStore();
-  const { project, renamed } = await copyProject(SOURCE, { name: ' Pong copy ', projects, scripts });
-  assert.deepEqual(scripts.created.map(({ id, ...f }) => f), [
-    { name: 'Ball', language: 'python', content: 'PRINT 1', priority: 3, compiled_code: '{"a":1}' },
-    { name: 'Paddle', language: 'python', content: 'print(2)' },
-  ]);
-  assert.deepEqual(projects.created.map(({ id, ...f }) => f), [
-    { name: 'Pong copy', description: 'Two paddles', shared: false, scripts: ['/Ball', '/Paddle'] },
-  ]);
+  const { project } = await copyProject(SOURCE, { name: ' Pong copy ', projects });
+  assert.deepEqual(projects.created.map(({ id, ...f }) => f), [{
+    name: 'Pong copy', description: 'Two paddles', shared: false,
+    scripts: [
+      { name: 'Ball', language: 'python', content: 'PRINT 1', priority: 3, compiled_code: '{"a":1}' },
+      { name: 'Paddle', language: 'python', content: 'print(2)' },
+    ],
+  }]);
   assert.equal(project.name, 'Pong copy');
-  assert.deepEqual(renamed, []);
-});
-
-test('copyProject renames scripts the user already has, in any language', async () => {
-  const scripts = memoryStore([{ id: 1, name: 'ball', language: 'python' }]);
-  const { renamed } = await copyProject(SOURCE, { projects: memoryStore(), scripts });
-  assert.deepEqual(renamed, [{ from: 'Ball', to: 'Ball 2' }]);
-  assert.deepEqual(scripts.created.map((s) => s.name), ['Ball 2', 'Paddle']);
 });
 
 test('copyProject refuses an empty name or one of the user\'s projects, making nothing', async () => {
   const projects = memoryStore([{ id: 1, name: 'pong' }]);
-  const scripts = memoryStore();
-  await assert.rejects(copyProject(SOURCE, { name: '  ', projects, scripts }), /name is required/);
-  await assert.rejects(copyProject(SOURCE, { name: 'Pong', projects, scripts }), /already have a project called "Pong"/);
-  assert.equal(scripts.created.length, 0);
-});
-
-test('copyProject removes the scripts it made when the project cannot be made', async () => {
-  const projects = memoryStore();
-  projects.failCreateOn = 'Pong 2';
-  const scripts = memoryStore();
-  await assert.rejects(copyProject(SOURCE, { name: 'Pong 2', projects, scripts }), /boom/);
-  assert.equal(scripts.created.length, 2);
-  assert.deepEqual(scripts.removed, scripts.created.map((s) => s.id));
-  assert.deepEqual(scripts.records, []);
+  await assert.rejects(copyProject(SOURCE, { name: '  ', projects }), /name is required/);
+  await assert.rejects(copyProject(SOURCE, { name: 'Pong', projects }), /already have a project called "Pong"/);
+  assert.equal(projects.created.length, 0);
 });
 
 test('a script store with no language sets the language it is given', async () => {

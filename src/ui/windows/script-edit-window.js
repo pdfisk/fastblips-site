@@ -1,7 +1,9 @@
-// ScriptEditWindow: a window for editing one script of the database server -
-// its name and its source - opened by Edit in the Projects window's Scripts
-// menu. It loads the script by id, and Save writes it back (the compiled code
-// is dropped when the source changed, as it would no longer match).
+// ScriptEditWindow: a window for editing one script - its name and its
+// source - opened by Edit in the Projects window's Scripts menu. It loads the
+// script by id from a store (anything with get(id) and update(id, fields):
+// the Projects window gives one that edits the project's own copy of the
+// script), and Save writes it back (the compiled code is dropped when the
+// source changed, as it would no longer match).
 
 import { Window } from './window.js';
 import { RecordPanel } from '../widgets/record-panel.js';
@@ -14,8 +16,8 @@ const MONACO = { python: 'python' };
 export class ScriptEditWindow extends Window {
   /**
    * @param {object} options
-   * @param {object} options.store - the SourceStore for scripts
-   * @param {number} options.id - the script to edit
+   * @param {object} options.store - where the script is read and saved: get(id) and update(id, fields)
+   * @param {number|string} options.id - the script to edit
    * @param {string} [options.name] - its name, for the title until it loads
    * @param {string} [options.language] - 'python'
    * @param {(script: object) => void} [options.onSave] - called with the saved record
@@ -71,7 +73,7 @@ export class ScriptEditWindow extends Window {
     this.setStatus('Loading…');
     try {
       this._show(await this.store.get(this.id));
-      this.setStatus(`#${this.current.id}`);
+      this.setStatus(typeof this.current.id === 'number' ? `#${this.current.id}` : '');
     } catch (e) {
       this.setStatus(e.message, 'error');
     }

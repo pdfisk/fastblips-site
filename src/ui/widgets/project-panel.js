@@ -6,7 +6,7 @@
 
 import { Panel } from './panel.js';
 import { TabPanel } from './tab-panel.js';
-import { scriptLabel, moved } from '../projects.js';
+import { scriptLabel, moved, projectScriptCopy } from '../projects.js';
 
 const STYLE = `
 .cr-project-form{position:absolute;inset:0;display:flex;flex-direction:column;
@@ -54,13 +54,14 @@ class Page extends Panel {
 }
 
 const uid = (prefix) => `${prefix}-${Math.random().toString(36).slice(2)}`;
+const nameKey = (name) => String(name ?? '').trim().toLowerCase();
 
 export class ProjectPanel extends Panel {
   constructor() {
     super();
     installStyle();
     this.element.classList.add('cr-project-panel');
-    this._scripts = [];      // [{ ref, name, language, owner }], in order
+    this._scripts = [];      // the project's scripts, in order, each with a `key` for the list
     this._selectedId = null;
     this._space = '';
     this._enabled = false;
@@ -172,42 +173,61 @@ export class ProjectPanel extends Panel {
   set caption(text) { this.info.textContent = text; }
 
   /**
-   * The scripts in the project, in order: [{ ref, id, name, language, owner }] (see projectScript in ../projects.js). Setting it replaces the
-   * list, keeping the selection if that script is still in it.
+   * The scripts in the project, in order: project scripts ({ name, language,
+   * content, ... }, see projectScriptCopy in ../projects.js), each with a
+   * `key` that names it in this list. Setting it replaces the list; a script
+   * with the name of one already in it keeps that one's key, so the selection
+   * (and anything else holding a key) still finds it.
    */
   get scripts() { return this._scripts.map((script) => ({ ...script })); }
   set scripts(scripts) {
-    this._scripts = (scripts ?? []).map((script) => ({ ...script }));
-    if (!this._scripts.some((script) => script.ref === this._selectedId)) this._selectedId = null;
+    const keys = new Map(this._scripts.map((s) => [nameKey(s.name), s.key]));
+    this._scripts = (scripts ?? []).map((script) => ({
+      ...projectScriptCopy(script),
+      key: script.key ?? keys.get(nameKey(script.name)) ?? uid('cr-project-script'),
+    }));
+    if (!this._scripts.some((script) => script.key === this._selectedId)) this._selectedId = null;
     this._render();
   }
 
-  /** The "owner/name" references of the scripts, in order. */
-  get refs() { return this._scripts.map((script) => script.ref); }
+  /** The scripts as they are saved: project scripts without their keys, in order. */
+  get copies() { return this._scripts.map(projectScriptCopy); }
+
+  /** The names of the scripts, in order. */
+  get names() { return this._scripts.map((script) => script.name); }
+
+  /** The script whose key is key, or null. */
+  scriptByKey(key) {
+    const script = this._scripts.find((s) => s.key === key);
+    return script ? { ...script } : null;
+  }
 
   /** The space the project is in; scripts of other users show their owner. */
   get space() { return this._space; }
   set space(value) { this._space = value ?? ''; this._render(); }
 
   /** Index of the selected script, -1 for none. */
-  get selectedIndex() { return this._scripts.findIndex((script) => script.ref === this._selectedId); }
-  get selectedScript() { return this._scripts[this.selectedIndex] ?? null; }
+  get selectedIndex() { return this._scripts.findIndex((script) => script.key === this._selectedId); }
+  get selectedScript() { const s = this._scripts[this.selectedIndex]; return s ? { ...s } : null; }
 
   /** Selects the script at index (-1 for none); fires scriptselect. */
   selectIndex(index) {
     const script = this._scripts[index];
-    const ref = script ? script.ref : null;
-    if (ref === this._selectedId) return;
-    this._selectedId = ref;
+    const key = script ? script.key : null;
+    if (key === this._selectedId) return;
+    this._selectedId = key;
     this._render();
     this.element.dispatchEvent(new CustomEvent('scriptselect', { detail: { index, script: script ?? null } }));
   }
 
-  /** Adds a script at the end of the list and selects it. A script already in it is just selected. */
+  /**
+   * Adds a copy of a script at the end of the list and selects it. If the
+   * list has a script of that name (ignoring case), that one is selected instead.
+   */
   addScript(script) {
-    const at = this._scripts.findIndex((s) => s.ref === script.ref);
+    const at = this._scripts.findIndex((s) => nameKey(s.name) === nameKey(script.name));
     if (at < 0) {
-      this._scripts.push({ ...script });
+      this._scripts.push({ ...projectScriptCopy(script), key: uid('cr-project-script') });
       this._selectedId = null;   // so the selection is reported
       this._render();
       this.selectIndex(this._scripts.length - 1);
@@ -215,6 +235,18 @@ export class ProjectPanel extends Panel {
     } else {
       this.selectIndex(at);
     }
+  }
+
+  /** Changes fields (name, content, compiled_code...) of the script whose key is key; a null field is removed. */
+  updateScript(key, fields) {
+    const at = this._scripts.findIndex((s) => s.key === key);
+    if (at < 0) return false;
+    const next = { ...this._scripts[at], ...fields };
+    for (const [field, value] of Object.entries(fields)) if (value == null) delete next[field];
+    this._scripts[at] = { ...projectScriptCopy(next), key };
+    this._render();
+    this._changed();
+    return true;
   }
 
   /** Takes the selected script out of the list; the one that takes its place is selected. */

@@ -6,7 +6,8 @@
 // window is split by a vertical divider: the grid on the left, and on the
 // right a tabbed detail panel for the selected project - Details (name,
 // owner, description), Scripts (its scripts, in order) and Source (the
-// selected script's source, read only). Library projects can be launched and
+// selected script's source, read only). A project keeps its own copies of
+// its scripts, so they are read with it. Library projects can be launched and
 // copied but never modified. Choosing
 // a project and pressing Launch (or double-clicking it, or pressing Enter)
 // runs the project as it was last saved in a new Desktop launch window. Copy
@@ -23,7 +24,7 @@ import { TabPanel } from '../widgets/tab-panel.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { ListPanel } from '../widgets/list-panel.js';
 import {
-  allProjectStore, scriptStore, libraryProjects, projectScriptFor, scriptLabel, projectDetails, withScripts,
+  allProjectStore, libraryProjects, scriptLabel, projectDetails, projectPrograms,
 } from '../projects.js';
 import { RUN_TABLES } from '../run-app.js';
 import { CopyProjectWindow } from './copy-project-window.js';
@@ -64,7 +65,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
 
   /**
    * @param {{list?: () => Promise<object[]>, get?: (id: number) => Promise<object>}} [options] -
-   *   how the projects are read (tests): all of them, and one with its scripts read (see withScripts)
+   *   how the projects are read (tests): all of them, and one by id
    */
   constructor({ list, get } = {}) {
     if (instance) throw new Error('CommunityProjectsWindow is a singleton; use CommunityProjectsWindow.instance');
@@ -72,8 +73,8 @@ export class CommunityProjectsWindow extends HSplitWindow {
     instance = this;
     this.element.classList.add('cr-libraries-window');
     this._read = list ?? (() => allProjectStore().list());
-    // A project with its scripts as records (withScripts): they are found by their "owner/name".
-    this._get = get ?? (async (id) => withScripts(await allProjectStore().get(id), await scriptStore().list()));
+    // A project as it is now saved, with its copies of its scripts.
+    this._get = get ?? ((id) => allProjectStore().get(id));
     this._languages = Object.fromEntries(RUN_TABLES);
     this.projects = [];
     this._loading = null;
@@ -160,15 +161,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     if (!project || !this.parent) return null;
     if (target === 'web') return launchWeb(project.name, project.owner ?? '', { project: true });
     const full = await this._get(project.id);
-    const programs = (full.scripts ?? [])
-      .filter((s) => this._languages[s.language])
-      .map((s) => ({
-        name: s.name,
-        language: this._languages[s.language],
-        source: s.content ?? '',
-        compiled: s.compiled_code ?? null,
-        priority: s.priority ?? undefined,
-      }));
+    const { programs } = projectPrograms(full.scripts, this._languages);
     if (programs.length === 0) return null;
     const Cls = target === 'mobile' ? MobileLaunchWindow : DesktopLaunchWindow;
     return new Cls({ title: project.name, programs }).open(this.parent);
@@ -176,7 +169,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
 
   /**
    * Opens the Copy Project dialog for the selected project: its name can be
-   * changed there before the copy (with its own copies of the scripts) is
+   * changed there before the copy (with copies of its scripts) is
    * stored in My Projects. Needs a signed-in user, as My Projects is the
    * user's own space. Resolves to the dialog; null if there is no project
    * selected or nobody is signed in.
@@ -190,7 +183,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     }
     let full;
     try {
-      full = await this._get(project.id);   // with its scripts read
+      full = await this._get(project.id);   // as it is now saved
     } catch (e) {
       Toast.show(this.parent, { kind: 'error', message: `Cannot read the project: ${e.message}` });
       return null;
@@ -215,8 +208,8 @@ export class CommunityProjectsWindow extends HSplitWindow {
     this.full = null;
     this.detailsPanel.text = project ? projectDetails(project, projectUpdated(project)) : '';
     this.scriptsPanel.emptyText = project ? 'This project has no scripts' : 'No project selected';
-    this.scriptsPanel.items = (project?.scripts ?? []).map((ref) => ({
-      value: ref, label: scriptLabel(projectScriptFor(ref, []), project.owner ?? ''),
+    this.scriptsPanel.items = (project?.scripts ?? []).map((script, i) => ({
+      value: String(i), label: scriptLabel(script),
     }));
     this.scriptsPanel.select(this.scriptsPanel.items.length ? 0 : -1);
     this._showSource();
@@ -231,7 +224,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
   _showSource() {
     const item = this.scriptsPanel.selectedItem;
     if (!item) { this.sourcePanel.text = ''; return; }
-    const script = this.full?.scripts?.find((s) => s.ref === item.value);
+    const script = this.full?.scripts?.[Number(item.value)];
     this.sourcePanel.text = !this.full ? 'Loading...' : script?.content ?? '';
   }
 
