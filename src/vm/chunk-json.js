@@ -4,7 +4,7 @@
 //
 // Only the chunk's own data is kept: language, filename, code, lines,
 // constants, globals, procedures and entry. Live runtime objects a front end
-// attaches (MiniPy's globalInit and runtime - builtin classes and functions)
+// attaches (BlipPy's globalInit and runtime - builtin classes and functions)
 // are not data; chunkFromJson rebuilds them. Constants JSON cannot hold are
 // tagged: a BigInt as {"$bigint": "123"}, a non-finite number as
 // {"$number": "Infinity"}.

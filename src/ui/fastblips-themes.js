@@ -2,7 +2,7 @@
 //
 // Each theme has:
 //   ui     - colour/typography tokens for widgets and windows
-//   syntax - editor token colours (shared by Crumb and MiniPy highlighting)
+//   syntax - editor token colours (shared by Crumb and BlipPy highlighting)
 // applyTheme() writes ui tokens as CSS custom properties (--fb-<name>);
 // toMonacoTheme() builds the object for monaco.editor.defineTheme().
 

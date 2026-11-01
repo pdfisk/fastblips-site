@@ -1,4 +1,4 @@
-// MiniPy compiler: AST -> bytecode for the shared instruction set
+// BlipPy compiler: AST -> bytecode for the shared instruction set
 // (src/vm/opcodes.js). Also the scope resolver.
 //
 // What it shares with the Crumb compiler, and how:
@@ -14,7 +14,7 @@
 //     (a comparison, `not`, True/False).
 //   - `not` is TRUTHY + the core NOT.
 //   - print(...) with the built-in `print` compiles to the core PRINT with the
-//     MiniPy formatter.
+//     BlipPy formatter.
 //
 // Everything with Python's own value rules uses the python section.
 

@@ -1,11 +1,11 @@
-# One instruction set for Crumb and MiniPy
+# One instruction set for Crumb and BlipPy
 
 Design note, 18 September 2026. Status: implemented.
 
-Crumb (the VB-flavoured language in `crumb-v0.1-spec.md`) and MiniPy (a
+Crumb (the VB-flavoured language in `crumb-v0.1-spec.md`) and BlipPy (a
 Python subset) used to have separate bytecodes and separate VMs. Now both
 compile to one instruction set, `src/vm/opcodes.js`, and run on one stack
-machine, `src/vm/vm.js`. A MiniPy program therefore runs on the Scheduler next
+machine, `src/vm/vm.js`. A BlipPy program therefore runs on the Scheduler next
 to Crumb programs, sleeps without blocking, can be suspended and killed, and
 disassembles with the same tool.
 
@@ -33,42 +33,42 @@ Every opcode in the table records its section, its operand kinds (`const`,
 what it does to the stack. The disassembler annotates operands from those
 kinds, so a new opcode shows up correctly without touching the disassembler.
 The tests check that the Crumb compiler emits only `core` + `crumb` opcodes
-and the MiniPy compiler only `core` + `python`.
+and the BlipPy compiler only `core` + `python`.
 
 ## How the shared pieces line up
 
 - **Slots.** Both compilers resolve names to slots at compile time: a flat
-  globals array, and a flat slots array per procedure. MiniPy used to look
+  globals array, and a flat slots array per procedure. BlipPy used to look
   globals up by name at run time. Now its compiler gives every module name,
   and every built-in name, a slot. A slot nothing has assigned holds
   `UNBOUND`. A Crumb chunk starts every slot at `Nothing` so it never reads
-  `UNBOUND`. A MiniPy chunk starts them `UNBOUND` (except the built-ins, via
+  `UNBOUND`. A BlipPy chunk starts them `UNBOUND` (except the built-ins, via
   `globalInit`), so `GET_GLOBAL`/`GET_LOCAL` raise a NameError, as Python
   does.
-- **Conditions.** `JUMP_IF_FALSE` needs a Boolean in both languages. MiniPy
+- **Conditions.** `JUMP_IF_FALSE` needs a Boolean in both languages. BlipPy
   emits `TRUTHY` first, unless the expression is already a Boolean (a
   comparison, `not`, `True`/`False`). `not x` is `TRUTHY; NOT`.
 - **`and` / `or`.** These differ, so each language has its own opcodes.
-  Crumb's `AND_JUMP` checks the operand is a Boolean. MiniPy's
+  Crumb's `AND_JUMP` checks the operand is a Boolean. BlipPy's
   `JUMP_IF_FALSY_KEEP` uses truthiness and keeps the operand as the result.
 - **Printing.** `PRINT n fmt` is shared. The `fmt` operand picks the value
   formatter per instruction: Crumb's `Str` (`Nothing` → empty, `2.0` → `2`) or
-  Python's `str()` (`None`, `2.0`). MiniPy compiles `print(...)` to `PRINT`
+  Python's `str()` (`None`, `2.0`). BlipPy compiles `print(...)` to `PRINT`
   when `print` has not been rebound; the built-in `print` still exists as a
   value for code that passes it around. `TRANSCRIPT n fmt` is the same
   instruction writing to the transcript sink; Crumb's `Transcript` statement
   compiles to it.
 - **Calls and returns.** Crumb calls procedures known at compile time
-  (`CALL proc argc`). MiniPy calls values (`CALL_VALUE argc`: functions,
+  (`CALL proc argc`). BlipPy calls values (`CALL_VALUE argc`: functions,
   bound methods, classes, built-ins). Both push the same kind of frame, and
-  both return through the core `RETURN` / `RETURN_NOTHING`. A MiniPy `return`
+  both return through the core `RETURN` / `RETURN_NOTHING`. A BlipPy `return`
   inside `try … finally` runs the finally block first, using handler data
   kept on the frame. Crumb frames never have handlers, so the same `RETURN`
   does what it always did.
-- **Procedure layout.** MiniPy function and class bodies are now appended
+- **Procedure layout.** BlipPy function and class bodies are now appended
   after the module code, as Crumb's are, so every procedure is one
   contiguous range and the listing shows each one separately.
-- **Sleep and transcript.** MiniPy's `sleep(seconds)` sets the same pending
+- **Sleep and transcript.** BlipPy's `sleep(seconds)` sets the same pending
   sleep that Crumb's `Sleep` sets. `CALL_VALUE` yields exactly as
   `CALL_BUILTIN` does, and the Scheduler never knows which language is
   running. `transcript(*values)` prints like `print` but to the same sink as
@@ -79,7 +79,7 @@ and the MiniPy compiler only `core` + `python`.
 One representation per kind, whichever language made the value
 (`src/vm/values.js`):
 
-| Kind | JS | Crumb | MiniPy |
+| Kind | JS | Crumb | BlipPy |
 |---|---|---|---|
 | Nothing | `null` | `Nothing` | `None` |
 | Boolean | boolean | Boolean | `bool` |
@@ -96,7 +96,7 @@ exact, and `4 / 2` prints `2.0`. Only `python` opcodes produce an Int, and
 Crumb opcodes never see one. Mixed int/float arithmetic follows Python.
 `1 == 1.0` and `{1: x}[1.0]` both work.
 
-The cost is speed: bigint arithmetic makes MiniPy's arithmetic-heavy loops
+The cost is speed: bigint arithmetic makes BlipPy's arithmetic-heavy loops
 about 20-45% slower than on its old VM, which stored ints as doubles.
 A small-int fast path is the obvious fix if it ever matters.
 
@@ -105,21 +105,21 @@ A small-int fast path is the obvious fix if it ever matters.
 A language-specific opcode reports errors in that language's words, because
 only one language ever runs it. A core opcode is shared, so its failures carry
 a code (`NAME`, `BOOL`, `BUDGET`, `STACK`, `OPCODE`), and `faults.js` gives
-each code's wording per language, along with whether a MiniPy `try` can
+each code's wording per language, along with whether a BlipPy `try` can
 catch it. Every failure ends as a `RuntimeFault` with a line and a
 traceback. The Crumb loader formats it in the spec's section 11 style; the
-MiniPy loader formats it as `file:line: ExcType: message`.
+BlipPy loader formats it as `file:line: ExcType: message`.
 
 - Crumb: every runtime error is fatal, as section 11 requires.
-- MiniPy: operator, index, key, attribute and name errors are exceptions a
+- BlipPy: operator, index, key, attribute and name errors are exceptions a
   `try` can catch. Running out of stack (`RecursionError`) or out of the
   instruction budget is fatal.
 
-MiniPy exceptions unwind through VM state, not the JS call stack. Each frame
+BlipPy exceptions unwind through VM state, not the JS call stack. Each frame
 (and module code) keeps its open `except`/`finally` handlers with the stack
 depth recorded when the handler was set up. A raise finds the innermost
 handler, discarding frames without one and adding them to the traceback.
-That is what makes MiniPy resumable. Its old VM recursed in JS once per
+That is what makes BlipPy resumable. Its old VM recursed in JS once per
 Python call, so it could not stop partway through a slice.
 
 ## What was not shared, and why
@@ -151,13 +151,13 @@ Python call, so it could not stop partway through a slice.
   paths.
 - `test/python/*.py`: 11 programs, 9 of which match CPython's output exactly
   (`int` precision, float formatting, floor division and modulo signs,
-  exceptions, classes, comprehensions). The other two check MiniPy's
+  exceptions, classes, comprehensions). The other two check BlipPy's
   uncaught-exception report.
-- A further 20 MiniPy tests cover the opcode sections, the formatters,
+- A further 20 BlipPy tests cover the opcode sections, the formatters,
   unwinding across frames, the fatal limits, `break`/`continue` inside `try`,
-  `sleep()` on the Scheduler, and Crumb and MiniPy processes interleaving on
+  `sleep()` on the Scheduler, and Crumb and BlipPy processes interleaving on
   one Scheduler.
-- 20,000 random MiniPy programs, plus every pairing of built-in, method and
+- 20,000 random BlipPy programs, plus every pairing of built-in, method and
   operator with mismatched arguments, ran without a host crash and left the
   value stack balanced.
 - The playground bundle runs both languages on the UI scheduler with no page

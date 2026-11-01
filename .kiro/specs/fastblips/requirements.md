@@ -3,7 +3,7 @@
 ## Introduction
 
 FastBlips is a development and deployment environment for building browser-based
-applications using Crumb (FastBlips Basic) or MiniPy (a Python subset). Programs are
+applications using Crumb (FastBlips Basic) or BlipPy (a Python subset). Programs are
 stored as records on a server database and run on a shared bytecode VM inside the browser
 page.
 
@@ -25,8 +25,8 @@ the platform complete.
 
 ## Glossary
 
-- **BLIP**: Browser Loadable Interpreted Program — the unit of deployment: one Crumb or
-  MiniPy source program plus any saved screens and composites it names.
+- **BLIP**: Bytecode Loadable Interpreted Program — the unit of deployment: one Crumb or
+  BlipPy source program plus any saved screens and composites it names.
 - **Runtime**: The set of components needed to run a BLIP — the compiler(s), VM,
   scheduler, widget toolkit and host page.
 - **Standalone Bundle**: A self-contained HTML file (or directory) that includes the
@@ -35,7 +35,7 @@ the platform complete.
 - **App**: A BLIP that is published (has compiled code saved with its record) and is
   reachable via `?app=<name>`.
 - **Library**: A named record in the database whose content is source code (Crumb or
-  MiniPy) intended to be imported into other programs, not run directly.
+  BlipPy) intended to be imported into other programs, not run directly.
 - **Module**: A loaded library's compiled code, made available to an importing program
   through a resolved name.
 - **Viewport**: The program's screen — the root widget that all other widgets are placed
@@ -101,7 +101,7 @@ the platform complete.
 1. THE Runtime SHALL expose `ScreenWidth()` and `ScreenHeight()` as built-in functions that return the AppScreen's current width and height in logical pixels as integer Numbers greater than or equal to 0.
 2. WHEN the AppScreen is resized (window resize or orientation change), THE Runtime SHALL queue a call to the Sub or function named by `OnResize(handlerName)` with the new width and height as its two arguments, where each argument is an integer Number greater than or equal to 0.
 3. IF `OnResize` is called with a name that does not match any Sub or function in the running program, THEN THE Runtime SHALL report a runtime error at the line of the `OnResize` call and halt execution of the current statement without modifying any previously registered resize handler.
-4. THE Runtime SHALL define `ScreenWidth()` and `ScreenHeight()` as built-in names in the Crumb and MiniPy compilers so that using them before calling `OnResize` does not produce a load error.
+4. THE Runtime SHALL define `ScreenWidth()` and `ScreenHeight()` as built-in names in the Crumb and BlipPy compilers so that using them before calling `OnResize` does not produce a load error.
 5. WHILE the AppScreen is hidden (the program is running in a console with no screen), THE Runtime SHALL return 0 for both `ScreenWidth()` and `ScreenHeight()`.
 6. IF `OnResize` is called more than once during program execution, THEN THE Runtime SHALL replace the previously registered handler with the new handler name, so that only the most recently registered handler is called on subsequent resize events.
 7. WHEN the AppScreen is resized, IF no handler has been registered via `OnResize`, THEN THE Runtime SHALL silently ignore the resize event without producing an error.
@@ -155,12 +155,12 @@ the platform complete.
 
 ### Requirement 7: Library Support — Import Statement
 
-**User Story:** As a developer, I want to import a named library into my Crumb or MiniPy program with a single statement, so that I can use shared functions and data without copying code.
+**User Story:** As a developer, I want to import a named library into my Crumb or BlipPy program with a single statement, so that I can use shared functions and data without copying code.
 
 #### Acceptance Criteria
 
 1. THE Crumb_Compiler SHALL accept the syntax `Import "name"` as a top-level statement and SHALL make the library's exported names available in the importing program's top-level namespace, accessible from any statement in that program.
-2. THE MiniPy_Compiler SHALL accept `import name` (where `name` resolves to a FastBlips library record) and SHALL make the library's exported names available as attributes of the module object, accessible from any statement in that program.
+2. THE BlipPy_Compiler SHALL accept `import name` (where `name` resolves to a FastBlips library record) and SHALL make the library's exported names available as attributes of the module object, accessible from any statement in that program.
 3. WHEN a library named in an `Import` statement is not found in the database, THE Compiler SHALL report a load error naming the missing library and SHALL halt compilation.
 4. WHEN two libraries — or a library and the importing program — export or declare the same name, THE Compiler SHALL report a load error identifying the conflicting name and its two sources and SHALL halt compilation.
 5. IF any `Import` statement in a program fails to resolve, THEN THE Runtime SHALL abort execution before any top-level statement in that program runs.
@@ -176,7 +176,7 @@ the platform complete.
 
 1. THE Database SHALL store package records in a `packages` table with fields `name`, `owner`, `description`, and a list of member library record names containing between 1 and 50 entries.
 2. WHEN a Crumb program contains an `Import "package/name"` statement, THE Crumb_Compiler SHALL resolve each member library in the named package and make its symbols available to the program as if each member library had been imported individually.
-3. WHEN a MiniPy program contains an `import package` statement, THE MiniPy_Compiler SHALL make each member library's symbols available under the namespace `package.<library_name>`, where `<library_name>` is the name of that member library as recorded in the package.
+3. WHEN a BlipPy program contains an `import package` statement, THE BlipPy_Compiler SHALL make each member library's symbols available under the namespace `package.<library_name>`, where `<library_name>` is the name of that member library as recorded in the package.
 4. IF any member library within an imported package cannot be found or fails to load, THEN THE Compiler SHALL report a load error identifying the package name and the specific member library that failed, and SHALL not make any of the package's member libraries available to the program.
 5. WHEN a package named in an `Import` statement is not found in the database, THE Compiler SHALL report a load error identifying the missing package name.
 6. THE Package_Registry SHALL enforce that a package's member library names are unique within the package and that each member library name exists in the database, and SHALL report a validation error identifying the offending member name when a duplicate or non-existent member name is submitted.

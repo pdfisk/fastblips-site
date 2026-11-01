@@ -1,4 +1,4 @@
-// MiniPy lexer: source text -> tokens, with INDENT/DEDENT and f-strings.
+// BlipPy lexer: source text -> tokens, with INDENT/DEDENT and f-strings.
 
 import { T, KEYWORDS, Token } from './tokens.js';
 

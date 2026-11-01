@@ -1,4 +1,4 @@
-// fetch() (MiniPy), with a fake
+// fetch() (BlipPy), with a fake
 // fetch in place of the network.
 
 import { test } from 'node:test';
@@ -48,7 +48,7 @@ async function runVm(chunk, fetch) {
   return { out, vm, error };
 }
 
-test('MiniPy: fetch() returns dicts, lists, ints, floats, bools and None', async () => {
+test('BlipPy: fetch() returns dicts, lists, ints, floats, bools and None', async () => {
   const { out, error } = await runVm(py([
     `data = fetch("${W}")`,
     'print(data["current_weather"]["temperature"], data["current_weather"]["windspeed"] + 1)',
@@ -63,12 +63,12 @@ test('MiniPy: fetch() returns dicts, lists, ints, floats, bools and None', async
   assert.deepEqual(out.slice(3), ['temperature', 'windspeed', 'is_day']);
 });
 
-test('MiniPy: fetch() of text that is not JSON returns a str', async () => {
+test('BlipPy: fetch() of text that is not JSON returns a str', async () => {
   const { out } = await runVm(py(`print(fetch("${W}").upper())`), fakeFetch({ [W]: 'plain text' }));
   assert.deepEqual(out, ['PLAIN TEXT']);
 });
 
-test('MiniPy: a failed fetch() raises OSError, which try can catch', async () => {
+test('BlipPy: a failed fetch() raises OSError, which try can catch', async () => {
   const { out, error } = await runVm(py([
     'try:',
     '    fetch("https://api.example.com/missing")',
@@ -80,7 +80,7 @@ test('MiniPy: a failed fetch() raises OSError, which try can catch', async () =>
   assert.deepEqual(out, ['caught fetch(): https://api.example.com/missing answered 404 Not Found', 'after']);
 });
 
-test('MiniPy: fetch() checks its argument', async () => {
+test('BlipPy: fetch() checks its argument', async () => {
   const { out } = await runVm(py([
     'try:',
     '    fetch(42)',

@@ -1,6 +1,6 @@
-// Loader: the MiniPy pipeline - lex, parse, compile, run.
+// Loader: the BlipPy pipeline - lex, parse, compile, run.
 //
-// MiniPy compiles to the same bytecode as Crumb and runs on the same VM
+// BlipPy compiles to the same bytecode as Crumb and runs on the same VM
 // (src/vm/vm.js), so a compiled chunk can also be handed to a Scheduler.
 // Nothing throws on bad input: load errors come back as a list, and a
 // runtime fault comes back as `error`.
@@ -37,7 +37,7 @@ export function formatLoadErrors(errors, filename = '<program>') {
 }
 
 /**
- * Renders a runtime fault the MiniPy way:
+ * Renders a runtime fault the BlipPy way:
  *
  *   tally.py:9: TypeError: unsupported operand type(s) for +: 'int' and 'str'
  *   tally.py:9:     return x + "a"
@@ -57,7 +57,7 @@ export function formatFault(fault, source, filename = '<program>') {
 }
 
 /**
- * Compiles and runs a MiniPy program to completion.
+ * Compiles and runs a BlipPy program to completion.
  *
  * @param {string} source
  * @param {object} options - `filename` for diagnostics, `out` (a line sink;

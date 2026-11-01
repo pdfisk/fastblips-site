@@ -6,7 +6,7 @@
 # a win for the next level.
 #
 # Made with: Canvas (drawing), on_click (taps and mouse clicks).
-# rand() below is a tiny seeded generator of our own (MiniPy also has random()
+# rand() below is a tiny seeded generator of our own (BlipPy also has random()
 # and randint(), but those differ every run, and we want a repeatable puzzle).
 # It is seeded from the level number: level 3 is the same puzzle every time.
 

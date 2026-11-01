@@ -2,7 +2,7 @@
 //
 // One representation per kind, whichever language made the value:
 //
-//   kind        JS representation   Crumb            MiniPy
+//   kind        JS representation   Crumb            BlipPy
 //   ---------   -----------------   --------------   -------------------
 //   Nothing     null                Nothing          None
 //   Boolean     true / false        Boolean          bool
@@ -12,19 +12,19 @@
 //   Array       CrumbArray          Array (fixed)    (never made)
 //   list        JS Array            (never made)     list
 //   widget      Widget              Label, Button    Label, Button
-//   ...and the MiniPy-only kinds below (tuple, dict, range, function, class,
+//   ...and the BlipPy-only kinds below (tuple, dict, range, function, class,
 //   instance, bound method, built-in function).
 //
-// Crumb's one numeric type and MiniPy's float are both IEEE 754 doubles, so
-// they are the same kind. MiniPy's int is the extra kind: a bigint, so ints
-// never lose precision. Only MiniPy opcodes produce an Int; Crumb opcodes
+// Crumb's one numeric type and BlipPy's float are both IEEE 754 doubles, so
+// they are the same kind. BlipPy's int is the extra kind: a bigint, so ints
+// never lose precision. Only BlipPy opcodes produce an Int; Crumb opcodes
 // never see one.
 //
 // A slot that has never been assigned holds UNBOUND. Crumb chunks start every
-// slot at Nothing, so Crumb code never reads UNBOUND; MiniPy chunks start
+// slot at Nothing, so Crumb code never reads UNBOUND; BlipPy chunks start
 // them UNBOUND, so reading one is a NameError.
 
-/** Crumb's Nothing and MiniPy's None: one value. */
+/** Crumb's Nothing and BlipPy's None: one value. */
 export const NOTHING = null;
 
 /** The contents of a slot that has never been assigned. */
@@ -42,7 +42,7 @@ export class CrumbArray {
 // ------------------------------------------------------------------ shared --
 
 /**
- * A GUI widget a program made (New Label(...) in Crumb, Label(...) in MiniPy),
+ * A GUI widget a program made (New Label(...) in Crumb, Label(...) in BlipPy),
  * or one the host handed it (a Window's ButtonBar). The widget itself
  * belongs to the host (vm.gui); this object holds its host id and its class
  * (from runtime/widgets.js). There is one object per id, so = / `is`
@@ -55,7 +55,7 @@ export class Widget {
   }
 }
 
-// ------------------------------------------------------------------ MiniPy --
+// ------------------------------------------------------------------ BlipPy --
 
 export class PyTuple {
   constructor(items) { this.items = items; }

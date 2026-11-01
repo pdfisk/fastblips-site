@@ -1,4 +1,4 @@
-// A Process is one running program, Crumb or MiniPy: a VM plus the bookkeeping the
+// A Process is one running program, Crumb or BlipPy: a VM plus the bookkeeping the
 // Scheduler needs (id, name, state, exit result).
 //
 // The VM does the work; the Process only tracks where it is in its life:

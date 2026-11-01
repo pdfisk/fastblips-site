@@ -23,7 +23,7 @@ runtime error instead.
 
 ### The classes
 
-| Class | Crumb / MiniPy | What it is |
+| Class | Crumb / BlipPy | What it is |
 |---|---|---|
 | Label | `New Label(text)` / `Label(text)` | A line of text; clickable |
 | Button | `New Button(text)` / `Button(text)` | A push button |
@@ -43,7 +43,7 @@ Every widget can be placed and sized (`setLeft` … `setBounds`, `getLeft` …),
 given a flex weight (`setFlex`), made to fill its area (`fill`), shown or
 hidden, coloured (`setBackground`, `setColor`), asked for its container
 (`getParent`) and taken out of it (`remove`). The per-class methods and the
-exact rules are in spec section 10.1; MiniPy spells every method in
+exact rules are in spec section 10.1; BlipPy spells every method in
 snake_case (`get_selected_index`, `on_click`).
 
 Not offered to programs: the singletons (Viewport, Navbar, StatusBar,
@@ -83,7 +83,7 @@ classes.
 ### The Viewport, ids and saved screens
 
 The topmost GUI object is the **Viewport**, a singleton: `New Viewport()`
-(MiniPy `Viewport()`) always gives the program its own screen, and every
+(BlipPy `Viewport()`) always gives the program its own screen, and every
 widget on it is its child. Any widget can be named with `setId("total")`,
 and any container — the Viewport above all — can find what is inside it
 with `findById("total")` or `findByClass("Button")` (an Array / list).
@@ -130,7 +130,7 @@ Handlers run one at a time, between other processes' turns, so there are no
 races within a program.
 
 **How it is built.** Crumb has a `New` keyword and `.` for method calls,
-compiled to two opcodes, `NEW_OBJECT` and `CALL_METHOD`; MiniPy already had
+compiled to two opcodes, `NEW_OBJECT` and `CALL_METHOD`; BlipPy already had
 calls and attributes, so the classes are built-in callables and the methods
 are found through `GET_ATTR`. Both languages share one table of classes and
 methods (`WIDGET_CLASSES` in `src/vm/runtime/widgets.js`): each method's two
@@ -159,8 +159,8 @@ not change.
 ## 2. Widgets to implement next
 
 Every new widget is a class with methods, like the ones above: Crumb
-`New TextBox("")` / MiniPy `TextBox("")`, and Crumb `camelCase` methods
-with MiniPy `snake_case` twins (`tb.onChange` / `tb.on_change`). Only the
+`New TextBox("")` / BlipPy `TextBox("")`, and Crumb `camelCase` methods
+with BlipPy `snake_case` twins (`tb.onChange` / `tb.on_change`). Only the
 Crumb spelling is shown below.
 
 ### Phase 1 — make apps interactive
@@ -213,7 +213,7 @@ Crumb spelling is shown below.
    run as ordinary calls, one at a time.
 3. **Both languages, same meaning.** Specify each class and method once, in
    the shared table, with a Crumb (`camelCase` method, Sub name as a string)
-   and a MiniPy (`snake_case` method, function value) spelling, as `onClick`
+   and a BlipPy (`snake_case` method, function value) spelling, as `onClick`
    / `on_click` already are.
 4. **Theme-aware.** Widgets use the `--cr-*` theme variables, so a BLIP looks
    right in the Classic, Apple and Steampunk themes without extra code.

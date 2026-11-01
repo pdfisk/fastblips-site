@@ -357,7 +357,7 @@ const KIND = {
 };
 const RESULT = { text: 'str', int: 'int', number: 'float', boolean: 'bool', widget: 'widget', widgets: 'list of widgets' };
 
-/** An argument's kind as MiniPy writes it: 'size', 'str', 'function(widget, int)'. */
+/** An argument's kind as BlipPy writes it: 'size', 'str', 'function(widget, int)'. */
 export function kindName(kind) {
   if (kind.startsWith('handler')) {
     const values = kind.split(':').slice(1).map((k) => KIND[k] ?? k);
@@ -410,7 +410,7 @@ export function describeCommon() {
 
 const INTRO = `${rule('Widgets', '=')}
 Every widget a program can make, with the methods it has. Programs are written
-in MiniPy: call a class to make a widget, then call methods on it.
+in BlipPy: call a class to make a widget, then call methods on it.
 
   label = Label("Hello")
   label.set_width(120)

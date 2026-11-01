@@ -1,4 +1,4 @@
-// MiniPy's runtime library: the exception hierarchy, the built-in
+// BlipPy's runtime library: the exception hierarchy, the built-in
 // functions, and the methods of list, dict and str.
 //
 // createPythonRuntime() is called once per compiled chunk. The compiler gives
@@ -20,7 +20,7 @@ import {
 import { checkUrl, startFetch } from './fetch.js';
 
 /**
- * Parsed JSON as MiniPy values: objects are dicts, arrays lists, whole
+ * Parsed JSON as BlipPy values: objects are dicts, arrays lists, whole
  * numbers ints (exactly, however large, where the host supports it) and
  * other numbers floats, null None.
  */
@@ -88,7 +88,7 @@ function widgetArgs(vm, what, params, args) {
   return params.map((kind, i) => widgetArg(vm, what, kind, i + 1, args[i]));
 }
 
-/** A result or event value as a MiniPy value: whole numbers are ints. */
+/** A result or event value as a BlipPy value: whole numbers are ints. */
 const widgetValue = (kind, v) => (kind === 'int' ? BigInt(Math.trunc(v)) : v);
 
 /** A module-level function's name, which a saved screen can name; else null. */
@@ -299,7 +299,7 @@ const FUNCTIONS = {
 
 export const FUNCTION_NAMES = Object.keys(FUNCTIONS);
 
-/** Every name a MiniPy program starts with, in global-slot order. */
+/** Every name a BlipPy program starts with, in global-slot order. */
 export const BUILTIN_NAMES = [...EXCEPTION_NAMES, ...FUNCTION_NAMES, ...WIDGET_CLASSES.map((c) => c.name), '__builtins__'];
 
 function builtin(name, [min, max, fn]) {
@@ -354,8 +354,8 @@ function attributeNames(obj) {
 }
 
 function sortValues(vm, items) {
-  // A merge sort on the MiniPy ordering, so a TypeError from a bad
-  // comparison surfaces as a MiniPy exception.
+  // A merge sort on the BlipPy ordering, so a TypeError from a bad
+  // comparison surfaces as a BlipPy exception.
   if (items.length < 2) return items;
   const mid = items.length >> 1;
   const left = sortValues(vm, items.slice(0, mid));
@@ -489,7 +489,7 @@ function strMethod(s, name) {
 }
 
 /**
- * Gives a MiniPy chunk its live runtime: a fresh runtime library, the
+ * Gives a BlipPy chunk its live runtime: a fresh runtime library, the
  * built-in values in their global slots (globalInit), and UNBOUND as the
  * starting value of every other slot. The compiler calls this, and so does
  * chunkFromJson (src/vm/chunk-json.js) for a chunk loaded from compiled code,

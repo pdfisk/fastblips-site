@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { compile as compilePython } from '../src/vm/compiler/python/loader.js';
 import { chunkToJson, chunkToJsonString } from '../src/vm/chunk-json.js';
 
-test('a MiniPy chunk drops runtime objects and tags BigInt constants', () => {
+test('a BlipPy chunk drops runtime objects and tags BigInt constants', () => {
   const { chunk } = compilePython('def f(a):\n  return a * 2\nprint(f(3))\n', { filename: 'a.py' });
   const json = chunkToJson(chunk);
   assert.equal(json.globalInit, undefined);
@@ -26,7 +26,7 @@ const outputOf = (chunk) => {
   return { output, error: error ? `${error.line}: ${error.message}` : null };
 };
 
-test('every MiniPy test program runs the same from compiled code as from source', () => {
+test('every BlipPy test program runs the same from compiled code as from source', () => {
   for (const file of readdirSync('test/python').filter((f) => f.endsWith('.py'))) {
     const { chunk } = compilePython(readFileSync(`test/python/${file}`, 'utf8'), { filename: file });
     if (!chunk) continue;

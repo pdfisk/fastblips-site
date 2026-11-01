@@ -1,7 +1,7 @@
 {
   "name": "crumb-lang",
   "version": "0.1.0",
-  "description": "MiniPy (a Python subset): front end, bytecode and VM. The Basic (Crumb) front end is archived.",
+  "description": "BlipPy (a Python subset): front end, bytecode and VM. The Basic (Crumb) front end is archived.",
   "type": "module",
   "main": "src/index.js",
   "bin": {

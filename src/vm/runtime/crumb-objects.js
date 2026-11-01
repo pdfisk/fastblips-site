@@ -6,7 +6,7 @@
 //
 // Class and method names are case-insensitive, like every Crumb name, and
 // live in their own namespaces: a variable may be called label. The classes,
-// their methods and what they do are shared with MiniPy (./widgets.js); this
+// their methods and what they do are shared with BlipPy (./widgets.js); this
 // file checks arguments the Crumb way and reports Crumb runtime errors.
 
 import {

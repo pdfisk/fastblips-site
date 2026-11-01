@@ -1,5 +1,5 @@
 // The GUI designer's code generator: a composite (the node tree of
-// designer-model.js) in, the MiniPy program that builds it out. No
+// designer-model.js) in, the BlipPy program that builds it out. No
 // DOM here, so it is tested under Node; DesignerCodeWindow
 // (windows/designer-code-window.js) shows the result.
 //
@@ -10,7 +10,7 @@
 //
 // The language is driven by a table (LANGUAGES): the spelling of a
 // constructor, a method, a string, a Boolean, a handler. The method names
-// are the camelCase ones of src/vm/runtime/widgets.js; MiniPy gets its
+// are the camelCase ones of src/vm/runtime/widgets.js; BlipPy gets its
 // snake_case spelling from snakeCase() there.
 
 import { WIDGET_CLASSES, snakeCase } from '../vm/runtime/widgets.js';
@@ -23,7 +23,7 @@ import { DEFAULT_BOXES, DEFAULT_WINDOW_BOUNDS, DEFAULT_LAYOUTS } from './widget-
 
 const num = (n) => String(Number.isInteger(n) ? n : Math.round(n * 1e6) / 1e6);
 
-/** A MiniPy string literal. MiniPy has \n, \t, \\, \" and \0 and no chr(),
+/** A BlipPy string literal. BlipPy has \n, \t, \\, \" and \0 and no chr(),
  *  so any other control character (a text box cannot hold one) is dropped. */
 export function pyString(value) {
   let out = '';
@@ -46,7 +46,7 @@ const lower = (names) => new Set([...names].map((n) => n.toLowerCase()));
 /** Words that cannot be a variable or a handler name (any case). `vp` is the Viewport. */
 const CLASS_NAMES = new Set(WIDGET_CLASSES.map((c) => c.name));
 const PY_RESERVED = lower([...PY_KEYWORDS, ...PY_BUILTINS.filter((n) => !CLASS_NAMES.has(n)), 'vp']);
-// A widget class is a name like any other in MiniPy, so a variable must not be
+// A widget class is a name like any other in BlipPy, so a variable must not be
 // spelled exactly like one.
 const PY_RESERVED_EXACT = CLASS_NAMES;
 
@@ -151,7 +151,7 @@ class Generator {
   /**
    * Reserves the names of every handler in the design before any variable is
    * named: a handler's name is what the design (and a saved composite) calls
-   * it, so a variable gives way to it, not the other way round. MiniPy keeps
+   * it, so a variable gives way to it, not the other way round. BlipPy keeps
    * functions and variables in one namespace.
    */
   reserveHandlers(node) {
@@ -487,7 +487,7 @@ const stubText = (stubs) => stubs.flatMap((s, i) => (i ? ['', ...s.lines] : s.li
 
 /**
  * The program that builds root: a header, the layout section, and a stub for
- * every handler the design names (before the layout: MiniPy needs a
+ * every handler the design names (before the layout: BlipPy needs a
  * function defined before it is named).
  * @param {object} root - the design (a node of designer-model.js)
  * @param {{language?: 'python', name?: string}} [options]

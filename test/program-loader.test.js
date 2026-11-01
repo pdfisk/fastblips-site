@@ -106,7 +106,7 @@ test('compiled code given once is cached for the next run of that source', () =>
   assert.equal(compileFn.calls, 0);
 });
 
-test('MiniPy programs load from compiled code and the cache with a fresh runtime', () => {
+test('BlipPy programs load from compiled code and the cache with a fresh runtime', () => {
   const source = 'class A:\n  pass\nprint(isinstance(A(), A))\n';
   const compileFn = pythonCompiler();
   const compiled = chunkToJsonString(compilePython(source).chunk, { sourceHash: sourceHash(source) });

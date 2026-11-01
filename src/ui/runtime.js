@@ -1,5 +1,5 @@
 // The one Scheduler the browser UI runs programs on. Every PythonConsoleWindow
-// spawns into it - MiniPy chunks run on the
+// spawns into it - BlipPy chunks run on the
 // same VM - and the SchedulerWindow shows and controls it.
 //
 // It uses the Scheduler's defaults: a quantum of 10 instructions per turn,

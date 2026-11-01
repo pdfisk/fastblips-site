@@ -1,4 +1,4 @@
-// The one instruction set. Crumb and MiniPy both compile to it and both run on
+// The one instruction set. Crumb and BlipPy both compile to it and both run on
 // src/vm/vm.js.
 //
 // Encoding: a chunk's `code` is a flat array of numbers. Each instruction is
@@ -12,7 +12,7 @@
 //           output. Either front end may emit these.
 //   crumb   Crumb's value rules: no coercion, Boolean-only logic, one Number
 //           type, fixed arrays.
-//   python  MiniPy's value rules: truthiness, the int/float numeric tower,
+//   python  BlipPy's value rules: truthiness, the int/float numeric tower,
 //           dynamic `+`, lists/tuples/dicts, objects, iteration, exceptions.
 //
 // Rule: an opcode means one thing. Where the two languages disagree about an
@@ -36,7 +36,7 @@
 const TABLE = [
   // ------------------------------------------------------------------ core --
   ['CONST', 'core', ['const'], 'push constants[k]'],
-  ['NOTHING', 'core', [], 'push Nothing (Crumb) / None (MiniPy): the same value'],
+  ['NOTHING', 'core', [], 'push Nothing (Crumb) / None (BlipPy): the same value'],
   ['TRUE', 'core', [], 'push True'],
   ['FALSE', 'core', [], 'push False'],
   ['POP', 'core', [], 'discard the top value'],
@@ -181,7 +181,7 @@ export const CRUMB_BINARY_OPS = Object.freeze({
   '=': Op.EQ, '<>': Op.NE, '<': Op.LT, '<=': Op.LE, '>': Op.GT, '>=': Op.GE,
 });
 
-/** MiniPy operator -> opcode, for the MiniPy compiler. */
+/** BlipPy operator -> opcode, for the BlipPy compiler. */
 export const PY_BINARY_OPS = Object.freeze({
   '+': Op.PY_ADD, '-': Op.PY_SUB, '*': Op.PY_MUL, '/': Op.PY_TRUEDIV,
   '//': Op.PY_FLOORDIV, '%': Op.PY_MOD, '**': Op.PY_POW,

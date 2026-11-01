@@ -17,8 +17,8 @@ export const Fault = Object.freeze({
 
 /**
  * code -> (info) -> { message, excType, catchable }
- *   excType   MiniPy's exception class name; unused for Crumb
- *   catchable whether a MiniPy `try` can handle it. Crumb has no try, so every
+ *   excType   BlipPy's exception class name; unused for Crumb
+ *   catchable whether a BlipPy `try` can handle it. Crumb has no try, so every
  *             Crumb runtime error is fatal (spec section 11).
  */
 const WORDING = {
@@ -55,11 +55,11 @@ export function describeFault(language, code, info) {
 
 /**
  * A runtime error that stopped the program: a Crumb runtime error (spec
- * section 11), or a MiniPy exception that nothing caught.
+ * section 11), or a BlipPy exception that nothing caught.
  *
  *   line       source line of the failing instruction
  *   traceback  call sites, innermost first: [{ name, kind, line }]
- *   excType    MiniPy only: the exception class name
+ *   excType    BlipPy only: the exception class name
  */
 export class RuntimeFault extends Error {
   constructor(message, { line = 0, column = 0, traceback = [], excType = null, code = null } = {}) {

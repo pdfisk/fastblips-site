@@ -1,4 +1,4 @@
-# A tour of the widgets in MiniPy: the same classes and methods as Crumb's
+# A tour of the widgets in BlipPy: the same classes and methods as Crumb's
 # (examples/widget-tour.bas), spelled the Python way. Run it from a
 # launch window (a Python console's Launch menu).
 

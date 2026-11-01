@@ -1,5 +1,5 @@
-// MiniPy token kinds, keywords and the Token record.
-// Extracted from the MiniPy playground; the Python front end's first stage.
+// BlipPy token kinds, keywords and the Token record.
+// Extracted from the BlipPy playground; the Python front end's first stage.
 
 // Token kinds. Grouped roughly by §2/§13 of the spec.
 const T = {

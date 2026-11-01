@@ -13,7 +13,7 @@
 //   3. compiling the source; the result goes into the cache.
 //
 // Every call returns a fresh chunk, so programs loaded from the same code
-// never share runtime state (MiniPy's runtime library is rebuilt each time).
+// never share runtime state (BlipPy's runtime library is rebuilt each time).
 
 import { chunkFromJson, chunkToJson, parseChunkJson, sourceHash, ChunkFormatError } from './chunk-json.js';
 

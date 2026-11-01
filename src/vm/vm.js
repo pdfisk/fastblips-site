@@ -1,5 +1,5 @@
 // The virtual machine: one stack machine for every chunk, whichever front end
-// compiled it. Crumb and MiniPy share the instruction set of opcodes.js.
+// compiled it. Crumb and BlipPy share the instruction set of opcodes.js.
 //
 // All execution state (ip, value stack, frames, globals, exception handlers)
 // lives on the VM, so runSlice() can stop after any instruction and resume
@@ -7,7 +7,7 @@
 // language they are written in.
 //
 // Types are checked at the instruction. Crumb's opcodes fail with a fatal
-// runtime error (spec section 11). MiniPy's opcodes raise a MiniPy exception,
+// runtime error (spec section 11). BlipPy's opcodes raise a BlipPy exception,
 // which a `try` in the program may catch; an uncaught one ends the program
 // with a RuntimeFault, just like a Crumb error.
 
@@ -26,7 +26,7 @@ export { RuntimeFault, RuntimeFault as CrumbRuntimeError };
 const ORDERED = new Set([Op.LT, Op.LE, Op.GT, Op.GE]);
 const FORMATTERS = { [FORMAT.CRUMB]: toStr, [FORMAT.PYTHON]: pyStr };
 
-/** A MiniPy exception in flight. Internal: never escapes runSlice. */
+/** A BlipPy exception in flight. Internal: never escapes runSlice. */
 class PyRaise {
   constructor(value, line) {
     this.value = value;
@@ -56,7 +56,7 @@ export class VM {
    *   code, lines, constants, procedures, entry, globalCount, globalNames,
    *   and optionally language ('crumb' | 'python'), globalInit (initial
    *   global values), initialSlot (what an unassigned slot holds) and
-   *   runtime (MiniPy's runtime library).
+   *   runtime (BlipPy's runtime library).
    */
   constructor(chunk, {
     out = (text) => process.stdout.write(`${text}\n`),
@@ -156,7 +156,7 @@ export class VM {
       this.enter(handler.proc, args.slice(0, handler.proc.arity));
       return;
     }
-    // A MiniPy handler gets as many of the event's arguments (the widget,
+    // A BlipPy handler gets as many of the event's arguments (the widget,
     // then the event's value) as it takes.
     const fn = handler.fn;
     const proc = fn instanceof PyBoundMethod ? fn.func.proc : fn.proc;
@@ -182,7 +182,7 @@ export class VM {
   /**
    * A failure of a core opcode or of the VM itself. The failure is the same
    * for every language; the chunk's language picks its wording and whether a
-   * MiniPy `try` can catch it.
+   * BlipPy `try` can catch it.
    */
   fault(code, info) {
     const d = describeFault(this.language, code, info);
@@ -192,7 +192,7 @@ export class VM {
     });
   }
 
-  /** Raises a MiniPy exception of the named built-in class. */
+  /** Raises a BlipPy exception of the named built-in class. */
   raise(className, message) {
     throw new PyRaise(this.makeException(className, message), this.line());
   }
@@ -732,7 +732,7 @@ export class VM {
     this.ip = frame.returnIp;
   }
 
-  /** CALL_VALUE: call whatever MiniPy value is being called. */
+  /** CALL_VALUE: call whatever BlipPy value is being called. */
   callValue(callee, args) {
     if (callee instanceof PyFunction) { this.callFunction(callee, args); return; }
     if (callee instanceof PyBuiltinFunction) {
@@ -795,7 +795,7 @@ export class VM {
   // --------------------------------------------------------------- unwinding
 
   /**
-   * Finds the handler for a MiniPy exception: the innermost open try, in this
+   * Finds the handler for a BlipPy exception: the innermost open try, in this
    * frame or a caller's. Frames without one are discarded and recorded in the
    * traceback. With no handler anywhere the program ends with a RuntimeFault.
    */

@@ -11,7 +11,7 @@ in the page. Programs are stored in a server database, so publishing one is
 as simple as saving it: the moment a record is saved, the program is live at
 its own URL on desktop and mobile browsers alike.
 
-The unit of deployment is a **BLIP** — a *Browser Loadable Interpreted
+The unit of deployment is a **BLIP** — a *Bytecode Loadable Interpreted
 Program* (see *02 BLIP definition*).
 
 ## Goals
@@ -19,7 +19,7 @@ Program* (see *02 BLIP definition*).
 | Goal | What it means |
 |---|---|
 | **Rapid development** | Write, run and fix a program in one browser page, with no toolchain, build step or install. |
-| **Two approachable languages** | A Visual-Basic-style language (Crumb, "FastBlips Basic") and a Python subset (MiniPy), both compiling to the same bytecode. |
+| **Two approachable languages** | A Visual-Basic-style language (Crumb, "FastBlips Basic") and a Python subset (BlipPy), both compiling to the same bytecode. |
 | **Multitasking** | Many programs run at once in one page, taking turns under a scheduler, and can be paused, resumed or stopped individually. |
 | **Bytecode interpreter architecture** | One compact stack-machine VM shared by both languages; execution state lives in the VM, so any program can be paused after any instruction. |
 | **Runs anywhere a browser does** | Desktop and mobile browsers, with no plug-ins or native code. |
@@ -35,7 +35,7 @@ FastBlips is aimed first at **people learning to program**. That sets the
 priorities:
 
 - **Crumb first** for beginners: strict, explicit, with errors that point
-  at the mistake; MiniPy for learners moving on to Python.
+  at the mistake; BlipPy for learners moving on to Python.
 - **Nothing to install** — a link is enough to start, on a school or
   library computer or a phone.
 - **Seeing programs run** — single-step, breakpoints and a variable view
@@ -54,7 +54,7 @@ priorities:
                scheduler · launch windows    python_source         device, phone included
                          │
                          ▼
-            Crumb / MiniPy compiler ──▶ bytecode ──▶ shared VM ──▶ Scheduler
+            Crumb / BlipPy compiler ──▶ bytecode ──▶ shared VM ──▶ Scheduler
 ```
 
 - **Front ends** — a lexer, parser and compiler for each language
@@ -72,7 +72,7 @@ priorities:
 | Area | Status |
 |---|---|
 | Crumb (Basic) language v0.1 | Implemented to spec, 27 built-ins |
-| MiniPy (Python subset) | Implemented; output checked against CPython |
+| BlipPy (Python subset) | Implemented; output checked against CPython |
 | Shared bytecode VM | Implemented; ~13–32 M ops/s on Node 22 |
 | Multitasking scheduler | Round robin, sleep, suspend/resume/kill, delayed start |
 | Desktop playground | Consoles, database browser, process window, themes |

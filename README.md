@@ -1,13 +1,13 @@
 # crumb-lang
 
-> **Basic (Crumb) has been removed.** Python (MiniPy) is now FastBlips' only
+> **Basic (Crumb) has been removed.** Python (BlipPy) is now FastBlips' only
 > scripting language. The Basic compiler, runtime, console, examples and tests
 > are archived, runnable, in `../archive/crumb-basic-2026-10-27/` (and `.zip`).
 > Sections of this README that describe Crumb, `.bas` files or `src/vm/compiler/basic/`
 > are historical and need a rewrite; the VM still carries Crumb's shared opcodes
-> and runtime values, which MiniPy's widgets use.
+> and runtime values, which BlipPy's widgets use.
 >
-> **Examples:** `examples/README.md` lists the MiniPy programs, including one or
+> **Examples:** `examples/README.md` lists the BlipPy programs, including one or
 > more for every widget (desktop and mobile); `test/widget-examples.test.js`
 > runs each of them.
 
@@ -17,7 +17,7 @@ Visual-Basic-flavoured language specified in [`docs/crumb-v0.1-spec.md`](docs/cr
 Zero dependencies, ES modules, Node 18+.
 
 `src/vm/` holds one bytecode VM and the two front ends that compile to it:
-Crumb, and MiniPy (a Python subset). `src/scheduling/` runs several programs
+Crumb, and BlipPy (a Python subset). `src/scheduling/` runs several programs
 in turn, whatever their language, and `src/ui/` is the browser UI.
 
 ```
@@ -35,9 +35,9 @@ src/vm/                           the shared back end
   runtime/
     crumb-values.js   Crumb's type names and Str conversion   (sections 3, 10)
     crumb-builtins.js the 27 Crumb built-in functions        (section 10)
-    python-values.js  MiniPy's type names, truthiness, str/repr, numeric tower
-    python-ops.js     MiniPy's operators, subscripts, attributes, iteration
-    python-builtins.js MiniPy's built-ins, exceptions and methods
+    python-values.js  BlipPy's type names, truthiness, str/repr, numeric tower
+    python-ops.js     BlipPy's operators, subscripts, attributes, iteration
+    python-builtins.js BlipPy's built-ins, exceptions and methods
     fetch.js          Fetch / fetch(): web requests, and Crumb's JSON paths
 
 src/vm/compiler/basic/            Crumb — the language this repo specifies
@@ -49,9 +49,9 @@ src/vm/compiler/basic/            Crumb — the language this repo specifies
   diagnostics.js      CrumbError + the section 11 diagnostic format
   format.js           AST -> indented s-expression; tokens -> table
 
-src/vm/compiler/python/           MiniPy — a Python subset
+src/vm/compiler/python/           BlipPy — a Python subset
   tokens.js lexer.js parser.js compiler.js
-  loader.js           parse() / compile() / run() for MiniPy
+  loader.js           parse() / compile() / run() for BlipPy
 
 src/scheduling/process.js    Process: one running program (a VM + state)
 src/scheduling/scheduler.js  Scheduler: priority time slicing, delayed starts
@@ -59,9 +59,9 @@ src/scheduling/scheduler.js  Scheduler: priority time slicing, delayed starts
 src/ui/               widgets and windows (see docs/widgets.txt)
 src/ui/runtime.js     the Scheduler the browser UI runs programs on
 src/ui/windows/basic-console-window.js    a console that runs Crumb
-src/ui/windows/python-console-window.js   a console that runs MiniPy
+src/ui/windows/python-console-window.js   a console that runs BlipPy
 
-bin/crumb.js          CLI (.bas files, and .py files through MiniPy)
+bin/crumb.js          CLI (.bas files, and .py files through BlipPy)
 web/                  the playground page and its build
 docs/shared-opcodes.md  how the two languages share one instruction set
 ```
@@ -71,12 +71,12 @@ docs/shared-opcodes.md  how the two languages share one instruction set
 Crumb is the language the spec describes, and the one most of this README is
 about.
 
-MiniPy is a second front end under `src/vm/compiler/python/`:
+BlipPy is a second front end under `src/vm/compiler/python/`:
 indentation-delimited Python with functions, default arguments, classes with
 single inheritance, exceptions (`try`/`except`/`else`/`finally`, `raise`),
 f-strings, slices and list comprehensions. `int` is arbitrary precision and
 `float` is a double, as in Python. It compiles to the same bytecode as Crumb
-and runs on the same VM, so a MiniPy program also runs on the scheduler,
+and runs on the same VM, so a BlipPy program also runs on the scheduler,
 yields for `sleep(seconds)`, and prints to the transcript with
 `transcript(*values)`, which takes the same arguments as `print`. It also has
 random numbers as built-ins (no `import`): `random()` (a float, 0 <= x < 1),
@@ -156,7 +156,7 @@ one. The VM never waits itself: the built-in records the request and
 busy-wait where that is unavailable); a `Scheduler` instead parks the
 process and runs the others.
 
-`Fetch(url)` (MiniPy: `fetch(url)`) reads a web API. The request is
+`Fetch(url)` (BlipPy: `fetch(url)`) reads a web API. The request is
 asynchronous, but the program sees an ordinary call: the built-in hands the
 promise to the VM (`vm.block`), `runSlice` returns early, and when the
 response arrives it is pushed as the call's result (`src/vm/runtime/fetch.js`).
@@ -164,7 +164,7 @@ A `Scheduler` shows the process as `waiting` meanwhile and runs the others.
 `run()` cannot wait, so a program that fetches needs a `Scheduler` or
 `runAsync()` (the `crumb` command uses `runAsync`). The `fetch` VM option
 replaces the global `fetch`, for tests. Crumb gets the response as a String
-and reads it with `JsonGet`, `JsonCount` and `JsonKey`; MiniPy gets dicts
+and reads it with `JsonGet`, `JsonCount` and `JsonKey`; BlipPy gets dicts
 and lists. `docs/apis.md` lists free APIs to try, and `examples/api-tour.bas`
 and `examples/api-tour.py` visit twelve of them.
 
@@ -249,7 +249,7 @@ declaration, and reports the load errors the parser cannot see.
 **VM.** One stack machine, `src/vm/vm.js`, for both languages: a switch
 dispatch over a flat `code` array of opcode-plus-inline-operand words. Types
 are checked at the instruction, because Crumb does no coercion. Frames, the
-value stack and MiniPy's exception handlers are all VM state, so any program
+value stack and BlipPy's exception handlers are all VM state, so any program
 can be paused after any instruction and resumed.
 
 ## Bytecode
@@ -257,7 +257,7 @@ can be paused after any instruction and resumed.
 89 opcodes in three sections: 19 `core` opcodes whose meaning does not
 depend on the language (constants, slots, jumps, calls, returns, `PRINT`, `TRANSCRIPT`,
 `HALT`), 23 `crumb` opcodes with Crumb's value rules, and 47 `python` opcodes
-with MiniPy's. Where the two languages disagree about an operator, each
+with BlipPy's. Where the two languages disagree about an operator, each
 meaning has its own opcode (`MOD_TRUNC` vs `PY_MOD`, `AND_JUMP` vs
 `JUMP_IF_FALSY_KEEP`). The Crumb compiler emits only core and crumb opcodes;
 the tests check that for every example. Operands are inline; jump targets are
@@ -273,8 +273,8 @@ chunk = {
   procedures:  [{ name, kind, arity, entry, slotCount, slotNames, line }]
   entry:       0           // module code runs first, procedures are appended
   language:    'crumb' | 'python'   // picks error wording only
-  // MiniPy chunks also carry globalInit (built-ins in their slots),
-  // initialSlot (UNBOUND) and runtime (MiniPy's runtime library)
+  // BlipPy chunks also carry globalInit (built-ins in their slots),
+  // initialSlot (UNBOUND) and runtime (BlipPy's runtime library)
 }
 ```
 
@@ -374,11 +374,11 @@ suspend and resume, failure isolation and kill.
 diagnostics, so a recovery regression that starts cascading fails the build;
 `examples/errors.bas` asserts the runtime traceback.
 
-For MiniPy (`test/python.test.js`): every program in `test/python/` must
+For BlipPy (`test/python.test.js`): every program in `test/python/` must
 print exactly its `.out` file, and for everything CPython can run that file is
 CPython's own output. Then the opcode table's integrity, which sections each
 compiler may emit, exceptions unwinding across frames, int precision, and
-Crumb and MiniPy processes sharing one scheduler.
+Crumb and BlipPy processes sharing one scheduler.
 
 Beyond the suite: 20,000 random token streams and 4,000 generated programs run
 without a crash, a hang or a single unbalanced value stack. The playground page
@@ -394,11 +394,11 @@ Node 22, one core, on the shared VM:
 |---|---|---|
 | Crumb `Fib(27)` recursive | 6.4 M | 12.8 M ops/s |
 | Crumb 3 M-iteration `For` with `Mod` | 45 M | 23.2 M ops/s |
-| MiniPy `fib(24)` recursive | 1.7 M | 16.2 M ops/s |
-| MiniPy 1 M-iteration `for` with `%` | 9.0 M | 32.5 M ops/s |
+| BlipPy `fib(24)` recursive | 1.7 M | 16.2 M ops/s |
+| BlipPy 1 M-iteration `for` with `%` | 9.0 M | 32.5 M ops/s |
 
-MiniPy's ints are bigints, which is exact but costs something: those two
-MiniPy programs run about 20-45% slower than on MiniPy's old separate VM,
+BlipPy's ints are bigints, which is exact but costs something: those two
+BlipPy programs run about 20-45% slower than on BlipPy's old separate VM,
 which used doubles for ints.
 
 ## Still to come

@@ -1,8 +1,8 @@
-// PythonConsoleWindow: a ConsoleWindow that runs MiniPy - the Python subset
+// PythonConsoleWindow: a ConsoleWindow that runs BlipPy - the Python subset
 // compiled by src/vm/compiler/python - edited in a Monaco editor with Python
 // syntax highlighting.
 //
-// MiniPy compiles to the same bytecode as Crumb and runs on the same VM, so
+// BlipPy compiles to the same bytecode as Crumb and runs on the same VM, so
 // its programs go on the shared scheduler too: they take turns with Crumb
 // programs, sleep() never blocks the page, and the Process window can
 // suspend or kill them.
@@ -36,7 +36,7 @@ export class PythonConsoleWindow extends ConsoleWindow {
   }
 
   /**
-   * Spawns a MiniPy program on the shared scheduler, printing to output (a
+   * Spawns a BlipPy program on the shared scheduler, printing to output (a
    * TextPanel) and putting widgets on gui (an AppScreen's host, or a console's ConsoleOutputHost), if given.
    * The program runs from its compiled code when that is given and still
    * matches the source, else from this page's compile cache, else the source
@@ -100,7 +100,7 @@ export class PythonConsoleWindow extends ConsoleWindow {
     return process;
   }
 
-  /** Compiles MiniPy source without running it (a DatabaseWindow's Compile button). */
+  /** Compiles BlipPy source without running it (a DatabaseWindow's Compile button). */
   static compileSource(source, filename = 'console.py') {
     const { chunk, loadErrors } = compilePython(source, { filename });
     if (!chunk) {

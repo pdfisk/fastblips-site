@@ -1,4 +1,4 @@
-// The documentation of the Python that FastBlips runs (MiniPy), for the Help
+// The documentation of the Python that FastBlips runs (BlipPy), for the Help
 // menu (windows/python-help-window.js). No DOM here, so it is tested under Node.
 //
 // The text is written here, but it cannot drift from the language unnoticed
@@ -22,7 +22,7 @@ export const PYTHON_DOCS = [
   {
     label: 'Getting started',
     parts: [
-      String.raw`MiniPy is the Python that runs in FastBlips: a subset of Python 3 with the
+      String.raw`BlipPy is the Python that runs in FastBlips: a subset of Python 3 with the
 same indentation rules and # comments, and most everyday statements. There is
 nothing to import: print, the widgets (Label, Button, ...), Canvas, Physics,
 Board and the random functions are all built in.
@@ -461,7 +461,7 @@ except KeyError as e:
   {
     label: 'Not supported',
     parts: [
-      String.raw`MiniPy is a small Python. These are not there yet. Each is shown with what to
+      String.raw`BlipPy is a small Python. These are not there yet. Each is shown with what to
 write instead, and each is checked by a test, so a feature that arrives will be
 noticed and this list updated.`,
       no('conditional expression', `x = 1 if ok else 2`, 'use an if / else statement'),

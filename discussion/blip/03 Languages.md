@@ -4,7 +4,7 @@ FastBlips supports two languages:
 
 - **Crumb** ("FastBlips Basic") — a custom, Visual-Basic-flavoured language
   specified in `docs/crumb-v0.1-spec.md`.
-- **MiniPy** — a subset of Python, aiming to behave exactly like CPython for
+- **BlipPy** — a subset of Python, aiming to behave exactly like CPython for
   the programs it accepts.
 
 Both are compiled in the browser to the **same bytecode** and run on the
@@ -33,7 +33,7 @@ Not in v0.1 (spec §15): `As <Type>`, `Input`, `Select Case`, `Do … Loop`,
 `Continue`, `ByRef`/`Optional`, multi-dimensional arrays and `ReDim`,
 `Structure`/`Class`/`Enum`, `Try`/`Catch`, modules/`Imports`, string escapes.
 
-### MiniPy — a practical Python subset
+### BlipPy — a practical Python subset
 
 | Area | Supported |
 |---|---|
@@ -57,7 +57,7 @@ not call each other's code, but everything below the compiler is common:
 ```
    Crumb source ──▶ Crumb compiler ──┐
                                      ├──▶ one instruction set ──▶ one VM ──▶ one Scheduler
-   MiniPy source ─▶ MiniPy compiler ─┘       (core | crumb | python opcodes)
+   BlipPy source ─▶ BlipPy compiler ─┘       (core | crumb | python opcodes)
 ```
 
 **The shared instruction set.** 89 opcodes in three sections: 19 `core`
@@ -72,20 +72,20 @@ compiler emits only core plus its own section.
 
 | Shared facility | Effect |
 |---|---|
-| Scheduler | Crumb and MiniPy processes run side by side and take turns; the Process window lists both. |
+| Scheduler | Crumb and BlipPy processes run side by side and take turns; the Process window lists both. |
 | Sleep | `Sleep(n)` and `sleep(s)` park the process the same way. |
 | Transcript | `Transcript` and `transcript()` write to the same log window. |
 | Widgets | Both make the same widget objects with the same methods (`New Label("Hi")` ≡ `Label("Hi")`, `label.setWidth(100)` ≡ `label.set_width(100)`, …). |
-| Fetch | One implementation; Crumb receives a String and reads it with `JsonGet`, MiniPy receives dicts and lists. |
+| Fetch | One implementation; Crumb receives a String and reads it with `JsonGet`, BlipPy receives dicts and lists. |
 | Database and `?app=` | Both languages have a source table; a `?app=` URL finds a program in either. |
 | Tools | One disassembler, one fault system (with per-language wording), one runtime value model. |
 
-**What they do not share (yet):** a Crumb program cannot import a MiniPy
+**What they do not share (yet):** a Crumb program cannot import a BlipPy
 module or call its functions, and two running programs cannot exchange data
 except by printing to the same transcript.
 
 **When to use which.** Crumb is the teaching and rapid-app language: small,
-strict, with error messages that point at the mistake. MiniPy is for users
+strict, with error messages that point at the mistake. BlipPy is for users
 who already know Python, or who need its richer data structures, classes and
 exceptions.
 
@@ -97,12 +97,12 @@ exceptions.
 2. `Select Case`, `Do … Loop [While|Until]`, `Continue For/While` — cheap sugar.
 3. `As <Type>` annotations with a compile-time checking pass (the spec's
    planned v0.2 headline).
-4. `Try`/`Catch` — reuse the exception-handler machinery MiniPy already
+4. `Try`/`Catch` — reuse the exception-handler machinery BlipPy already
    added to the VM.
 5. Records (`Structure`) and then lists/dictionaries as built-in types or
    libraries, so Crumb programs can handle JSON without string paths.
 
-### MiniPy
+### BlipPy
 1. `lambda`, `global`/`nonlocal`, keyword arguments and `*args` — needed by
    most real-world snippets.
 2. Sets and dict comprehensions; common string/list methods to parity.
@@ -114,7 +114,7 @@ exceptions.
 ### Cross-language
 1. **Message passing between processes.** `Send(pid, value)` / `Receive()`
    (and `send` / `receive`), with the receiver `waiting` until a message
-   arrives. This lets a Crumb UI program talk to a MiniPy worker and is the
+   arrives. This lets a Crumb UI program talk to a BlipPy worker and is the
    natural model for a multitasking system.
 2. **Shared value model at the boundary.** Define how values cross:
    Number ⇄ int/float, String ⇄ str, Array ⇄ list, Nothing ⇄ None.

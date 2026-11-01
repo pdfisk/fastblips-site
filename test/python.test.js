@@ -43,7 +43,7 @@ function opcodesOf(chunk) {
 // ------------------------------------------------------------------ corpus
 // Each test/python/NAME.py has NAME.out beside it. For every program that
 // CPython can run, NAME.out is CPython's own output; the err_* files end in
-// MiniPy's uncaught-exception report instead.
+// BlipPy's uncaught-exception report instead.
 
 for (const file of readdirSync(corpus).filter((f) => f.endsWith('.py')).sort()) {
   test(`corpus: ${file} matches its expected output`, () => {
@@ -71,7 +71,7 @@ test('every opcode has a unique name, a section and known operand kinds', () => 
   assert.equal(SECTIONS.core.length + SECTIONS.crumb.length + SECTIONS.python.length, OP_INFO.length);
 });
 
-test('the MiniPy compiler emits only core and python opcodes', () => {
+test('the BlipPy compiler emits only core and python opcodes', () => {
   const allowed = new Set([...SECTIONS.core, ...SECTIONS.python]);
   for (const file of readdirSync(corpus).filter((f) => f.endsWith('.py'))) {
     const { chunk } = compile(readFileSync(join(corpus, file), 'utf8'), { filename: file });
@@ -94,7 +94,7 @@ test('a condition converts with TRUTHY unless it is already a Boolean', () => {
   assert.ok(!compared.has('TRUTHY'));
 });
 
-test('the disassembler lists a MiniPy chunk with its procedures', () => {
+test('the disassembler lists a BlipPy chunk with its procedures', () => {
   const text = disassemble(compile('def f(a):\n    return a + 1\nprint(f(1))\n', { filename: 'f.py' }).chunk);
   assert.match(text, /\(python\)/);
   assert.match(text, /function f {2}; arity 1/);
@@ -117,7 +117,7 @@ test('exponents and huge powers', () => {
 
 // ---------------------------------------------------------------- exceptions
 
-test('a MiniPy exception unwinds through frames to a handler in a caller', () => {
+test('a BlipPy exception unwinds through frames to a handler in a caller', () => {
   const source = [
     'def inner():',
     '    raise KeyError("k")',
@@ -192,7 +192,7 @@ test('load errors are collected', () => {
 
 // ------------------------------------------------------------- scheduling
 
-test('MiniPy runs in slices: runSlice resumes where it stopped', () => {
+test('BlipPy runs in slices: runSlice resumes where it stopped', () => {
   const { chunk } = compile('t = 0\nfor i in range(1000):\n    t += i\nprint(t)\n');
   const lines = [];
   const vm = new VM(chunk, { out: (t) => lines.push(t) });
@@ -202,7 +202,7 @@ test('MiniPy runs in slices: runSlice resumes where it stopped', () => {
   assert.deepEqual(lines, ['499500']);
 });
 
-test('sleep() parks a MiniPy process', () => {
+test('sleep() parks a BlipPy process', () => {
   let clock = 0;
   const lines = [];
   const scheduler = new Scheduler({ quantum: 100, now: () => clock });
@@ -217,7 +217,7 @@ test('sleep() parks a MiniPy process', () => {
   assert.deepEqual(lines, ['a', 'b']);
 });
 
-test('an uncaught MiniPy exception fails only its own process', () => {
+test('an uncaught BlipPy exception fails only its own process', () => {
   const scheduler = new Scheduler({ quantum: 10, now: () => 0 });
   const bad = scheduler.spawn(compile('x = [1][5]\n').chunk, { out: () => {} });
   const lines = [];

@@ -1,4 +1,4 @@
-# BLIP — Browser Loadable Interpreted Program
+# BLIP — Bytecode Loadable Interpreted Program
 
 A **BLIP** is a program that a browser loads from the FastBlips database and
 runs on a bytecode interpreter inside the page. It is written in Basic or
@@ -67,7 +67,7 @@ machinery supports single-stepping and debugging (see *Next steps*).
 
 ### 6. One back end, several languages
 
-Crumb and MiniPy compile to the same 89-opcode instruction set and run on
+Crumb and BlipPy compile to the same 89-opcode instruction set and run on
 the same VM, so scheduling, sleeping, widgets, fetch, the disassembler and
 the debugger are written once. Adding a language means writing a front end,
 not another runtime.
@@ -84,7 +84,7 @@ source, for faster loading or to protect a program's code.
 Interpreting in JavaScript is slower than letting the browser JIT-compile
 native JavaScript — typically by an order of magnitude for tight numeric
 loops. Measured today on one core (Node 22): 13–23 M instructions/second for
-Crumb, 16–32 M for MiniPy (whose integers are exact bigints). That is ample
+Crumb, 16–32 M for BlipPy (whose integers are exact bigints). That is ample
 for interactive apps, games of modest complexity, teaching and data-driven
 tools, which are FastBlips' targets. Heavy work (graphics, maths) belongs in
 built-ins implemented in JavaScript and called from bytecode.
@@ -113,7 +113,7 @@ traceback, while the other processes carry on.
 | Halt / resume a program | ✅ | `suspend(pid)` / `resume(pid)`; Suspend/Resume in the Process window. A sleeping process keeps the rest of its sleep. |
 | Kill a program | ✅ | `kill(pid)`; Kill button; closing a console or launch window. |
 | Single-step | ◐ | The VM supports it (`runSlice(1)`), but there is no step command in the Scheduler or UI yet. |
-| Several programs at once | ✅ | Round-robin scheduler; Crumb and MiniPy processes mix freely. |
+| Several programs at once | ✅ | Round-robin scheduler; Crumb and BlipPy processes mix freely. |
 | Priority levels | ❌ | Every process gets the same quantum in turn. |
 | Delayed start | ✅ | `spawn(chunk, { delay })`. |
 | Run from bytecode without source | ❌ | The database stores source; chunks exist only in memory. |

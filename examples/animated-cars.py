@@ -11,7 +11,7 @@
 # window, or as a page. The program never ends: Reset (or Run again) stops it.
 # Click the canvas to give it the keyboard, then press space to add a car.
 #
-# MiniPy has no math library, so sine() and cosine() are written out below.
+# BlipPy has no math library, so sine() and cosine() are written out below.
 # Angles are in radians. On the canvas y points down, so a growing angle turns
 # a wheel clockwise, which is how a wheel rolling to the right turns.
 

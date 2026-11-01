@@ -1,4 +1,4 @@
-// Bytecode listing for any chunk, Crumb or MiniPy. The addresses are indices
+// Bytecode listing for any chunk, Crumb or BlipPy. The addresses are indices
 // into the flat code array, so they match the jump operands exactly.
 //
 // Operand notes come from each opcode's operand kinds in opcodes.js, so a new

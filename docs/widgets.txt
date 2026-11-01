@@ -1921,7 +1921,7 @@ A Window listing the compiled apps, so they can be launched.
   - Its content is a GridPanel with one row per compiled app (a program in
     the Basic or Python table saved with its compiled code, from the
     Database window's Compile button) and the columns Name, Owner and
-    Updated. Name has "(Python)" after a MiniPy program; Owner is the user
+    Updated. Name has "(Python)" after a BlipPy program; Owner is the user
     whose space the app is in, or "(shared)"; Updated is the record's last
     update (a time for today, else a date). Click a column header to sort
     by it, and again to reverse; Updated sorts by time. Drag the right edge
@@ -1949,7 +1949,7 @@ choosing the menu item again brings it to the front.
     scroll through), "Common methods" (the methods every widget has, in groups),
     then one per class in WIDGET_CLASSES, A to Z. show(label) chooses one.
   - A class's text is its description, its constructor and its methods, in
-    MiniPy's spelling with the kind of each argument and result. The
+    BlipPy's spelling with the kind of each argument and result. The
     constructor and methods are made from the class table
     (src/vm/runtime/widgets.js), so they cannot go out of date; the
     description is WIDGET_DOCS in widget-docs.js. Methods every widget has are
@@ -2499,7 +2499,7 @@ the ?app= page. ConsoleWindow.spawn gets a chunk from loadProgram
      and Go) does not compile it again.
   3. Compiling the source, which adds it to the cache.
 
-Every load builds a fresh chunk (MiniPy's runtime library included), so
+Every load builds a fresh chunk (BlipPy's runtime library included), so
 two runs never share state. The StatusBar says which was used:
 "running (pid 4, compiled code)", "(pid 4, cached)", or just "(pid 4)"
 when the source was compiled.
@@ -2528,7 +2528,7 @@ Program widgets
 ---------------
 Programs build their screens from this toolkit (spec section 10.1). Every
 general-purpose class is available, in Crumb as an object made with New and
-changed through methods, and in MiniPy the same way with Python spellings:
+changed through methods, and in BlipPy the same way with Python spellings:
 
   Dim label = New Label("Hello")        label = Label("Hello")
   label.setWidth(100)                   label.set_width(100)
@@ -2640,7 +2640,7 @@ changed through methods, and in MiniPy the same way with Python spellings:
     setGroup name) when it is checked.
   - The classes and their methods are one table, WIDGET_CLASSES in
     src/vm/runtime/widgets.js, shared by both languages: each method's
-    Crumb name (camelCase), MiniPy name (snake_case), argument kinds and
+    Crumb name (camelCase), BlipPy name (snake_case), argument kinds and
     result kind. The Crumb compiler checks method names and argument counts
     against it at load time.
   - ProgramWidgetHost (src/ui/program-widgets.js) implements the host
@@ -2720,7 +2720,7 @@ Designer button opens one.
     right, "1 2 3" top, left and right, bottom, "1 2 3 4" top, right, bottom, left), Look (visible,
     colours) and
     Events: the name of the handler for each event the class has - a Sub
-    in Crumb, a module-level function in MiniPy - which is looked up in
+    in Crumb, a module-level function in BlipPy - which is looked up in
     the program that loads the composite. Menu items are written one to a
     line as "Label = Handler", with "-" for a separator.
   - The ButtonBar: New (a menu of classes: the new composite's root),
@@ -2739,7 +2739,7 @@ Designer button opens one.
     alone; a script of that name that the designer did not make is never
     overwritten.
   - The program is a header, then a layout section between two
-    "DESIGNER LAYOUT" comment lines, then (Crumb) or before (MiniPy, which
+    "DESIGNER LAYOUT" comment lines, then (Crumb) or before (BlipPy, which
     needs a function defined before a call names it) a stub for each
     handler the design names: a Sub or a function with the widget, and
     then the event's value, as parameters. The layout section makes the

@@ -1,6 +1,6 @@
 # A tour of twelve free web APIs with fetch(). None of them needs a key.
 #
-# fetch(url) returns the response's JSON as MiniPy values: dicts, lists,
+# fetch(url) returns the response's JSON as BlipPy values: dicts, lists,
 # str, int, float, bool and None. The program waits for each answer while
 # other programs keep running; a failed request raises OSError.
 # docs/apis.md lists these APIs and more.

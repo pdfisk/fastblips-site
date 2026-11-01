@@ -1,6 +1,6 @@
 # Examples
 
-Runnable MiniPy programs. Open one in a Python console and run it from the
+Runnable BlipPy programs. Open one in a Python console and run it from the
 console's **Launch** menu (a desktop window, or a phone-sized one for the
 `mobile-` examples), or load it as an app. The ones that draw (`canvas-demo`,
 `animated-cars`, the `physics-` set, `tic-tac-toe`) also work in a console's

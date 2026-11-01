@@ -4,12 +4,12 @@
 // is a class a program can make, as an object whose properties it sets by
 // calling methods:
 //
-//   Crumb                              MiniPy
+//   Crumb                              BlipPy
 //   Dim label = New Label("Hello")     label = Label("Hello")
 //   label.setWidth(100)                label.set_width(100)
 //
 // WIDGET_CLASSES lists the classes, their constructor arguments and their
-// methods. A method has a Crumb name (camelCase) and a MiniPy name (the same
+// methods. A method has a Crumb name (camelCase) and a BlipPy name (the same
 // in snake_case), the kinds of its arguments and the kind of its result.
 // Each language checks and converts arguments in its own style
 // (crumb-objects.js, python-builtins.js) and then calls callWidget() here.
@@ -77,12 +77,12 @@ export const snakeCase = (name) => name.replace(/[A-Z]/g, (c) => `_${c.toLowerCa
 //   class     the name of a widget class (any case); the host gets the
 //             class's own spelling
 //   handler   a procedure to call on an event: a Sub name in Crumb, a
-//             function in MiniPy. handler:<kind> passes the event's value,
+//             function in BlipPy. handler:<kind> passes the event's value,
 //             of that kind, as the handler's second argument;
 //             handler:<kind>:<kind> passes two values (a Board's row and
 //             column), as its second and third.
 // Result kinds: text, int (a whole number), number, boolean, widget,
-// widgets (a list of widgets: a Crumb Array, a MiniPy list); none for
+// widgets (a list of widgets: a Crumb Array, a BlipPy list); none for
 // Nothing / None.
 
 const method = (name, params = [], result = null, extra = {}) => Object.freeze({

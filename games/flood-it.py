@@ -6,7 +6,7 @@
 # board before you run out of moves.
 #
 # Made with: Canvas, on_click, lists of lists, and a fill that uses a stack.
-# rand() is our own small seeded generator (MiniPy also has random() and
+# rand() is our own small seeded generator (BlipPy also has random() and
 # randint(), but those differ every run); every round
 # has a different seed, so every board is different.
 

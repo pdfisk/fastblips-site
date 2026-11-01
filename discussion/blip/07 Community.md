@@ -28,7 +28,7 @@ accounts, and understands BLIPs:
 - **Linked from apps** — every app page links to its discussion thread.
 
 **Suggested sections.** Announcements · Getting started · Crumb (Basic) ·
-MiniPy (Python) · Widgets and the Designer · Show and tell · Ideas and
+BlipPy (Python) · Widgets and the Designer · Show and tell · Ideas and
 feature requests · Bugs.
 
 **Build or adopt?**

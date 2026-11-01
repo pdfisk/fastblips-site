@@ -1,5 +1,5 @@
 // The designer's code generator (src/ui/designer-codegen.js): a design in,
-// a MiniPy program out. The programs are compiled, run on the
+// a BlipPy program out. The programs are compiled, run on the
 // in-memory widget host (fake-widget-host.js) and the widgets they build
 // are compared with the design.
 
@@ -269,7 +269,7 @@ test('names: ids that are reserved, repeated or not identifiers still give worki
     compare(host, rootId(host), col, null);
   }
   const py = generateCode(col, { language: 'python' });
-  assert.match(py, /^list2 = Label\(/m, 'list is a MiniPy built-in');
+  assert.match(py, /^list2 = Label\(/m, 'list is a BlipPy built-in');
   assert.match(py, /^str2 = Label\(/m);
   assert.match(py, /^Label2 = Label\(/m, 'a variable must not be a class');
   assert.match(py, /^label = Label\(/m, 'label is not a class');

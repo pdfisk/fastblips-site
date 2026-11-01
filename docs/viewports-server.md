@@ -87,7 +87,7 @@ the program fixed), `flex`, `fill`, `visible`, `background`, `color` and
 | ListPanel | `items` (strings), `selected`, `emptyText` |
 | Ellipse, RoundedRect | `borderWidth` (default 2); RoundedRect `radius` (default 12). `background` is the fill and `color` the outline |
 
-Handlers are saved by name: a Crumb `Sub`'s name, or a MiniPy module-level
+Handlers are saved by name: a Crumb `Sub`'s name, or a BlipPy module-level
 function's name (a bound method or lambda has no name to save, so it is
 left out). Loading looks each name up in the program doing the loading, and
 a name it does not have is an error.

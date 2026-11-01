@@ -4,7 +4,7 @@
 //   Number  -> JS number (double)
 //   String  -> JS string
 //   Boolean -> JS boolean
-//   Nothing -> NOTHING (null), the same value as MiniPy's None
+//   Nothing -> NOTHING (null), the same value as BlipPy's None
 //   Array   -> CrumbArray
 //   object  -> Widget (a Label or a Button; its type name is its class)
 

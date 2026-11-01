@@ -1,4 +1,4 @@
-// Fetch for programs: the part of Fetch (Crumb) and fetch() (MiniPy) that
+// Fetch for programs: the part of Fetch (Crumb) and fetch() (BlipPy) that
 // both languages share. The builtins check their arguments in their own
 // language's style, then call startFetch.
 //
@@ -7,7 +7,7 @@
 // which ends the time slice and waits: under a Scheduler the process shows
 // as 'waiting' and other programs keep running. When the response arrives
 // the call's result is pushed and the program carries on; if the request
-// fails, the program gets a runtime error (Crumb) or an OSError (MiniPy) at
+// fails, the program gets a runtime error (Crumb) or an OSError (BlipPy) at
 // the call.
 //
 // The request is made with the VM's `fetch` option (default: the global

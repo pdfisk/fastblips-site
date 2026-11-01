@@ -1,4 +1,4 @@
-// MiniPy's view of the shared runtime values (src/vm/values.js): type names,
+// BlipPy's view of the shared runtime values (src/vm/values.js): type names,
 // truthiness, str()/repr(), equality and the int/float numeric tower.
 //
 //   int    -> bigint            (the Int kind: arbitrary precision)

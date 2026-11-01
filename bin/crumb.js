@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// crumb — load a MiniPy .py file and run, disassemble or inspect it.
+// crumb — load a BlipPy .py file and run, disassemble or inspect it.
 //
 //   crumb run    <file>   compile and execute (default)
 //   crumb dis    <file>   disassemble the bytecode
@@ -41,7 +41,7 @@ try {
 
 const filename = basename(file);
 
-// --- MiniPy ------------------------------------------------------------------
+// --- BlipPy ------------------------------------------------------------------
 if (extname(file) !== '.py') {
   process.stderr.write(`crumb: ${file} is not a .py file (Basic was archived)\n`);
   process.exit(2);

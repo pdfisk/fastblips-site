@@ -256,7 +256,7 @@ export function outline(root) {
 // A field is { key, label, type, get(node), set(node, value) }. type:
 //   text    a one-line string       number  a number, or '' to clear
 //   lines   several lines           bool    a check box
-//   event   a handler's name (a Sub, or a MiniPy function)
+//   event   a handler's name (a Sub, or a BlipPy function)
 
 const num = (v) => (v === '' || v === null || v === undefined ? undefined : Number(v));
 const blank = (v) => v === undefined || v === null || v === '';

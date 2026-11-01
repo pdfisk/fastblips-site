@@ -41,13 +41,13 @@ test('the classes are the toolkit\'s general-purpose widgets', () => {
   }
 });
 
-test('MiniPy: every class can be made by calling it', () => {
+test('BlipPy: every class can be made by calling it', () => {
   const lines = WIDGET_CLASSES.map((c) => `print(${c.name}(${c.params.map(() => '"x"').join(', ')}))`);
   const { out } = runPy(lines.join('\n'));
   assert.deepEqual(out, WIDGET_CLASSES.map((c) => `<${c.name} object>`));
 });
 
-test('MiniPy: properties are set and read through methods; numbers are checked and rounded', () => {
+test('BlipPy: properties are set and read through methods; numbers are checked and rounded', () => {
   const { host, out } = runPy([
     'b = Button("Go")',
     'label = Label(42)',
@@ -66,7 +66,7 @@ test('MiniPy: properties are set and read through methods; numbers are checked a
   });
 });
 
-test('MiniPy: containers hold widgets, and hand back the same objects', () => {
+test('BlipPy: containers hold widgets, and hand back the same objects', () => {
   const { host, out } = runPy([
     'row = HPanel()',
     'ok = Button("OK")',
@@ -89,7 +89,7 @@ test('MiniPy: containers hold widgets, and hand back the same objects', () => {
   assert.equal(host.get(1).props.padding, 4);
 });
 
-test('MiniPy: split panels, tab panels, text panels', () => {
+test('BlipPy: split panels, tab panels, text panels', () => {
   const { host, out } = runPy([
     'split = VSplitPanel()',
     'top = TextPanel("one")',
@@ -108,7 +108,7 @@ test('MiniPy: split panels, tab panels, text panels', () => {
   assert.deepEqual(host.get(3).items, ['Code', 'Notes']);
 });
 
-test('MiniPy: Composite and Stack, with the layout settings in snake_case', () => {
+test('BlipPy: Composite and Stack, with the layout settings in snake_case', () => {
   const { host, out } = runPy([
     'form = Composite()',
     'form.set_layout("grid")',
@@ -146,7 +146,7 @@ test('MiniPy: Composite and Stack, with the layout settings in snake_case', () =
   assert.deepEqual(named(2, 'setCanvasBounds'), [['10', '', '', '5%', '', '']]);
 });
 
-test('MiniPy: TextField and PasswordField, with their methods in snake_case', () => {
+test('BlipPy: TextField and PasswordField, with their methods in snake_case', () => {
   const { host, out } = runPy([
     'name = TextField("Ann")',
     'name.set_placeholder("Your name")',
@@ -168,7 +168,7 @@ test('MiniPy: TextField and PasswordField, with their methods in snake_case', ()
   assert.throws(() => runPy('PasswordField("secret")'), /PasswordField\(\) takes 0 arguments/);
 });
 
-test('MiniPy: TextArea, SplitButton and SelectBox, with their methods in snake_case', () => {
+test('BlipPy: TextArea, SplitButton and SelectBox, with their methods in snake_case', () => {
   const { host, out } = runPy([
     'notes = TextArea("a")',
     'notes.set_wrap(False)',
@@ -198,7 +198,7 @@ test('MiniPy: TextArea, SplitButton and SelectBox, with their methods in snake_c
   assert.throws(() => runPy('SelectBox("x")'), /SelectBox\(\) takes 0 arguments/);
 });
 
-test('MiniPy: NavigationBar, Carousel and Drawer, with their methods in snake_case', () => {
+test('BlipPy: NavigationBar, Carousel and Drawer, with their methods in snake_case', () => {
   const { host, out } = runPy([
     'bar = NavigationBar("Inbox")',
     'bar.set_back_text("Mail")',
@@ -234,13 +234,13 @@ test('MiniPy: NavigationBar, Carousel and Drawer, with their methods in snake_ca
   assert.throws(() => runPy('NavigationBar()'), /NavigationBar\(\) takes 1 argument/);
 });
 
-test('MiniPy: layout settings are checked before the host sees them', () => {
+test('BlipPy: layout settings are checked before the host sees them', () => {
   assert.throws(() => runPy(['c = Composite()', 'c.set_column_flex("a", 1)'].join('\n')),
     /set_column_flex\(\) expects an int as argument 1/);
   assert.throws(() => runPy(['c = Composite()', 'c.set_spacing(-1)'].join('\n')), /set_spacing\(\) expects a size of 0 or more/);
 });
 
-test('MiniPy: handlers take none, one or two arguments', () => {
+test('BlipPy: handlers take none, one or two arguments', () => {
   const { vm, host, out } = runPy([
     'def chosen(menu, label):',
     '    print("chose", label, menu.get_text())',
@@ -267,7 +267,7 @@ test('MiniPy: handlers take none, one or two arguments', () => {
   assert.deepEqual(out, ['chose Open File', 'quit', 'typed hi', 'submitted hi']);
 });
 
-test('MiniPy: the same classes and methods, snake_case', () => {
+test('BlipPy: the same classes and methods, snake_case', () => {
   const { vm, host, out } = runPy([
     'count = [0]',
     'root = VPanel()',
@@ -319,7 +319,7 @@ test('examples/layouts-tour.py', () => {
   assert.equal(pages.selected, 1);
 });
 
-test('MiniPy: widget errors are exceptions', () => {
+test('BlipPy: widget errors are exceptions', () => {
   const { out } = runPy([
     'lab = Label("x")',
     'lst = ListPanel()',
@@ -355,7 +355,7 @@ test('MiniPy: widget errors are exceptions', () => {
   assert.throws(() => settle(new VM(py('Label("x")'), { out: () => {} })), /Label\(\) needs a screen/);
 });
 
-test('MiniPy: an exception in a handler ends the program', () => {
+test('BlipPy: an exception in a handler ends the program', () => {
   const { vm, host } = runPy([
     'b = Button("Go")',
     'def boom():',
@@ -410,7 +410,7 @@ async function settleAsync(vm) {
   }
 }
 
-test('MiniPy: Viewport(), ids and finding', () => {
+test('BlipPy: Viewport(), ids and finding', () => {
   const { out } = runPy([
     'vp = Viewport()',
     'b = Button("Go")',
@@ -421,7 +421,7 @@ test('MiniPy: Viewport(), ids and finding', () => {
   assert.deepEqual(out, ['True True True 1 True']);
 });
 
-test('MiniPy: to_json gives JSON text; from_json rebuilds the screen and wires handlers by name', () => {
+test('BlipPy: to_json gives JSON text; from_json rebuilds the screen and wires handlers by name', () => {
   const { vm, host, out } = runPy([
     'def hit(w):',
     '    print("hit", w.get_id())',
@@ -443,7 +443,7 @@ test('MiniPy: to_json gives JSON text; from_json rebuilds the screen and wires h
   assert.deepEqual(out, ['True', 'False Go', 'hit go']);
 });
 
-test('MiniPy: save and load, with handlers found by function name', async () => {
+test('BlipPy: save and load, with handlers found by function name', async () => {
   const host = new FakeHost();
   const out = [];
   const vm = new VM(py([
@@ -465,7 +465,7 @@ test('MiniPy: save and load, with handlers found by function name', async () => 
   assert.deepEqual(out, ['1 False', 'hit go']);
 });
 
-test('MiniPy: a composite is saved from any widget and loaded as many times as wanted', async () => {
+test('BlipPy: a composite is saved from any widget and loaded as many times as wanted', async () => {
   const host = new FakeHost();
   const out = [];
   const vm = new VM(py([
@@ -495,7 +495,7 @@ test('MiniPy: a composite is saved from any widget and loaded as many times as w
 
 // ------------------------------------------------------------------ Board
 
-test('MiniPy: the Board, with snake_case methods and a function for clicks', () => {
+test('BlipPy: the Board, with snake_case methods and a function for clicks', () => {
   const { vm, host, out } = runPy([
     'b = Board()',
     'b.set_size(3, 3)',
@@ -543,7 +543,7 @@ test('examples/tic-tac-toe.py', () => {
 
 // ----------------------------------------------------------------- Canvas
 
-test('MiniPy: the Canvas, with snake_case methods', () => {
+test('BlipPy: the Canvas, with snake_case methods', () => {
   const { vm, host, out } = runPy([
     'c = Canvas()',
     'c.set_size(100, 100)',

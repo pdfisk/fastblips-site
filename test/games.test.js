@@ -107,7 +107,7 @@ function play(file) {
 
 // ---------------------------------------------------------------- helpers
 
-/** A MiniPy value as plain JS: ints to numbers, dicts to objects, lists to arrays. */
+/** A BlipPy value as plain JS: ints to numbers, dicts to objects, lists to arrays. */
 function js(v) {
   if (typeof v === 'bigint') return Number(v);
   if (Array.isArray(v)) return v.map(js);

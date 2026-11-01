@@ -25,7 +25,7 @@ test('every method every widget has is described in exactly one group', () => {
   for (const [title, text] of COMMON_GROUPS) assert.ok(title && text.trim(), title);
 });
 
-test('arguments and results are written as MiniPy writes them', () => {
+test('arguments and results are written as BlipPy writes them', () => {
   assert.equal(signature(methodNamed('Label', 'setWidth')), 'set_width(size)');
   assert.equal(signature(methodNamed('Label', 'getText')), 'get_text() -> str');
   assert.equal(signature(methodNamed('Label', 'setBounds')), 'set_bounds(int, int, size, size)');

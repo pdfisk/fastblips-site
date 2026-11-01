@@ -1,4 +1,4 @@
-// MiniPy parser: tokens -> AST, with panic-mode error recovery.
+// BlipPy parser: tokens -> AST, with panic-mode error recovery.
 
 import { T } from './tokens.js';
 import { lex } from './lexer.js';

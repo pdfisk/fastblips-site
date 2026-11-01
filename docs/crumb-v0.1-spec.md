@@ -494,7 +494,7 @@ world.setAngle(box, 20)
 `examples/physics-balls`, `physics-shapes`, `physics-pyramid`, `physics-bumpers`,
 `physics-gravity`, `physics-composites`, `physics-machine` and `physics-tower` (each as `.bas` and `.py`) are programs that use it.
 
-MiniPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
+BlipPy has the same classes and methods, with Python spellings: `label = Label("Hello")`
 and `vp = Viewport()` (no `New`), methods in snake_case (`set_width`, `get_selected_index`,
 `find_by_id`, `to_json`, `on_click`, ...). Handlers are functions, called with as many of
 (widget, value) as they take; a saved handler is a module-level function, found by its
@@ -533,7 +533,7 @@ For i = 0 To JsonCount(quakes, "features") - 1
 Next
 ```
 
-MiniPy's `fetch(url)` returns the parsed JSON instead: objects are dicts, arrays lists,
+BlipPy's `fetch(url)` returns the parsed JSON instead: objects are dicts, arrays lists,
 whole numbers ints, other numbers floats, `null` None; a body that is not JSON comes back
 as a str. A failed request raises `OSError`, which `try` can catch.
 

@@ -1,4 +1,4 @@
-// Public entry point: the MiniPy (Python) pipeline and the VM it runs on.
+// Public entry point: the BlipPy (Python) pipeline and the VM it runs on.
 // The load/compile/run pipeline lives in vm/compiler/python/loader.js. (The
 // Basic front end was archived: see archive/crumb-basic-2026-10-27.)
 

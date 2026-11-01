@@ -6,7 +6,7 @@ source.*
 
 ## 1. What a FastBlips application is
 
-An application is a BLIP: one program (Crumb or MiniPy), plus any screens and
+An application is a BLIP: one program (Crumb or BlipPy), plus any screens and
 composites it loads, stored as records on the FastBlips server and run by the
 FastBlips runtime in the viewer's browser.
 
@@ -56,7 +56,7 @@ hosted service (database, accounts, gallery, forum) as the FastBlips site.
 
 | Open source (runtime) | Hosted service |
 |---|---|
-| Crumb and MiniPy compilers | Program and screen database |
+| Crumb and BlipPy compilers | Program and screen database |
 | Shared instruction set and VM | Accounts, owners, permissions |
 | Scheduler | Gallery, search, forum |
 | Widget toolkit and `ProgramWidgetHost` | Analytics, quotas |
@@ -106,7 +106,7 @@ marketing:
 3. **To-do list** — TextBox, ListPanel, app storage.
 4. **Tic-tac-toe** — Board widget, two players.
 5. **Order form** — built in the Designer, saved to a collection.
-6. **Two-language demo** — Crumb UI talking to a MiniPy worker (needs
+6. **Two-language demo** — Crumb UI talking to a BlipPy worker (needs
    message passing).
 
 Each should open in the IDE with one click ("Open a copy"), so it is

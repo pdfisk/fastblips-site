@@ -15,7 +15,7 @@ export const WELCOME_TEXT = [
   'FastBlips is a place to write, run and share programs in Python, entirely in '
     + 'your browser. There is nothing to install: the editor, the Python interpreter '
     + 'and the scheduler that runs your programs all live in this page.',
-  'A program made here is a BLIP: a Browser Loadable Interpreted Program. It can '
+  'A program made here is a BLIP: a Bytecode Loadable Interpreted Program. It can '
     + 'print text, draw on a canvas, run a game with physics, or be a whole app made '
     + 'of windows, buttons and lists. Several programs can run at once; Windows > '
     + 'Process Browser shows them.',
@@ -38,7 +38,7 @@ export const WELCOME_LINKS = [
     ['Events and handlers', 'python', 'Events and handlers', 'programs that respond to clicks and keys'],
     ['Drawing and games', 'python', 'Drawing and games', 'Canvas, Board and Physics'],
     ['Example programs', 'python', 'Example programs', 'complete programs to try'],
-    ['Differences from Python', 'python', 'Differences from Python', 'what MiniPy does differently'],
+    ['Differences from Python', 'python', 'Differences from Python', 'what BlipPy does differently'],
   ]],
   ['Widgets', [
     ['All widgets', 'widgets', 'All widgets', 'every widget a program can make'],

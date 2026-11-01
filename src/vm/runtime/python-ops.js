@@ -1,6 +1,6 @@
-// The work behind MiniPy's opcodes: operators, subscripts, slices,
+// The work behind BlipPy's opcodes: operators, subscripts, slices,
 // attributes and iteration. Each function takes the VM first and reports an
-// error with vm.raise(className, message), which raises a catchable MiniPy
+// error with vm.raise(className, message), which raises a catchable BlipPy
 // exception at the current instruction.
 
 import {
