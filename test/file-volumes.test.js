@@ -4,9 +4,10 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { setUser } from '../src/ui/db-client.js';
 import {
   DirectoryVolume, DatabaseVolume, transfer, removeEntries, describeResult,
-  languageOf, stripExtension, scriptFileName, sortEntries, formatSize, databaseVolumes,
+  languageOf, stripExtension, scriptFileName, sortEntries, formatSize, databaseVolumes, ProjectsVolume,
 } from '../src/ui/file-volumes.js';
 
 // ------------------------------------------------------------ fakes
@@ -176,13 +177,18 @@ test('a database refuses what is not a text script, or a name that is taken', as
   assert.equal(shared.store.records[0].content, 'y');
 });
 
-test('databaseVolumes makes the user\'s and the shared scripts of both servers', () => {
+test("databaseVolumes: the user's scripts and projects, local first, then remote, and nothing shared", () => {
   const vols = databaseVolumes({ fetch: async () => { throw new Error('no network'); }, remoteUrl: 'http://r', localUrl: 'http://l' });
-  assert.deepEqual(vols.map((v) => v.id), ['remote-mine', 'remote-shared', 'local-mine', 'local-shared']);
-  assert.equal(vols[1].store.space, '');
-  assert.equal(vols[0].store.baseUrl, 'http://r');
-  assert.equal(vols[3].store.baseUrl, 'http://l');
-  assert.match(vols[1].label, /Remote database: shared/);
+  assert.deepEqual(vols.map((v) => v.id), ['local-scripts', 'local-projects', 'remote-scripts', 'remote-projects']);
+  assert.deepEqual(vols.map((v) => v.store.baseUrl), ['http://l', 'http://l', 'http://r', 'http://r']);
+  assert.deepEqual(vols.map((v) => v.store.resource), ['scripts', 'projects', 'scripts', 'projects']);
+  setUser('admin');
+  assert.deepEqual(vols.map((v) => v.label), [
+    "Local database: admin's scripts", "Local database: admin's projects",
+    "Remote database: admin's scripts", "Remote database: admin's projects",
+  ]);
+  assert.ok(vols.every((v) => v.store.space === 'admin'));
+  setUser('');
 });
 
 // ------------------------------------------------------------ transfer
@@ -357,4 +363,74 @@ test('removeEntries deletes what it can and reports the rest', async () => {
   assert.deepEqual(result.failed, [{ name: 'two.txt', message: 'in use' }]);
   assert.deepEqual(await names(a), ['two.txt']);
   assert.equal(describeResult('Deleted', result), 'Deleted 2 files; 1 failed (two.txt: in use)');
+});
+
+// ------------------------------------------------------------ projects
+
+class FakeProjects {
+  constructor(records, space = null) { this.records = records; this.space = space; this.nextId = 100; }
+  async list() { return this.records.map((r) => ({ ...r, scripts: r.scripts.map((sc) => ({ ...sc })) })); }
+  async update(id, fields) { Object.assign(this.records.find((r) => r.id === id), fields); }
+  async create(fields) { const r = { id: this.nextId++, owner: this.space, ...fields }; this.records.push(r); return r; }
+  async remove(id) { this.records = this.records.filter((r) => r.id !== id); }
+}
+
+const projectRecords = () => [
+  { id: 1, name: 'Pong', owner: 'admin', shared: true,
+    scripts: [{ name: 'main', language: 'python', content: 'print("pong")' }, { name: 'ball', language: 'python', content: 'b=1' }] },
+  { id: 2, name: 'Draft', owner: 'Admin', shared: false, scripts: [] },
+  { id: 3, name: 'AnnsGame', owner: 'ann', shared: true, scripts: [] },     // an administrator is sent these too
+  { id: 4, name: 'Starter', owner: '', shared: true, scripts: [] },
+];
+
+test("ProjectsVolume lists the user's projects (as My Projects does), each a folder of its scripts", async () => {
+  const vol = new ProjectsVolume(new FakeProjects(projectRecords(), 'admin'));
+  assert.equal(vol.folders, true);
+  assert.deepEqual(await names(vol), ['Draft/', 'Pong/'], 'shared or not; no one else\'s');
+  assert.deepEqual(await names(vol, ['pong']), ['ball.py', 'main.py']);
+  assert.equal(await text(vol, ['Pong'], 'main.py'), 'print("pong")');
+  await assert.rejects(vol.list(['AnnsGame']), /no project AnnsGame/);
+  await assert.rejects(vol.list(['Pong', 'deeper']), /no folders/);
+});
+
+test('ProjectsVolume writes and deletes scripts; a new folder is a new project; deleting one deletes the project', async () => {
+  const store = new FakeProjects(projectRecords(), 'admin');
+  const vol = new ProjectsVolume(store);
+  await vol.write(['Draft'], 'util.py', enc.encode('def f(): pass'));
+  await vol.write(['Pong'], 'MAIN.py', enc.encode('print(2)'));       // replaces, ignoring case
+  assert.deepEqual(store.records[1].scripts, [{ name: 'util', language: 'python', content: 'def f(): pass' }]);
+  assert.deepEqual(store.records[0].scripts.map((sc) => [sc.name, sc.content]), [['main', 'print(2)'], ['ball', 'b=1']]);
+  await vol.remove(['Pong'], { name: 'ball.py' });
+  assert.deepEqual(store.records[0].scripts.map((sc) => sc.name), ['main']);
+  await vol.mkdir([], 'Fresh');
+  assert.deepEqual(await names(vol), ['Draft/', 'Fresh/', 'Pong/']);
+  assert.equal(store.records.at(-1).shared, false);
+  await vol.remove([], { name: 'Draft', dir: true });
+  assert.deepEqual(await names(vol), ['Fresh/', 'Pong/']);
+  await assert.rejects(vol.write(['Pong'], 'notes.txt', enc.encode('x')), /only scripts/);
+  await assert.rejects(vol.write([], 'a.py', enc.encode('x')), /open one first/);
+  await assert.rejects(vol.mkdir(['Pong'], 'sub'), /no folders/);
+});
+
+test('a project copies from one server to the other, with its scripts', async () => {
+  const local = new ProjectsVolume(new FakeProjects(projectRecords(), 'admin'), { id: 'l' });
+  const remoteStore = new FakeProjects([], 'admin');
+  const remote = new ProjectsVolume(remoteStore, { id: 'r' });
+  const entries = (await local.list([])).filter((e) => e.name === 'Pong');
+  const result = await transfer({ from: local, fromPath: [], entries, to: remote, toPath: [] });
+  assert.equal(result.copied, 2);
+  assert.deepEqual(await names(remote), ['Pong/']);
+  assert.deepEqual(await names(remote, ['Pong']), ['ball.py', 'main.py']);
+  assert.equal(await text(remote, ['Pong'], 'main.py'), 'print("pong")');
+});
+
+test('scripts copy into a project, and out of one into the scripts', async () => {
+  const projects = new ProjectsVolume(new FakeProjects(projectRecords(), 'admin'), { id: 'p' });
+  const scripts = new DatabaseVolume(new FakeStore('admin', [{ name: 'hello', content: 'hi', language: 'python' }]), { id: 's' });
+  let result = await transfer({ from: scripts, fromPath: [], entries: await scripts.list([]), to: projects, toPath: ['Draft'] });
+  assert.equal(result.copied, 1);
+  assert.deepEqual(await names(projects, ['Draft']), ['hello.py']);
+  result = await transfer({ from: projects, fromPath: ['Pong'], entries: await projects.list(['Pong']), to: scripts, toPath: [] });
+  assert.equal(result.copied, 2);
+  assert.deepEqual(await names(scripts), ['ball.py', 'hello.py', 'main.py']);
 });

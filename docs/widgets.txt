@@ -990,13 +990,25 @@ src/ui/file-volumes.js, which needs no DOM.
 
   - Its title is "File Copy". There is only one; FileCopyWindow.instance creates
     it on first use, and constructing a second one throws.
-  - Two panes side by side, each showing a folder of a volume: a folder on this
-    computer (File System Access API: Chrome and Edge, picked with "Folder on
-    this computer..."), Browser files (the page's private file system, any
-    browser) or the scripts of one space of a database server (the signed-in
-    user's, or the shared ones, on the Remote or the Local server), listed as
-    name.bas and name.py. A database has no folders and keeps only .bas
-    and .py text files. Picked folders last until the page is closed.
+  - File > File Copy is shown only while the user "admin" is signed in
+    (isAdmin() of db-client.js: signIn() succeeded as admin, ADMIN_USER, and
+    admin is the current user); otherwise it is hidden, and the window closes
+    if the user changes. It
+    has no sign-in of its own: the remote server is reached with the token
+    from File > Sign In, and the local server, a development server on this
+    computer, trusts requests from this computer without one.
+  - Two panes side by side. The pulldown of each offers, in this order:
+    Local database: <user>'s scripts, Local database: <user>'s projects,
+    Remote database: <user>'s scripts and Remote database: <user>'s projects
+    (databaseVolumes() of file-volumes.js). The left pane starts on the local
+    scripts, the right on the remote ones. Scripts are listed as name.py; a
+    scripts pane has no folders and keeps only .py text files. A projects pane
+    (ProjectsVolume) lists the user's projects, as My Projects does, each a
+    folder holding its scripts as name.py; F7 there makes a new, empty,
+    unshared project and F8 on a project deletes it with its scripts (after
+    asking). A project copied to the other server's projects pane is made
+    there with its scripts. There are no folders on this computer, Browser
+    files, or shared scripts or projects here.
   - The active pane is the source; the other is the target. Keys: Tab, arrows,
     Home/End, PgUp/PgDn, Enter (open a folder; .. or Backspace goes up),
     Insert or Space (mark), + - * (mark all, none, invert), F5 copy, F6 move,

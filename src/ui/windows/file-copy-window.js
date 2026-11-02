@@ -1,14 +1,23 @@
 // FileCopyWindow: the singleton window, opened by File > File Copy, that
 // copies files between two places, in the manner of Norton Commander. It has
-// two panes side by side, each showing a folder or a database; the active
-// pane is the source and the other is the target.
+// two panes side by side, each showing a database; the active pane is the
+// source and the other is the target.
 //
-// A pane shows one of:
-//   a folder on this computer   (File System Access API: Chrome and Edge)
-//   Browser files               the page's private file system (any browser)
-//   a database                  the scripts of the signed-in user, or the
-//                               shared ones, on the remote or the local server
-//                               (shown as name.py)
+// A pane shows one of (the pulldown, in this order):
+//   Local database: <user>'s scripts    the user's scripts, as name.py
+//   Local database: <user>'s projects   the user's projects (as My Projects
+//                                       shows them), a folder each, holding
+//                                       its scripts as name.py
+//   Remote database: <user>'s scripts
+//   Remote database: <user>'s projects
+// F7 in a projects pane makes a new (empty, unshared) project; F8 on a project
+// deletes it with its scripts, after asking.
+//
+// File > File Copy is shown only while the user "admin" is signed in (File >
+// Sign In); the window closes if the user changes. It has no sign-in of its own:
+// the remote server is reached with the token from File > Sign In, and the
+// local server (a development server on this computer) trusts requests from
+// this computer without one.
 //
 // Keys:  Tab           switch pane
 //        Up Down Home End PgUp PgDn   move
@@ -21,8 +30,6 @@
 //        F6 Move       the same, deleting each once copied
 //        F7 New Folder in the active pane
 //        F8, Delete    delete the marked files, after asking
-//        F2            sign in to the remote database, or out of it: the
-//                      "my scripts" pane then shows that user's scripts
 //        F9            read both panes again
 // Folders are copied with all they hold. A file that exists in the target is
 // replaced only when asked: Overwrite, Skip, Overwrite All, Skip All or Cancel.
@@ -30,13 +37,8 @@
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
-import {
-  DirectoryVolume, databaseVolumes, canPickFolder, canUseBrowserFiles,
-  transfer, removeEntries, describeResult, formatSize,
-} from '../file-volumes.js';
-import {
-  userName, setUser, signIn, signOut, USER_NAME_PATTERN, REMOTE_SERVER_URL,
-} from '../db-client.js';
+import { databaseVolumes, transfer, removeEntries, describeResult, formatSize } from '../file-volumes.js';
+import { isAdmin } from '../db-client.js';
 
 let instance = null;
 
@@ -94,7 +96,6 @@ export function formatTime(ms) {
 }
 
 const UP = { name: '..', dir: true, up: true, size: null, modified: null };
-const PICK = '\u0000pick';
 
 /** One side of the window: a volume and a folder in it, with a cursor and marks. */
 class FilePane {
@@ -310,23 +311,15 @@ export class FileCopyWindow extends Window {
   }
 
   /**
-   * @param {{volumes?: object[], pickFolder?: () => Promise<object|null>, browserFiles?: () => Promise<object|null>, signIn?: (credentials: {name: string, password: string}) => Promise<object|null>}} [options] -
-   *   the database volumes, how a folder is picked, how the browser's private
-   *   file system is opened, and how a user is signed in on the remote server
-   *   (tests); the real ones by default
+   * @param {{volumes?: object[]}} [options] - the volumes the panes can show
+   *   (tests); databaseVolumes() by default
    */
-  constructor({ volumes, pickFolder, browserFiles, signIn: signInCall } = {}) {
+  constructor({ volumes } = {}) {
     if (instance) throw new Error('FileCopyWindow is a singleton; use FileCopyWindow.instance');
     super({ title: 'File Copy', x: 70, y: 60, width: 800, height: 460, minWidth: 520, minHeight: 300 });
     instance = this;
     this.element.classList.add('cr-file-copy-window');
     this.databases = volumes ?? databaseVolumes();
-    this.folders = [];   // folders picked on this computer, in the order they were picked
-    this._pick = pickFolder ?? (() => pickRealFolder());
-    this._canPick = pickFolder ? true : canPickFolder();
-    this._browserFiles = browserFiles ?? (() => openBrowserFiles());
-    this._signIn = signInCall ?? ((credentials) => signIn(credentials, { baseUrl: REMOTE_SERVER_URL }));
-    this.browser = null;   // the Browser files volume, once opened
     this.busy = false;
     this.stopRequested = false;
     this._asking = null;   // the question being asked, if any
@@ -344,8 +337,6 @@ export class FileCopyWindow extends Window {
     this.deleteButton = this.buttonBar.addButton('F8 Delete', () => this.deleteSelected());
     this.buttonBar.addButton('F9 Refresh', () => this.refresh());
     this.selectButton = this.buttonBar.addButton('Select All', () => this.toggleMarks());
-    this.loginButton = this.buttonBar.addButton('F2 Sign In', () => this.toggleLogin());
-    this._loginLabel();
 
     this.panel.element.addEventListener('keydown', (e) => this._key(e));
     document.addEventListener('cr-userchange', () => this._userChanged());
@@ -355,7 +346,7 @@ export class FileCopyWindow extends Window {
 
   // ------------------------------------------------------------ opening
 
-  /** Opens the window; the first time, the left pane shows the signed-in user's scripts on the remote server and the right one a folder (Browser files). */
+  /** Opens the window; the first time, the left pane shows the user's scripts on the local server and the right one those on the remote server. */
   open(viewport) {
     super.open(viewport);
     if (!this._started) {
@@ -369,121 +360,30 @@ export class FileCopyWindow extends Window {
   }
 
   async start() {
-    const first = this.databases[0];
-    const second = canUseBrowserFiles() ? await this._openBrowserFiles() : this.databases[2] ?? this.databases[0];
-    await Promise.all([this.leftPane.load(first, []), this.rightPane.load(second ?? first, [])]);
+    const left = this.databases.find((v) => v.id === 'local-scripts') ?? this.databases[0];
+    const right = this.databases.find((v) => v.id === 'remote-scripts') ?? this.databases[1] ?? left;
+    await Promise.all([this.leftPane.load(left, []), this.rightPane.load(right, [])]);
   }
 
-  async _openBrowserFiles() {
-    if (!this.browser) {
-      try { this.browser = await this._browserFiles(); } catch (e) { this.status(`Browser files: ${e.message}`, true); }
-    }
-    this._refreshOptions();
-    return this.browser;
-  }
-
-  /** The places a pane can show: [{ id, label }], and the volume behind each id. */
-  get volumes() {
-    return [...this.databases, ...(this.browser ? [this.browser] : []), ...this.folders];
-  }
+  /** The places a pane can show, in the order of the pulldown. */
+  get volumes() { return this.databases; }
 
   _refreshOptions() {
     const options = this.volumes.map((v) => ({ id: v.id, label: v.label }));
-    if (!this.browser && canUseBrowserFiles()) options.push({ id: 'browser', label: 'Browser files (private to this page)' });
-    if (this._canPick) {
-      options.push({ id: PICK, label: 'Folder on this computer...' });
-    }
     for (const pane of [this.leftPane, this.rightPane]) pane.setOptions(options);
   }
 
   /** A pane's choice of where to look. */
   async choose(pane, id) {
     this.activate(pane);
-    let volume = this.volumes.find((v) => v.id === id) ?? null;
-    if (id === PICK) {
-      let picked = null;
-      try { picked = await this._pick(); } catch (e) {
-        if (e?.name !== 'AbortError') this.status(`Could not open the folder: ${e?.message ?? e}`, true);
-      }
-      if (!picked) { if (pane.volume) pane.select.value = pane.volume.id; return; }
-      const taken = this.folders.map((f) => f.id);
-      if (taken.includes(picked.id)) picked.id = `${picked.id}#${taken.length}`;
-      this.folders.push(picked);
-      volume = picked;
-      this._refreshOptions();
-    } else if (id === 'browser') {
-      volume = await this._openBrowserFiles();
-    }
+    const volume = this.volumes.find((v) => v.id === id) ?? null;
     if (volume) await pane.load(volume, []);
   }
 
-  /** The Sign In / Sign Out button says which it will do, and for whom. */
-  _loginLabel() {
-    const user = userName();
-    this.loginButton.label = user ? `F2 Sign Out (${user})` : 'F2 Sign In';
-    this.buttonBar.layout();
-  }
-
-  /** Signs out if a user is signed in, else asks for a user name to sign in with. */
-  toggleLogin() {
-    return userName() ? this.signOut() : this.signIn();
-  }
-
-  /** Signs out of the remote database: the "my scripts" pane goes back to the shared scripts. */
-  signOut() {
-    if (this.busy) { this.status('Wait until the current job is done (Escape stops it)', true); return false; }
-    const was = userName();
-    signOut({ baseUrl: REMOTE_SERVER_URL });   // the server forgets the token
-    setUser('');
-    this.status(`Signed out ${was}: working in the shared space`);
-    return true;
-  }
-
-  /**
-   * Asks for a user name and password and signs in with them on the remote server,
-   * which answers with the token that lets the user change their scripts.
-   * @returns {Promise<boolean>} true if signed in
-   */
-  async signIn() {
-    if (this.busy) { this.status('Wait until the current job is done (Escape stops it)', true); return false; }
-    const answer = await this.ask({
-      message: 'Sign in to the remote database. User name:', input: userName(),
-      buttons: [{ label: 'Sign In', value: 'yes' }, { label: 'Cancel', value: 'no' }],
-    });
-    if (!answer || answer.value !== 'yes') { this.status('Cancelled'); return false; }
-    const name = answer.text.trim();
-    if (!USER_NAME_PATTERN.test(name)) {
-      this.status('A user name is 2 to 30 letters, digits, - or _', true);
-      return false;
-    }
-    const secret = await this.ask({
-      message: `Password for ${name}:`, input: '', secret: true,
-      buttons: [{ label: 'Sign In', value: 'yes' }, { label: 'Cancel', value: 'no' }],
-    });
-    if (!secret || secret.value !== 'yes') { this.status('Cancelled'); return false; }
-    this.busy = true;
-    this.status('Signing in...');
-    let user;
-    try {
-      user = await this._signIn({ name, password: secret.text });
-    } catch (e) {
-      this.busy = false;
-      this.status(`Could not sign in: ${e?.message || e}`, true);
-      return false;
-    }
-    this.busy = false;
-    if (!user) {
-      this.status(`Could not sign in as ${name}`, true);
-      return false;
-    }
-    const signedInAs = user.name ?? name;
-    setUser(signedInAs);   // the panes showing a database read again (see _userChanged)
-    this.status(`Signed in as ${signedInAs}`);
-    return true;
-  }
-
+  // A new user: the database panes show that user's space. Unless admin is
+  // still signed in, the window closes (File Copy is admin's only).
   _userChanged() {
-    this._loginLabel();
+    if (!isAdmin() && this.isOpen) { this.close(); return; }
     for (const pane of [this.leftPane, this.rightPane]) {
       if (pane.volume && this.databases.includes(pane.volume)) pane.load(pane.volume, []);
     }
@@ -617,7 +517,6 @@ export class FileCopyWindow extends Window {
       case '+': return handled(() => pane.markAll(true));
       case '-': return handled(() => pane.markAll(false));
       case '*': return handled(() => pane.invert());
-      case 'F2': return handled(() => this.toggleLogin());
       case 'F5': return handled(() => this.copy(false));
       case 'F6': return handled(() => this.copy(true));
       case 'F7': return handled(() => this.makeFolder());
@@ -744,17 +643,4 @@ export class FileCopyWindow extends Window {
     await pane.reload(name);
     return name;
   }
-}
-
-// ---------------------------------------------------------------- real folders
-
-async function pickRealFolder() {
-  const handle = await globalThis.showDirectoryPicker({ mode: 'readwrite' });
-  if (handle.requestPermission) await handle.requestPermission({ mode: 'readwrite' });
-  return new DirectoryVolume(handle, { id: `dir:${handle.name}`, label: `Folder: ${handle.name}` });
-}
-
-async function openBrowserFiles() {
-  return new DirectoryVolume(await globalThis.navigator.storage.getDirectory(),
-    { id: 'browser', label: 'Browser files (private to this page)' });
 }

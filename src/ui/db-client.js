@@ -82,6 +82,10 @@ try {
 } catch { /* storage blocked */ }
 
 let user = '';          // set by setUser() on this page
+let signedInName = '';  // the user signIn() last signed in with a password on this page
+
+/** The user who may use File > File Copy. */
+export const ADMIN_USER = 'admin';
 let pageSpace = null;   // set by setSpace() on this page
 
 /**
@@ -97,12 +101,23 @@ export function userName() {
  * Switches user ('' for none) for this session and announces it with a
  * cr-userchange event on document.
  */
+/**
+ * True when the user "admin" (ADMIN_USER, ignoring case) is signed in on this
+ * page: signIn() succeeded for admin and admin is still the current user. Just
+ * typing the name (Settings > User) is not enough; switching to another name
+ * or signing out ends it.
+ */
+export function isAdmin() {
+  return user.toLowerCase() === ADMIN_USER && signedInName.toLowerCase() === ADMIN_USER;
+}
+
 export function setUser(name) {
   name = String(name ?? '').trim();
   if (name && !USER_NAME_PATTERN.test(name)) {
     throw new Error('a user name is 2 to 30 letters, digits, - or _, starting with a letter or digit');
   }
   user = name;
+  if (!name) signedInName = '';
   globalThis.document?.dispatchEvent(new CustomEvent('cr-userchange', { detail: { name } }));
 }
 
@@ -289,7 +304,10 @@ export async function registerUser({ name, password, email } = {}, { baseUrl = g
   const store = new SourceStore({ resource: 'users', key: 'user', baseUrl, fetch: fetchFn });
   store.noSignInHint = true;
   const created = await store._request('POST', '', { user });
-  if (created?.token) setToken(created.token, store.baseUrl);
+  if (created?.token) {
+    setToken(created.token, store.baseUrl);
+    signedInName = String(created.name ?? user.name);   // registering signs the new user in
+  }
   return created;
 }
 
@@ -306,6 +324,7 @@ export async function signIn({ name, password } = {}, { baseUrl = getServerUrl, 
   const session = { name: String(name ?? '').trim(), password: String(password ?? '') };
   const answer = await store._request('POST', '', { session });
   setToken(answer.token, store.baseUrl);
+  signedInName = String(answer.user?.name ?? session.name);
   return answer.user;
 }
 
@@ -345,6 +364,7 @@ export async function signOut({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
     if (getToken(store.baseUrl)) await store._request('DELETE', '');
   } catch { /* already signed out, or no server: the token goes either way */ }
   setToken('', store.baseUrl);
+  signedInName = '';
 }
 
 /**

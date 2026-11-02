@@ -84,12 +84,14 @@ export class Menu extends Widget {
    * @param {string | (() => string)} label - a function is called each time the
    *   menu opens, for an item whose text changes
    * @param {() => void} action - run when the item is chosen
-   * @param {{checked?: () => boolean, enabled?: () => boolean}} options -
+   * @param {{checked?: () => boolean, enabled?: () => boolean, visible?: () => boolean}} options -
    *   checked: a check mark shows whenever it returns true;
-   *   enabled: the item is greyed out whenever it returns false
+   *   enabled: the item is greyed out whenever it returns false;
+   *   visible: the item is left out whenever it returns false (and a
+   *   separator it leaves at the end, or next to another, goes too)
    */
-  addItem(label, action, { checked, enabled } = {}) {
-    const item = { label, action, checked, enabled };
+  addItem(label, action, { checked, enabled, visible } = {}) {
+    const item = { label, action, checked, enabled, visible };
     this.items.push(item);
     return item;
   }
@@ -125,7 +127,7 @@ export class Menu extends Widget {
   open() {
     if (openMenu && openMenu !== this) openMenu.close();
     openMenu = this;
-    const items = this._itemsProvider ? this._itemsProvider() : this.items;
+    const items = shownItems(this._itemsProvider ? this._itemsProvider() : this.items);
     if (items.length === 0) {
       const empty = document.createElement('li');
       empty.className = 'cr-menu-item cr-menu-empty';
@@ -236,4 +238,19 @@ export class Menu extends Widget {
     this.close();
     super.dispose();
   }
+}
+
+/**
+ * The items a menu shows: those whose visible() is not false, without a
+ * separator at the start or the end or right after another one.
+ */
+export function shownItems(items) {
+  const shown = [];
+  for (const item of items) {
+    if (item.visible && !item.visible()) continue;
+    if (item.separator && (shown.length === 0 || shown.at(-1).separator)) continue;
+    shown.push(item);
+  }
+  while (shown.length && shown.at(-1).separator) shown.pop();
+  return shown;
 }

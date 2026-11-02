@@ -20,7 +20,7 @@ import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
-import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
+import { SERVERS, setServer, serverName, userName, setUser, isAdmin } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
 import { DRAWER_TIMEOUTS, drawerTimeout, setDrawerTimeout, drawerTimeoutLabel } from './widgets/drawer.js';
@@ -113,7 +113,8 @@ function schedulerSummary() {
 //   Save As...   the front-most console's source, to a new file
 //   Delete       the front-most console's file, after confirming
 //   File Copy    the File Copy window: copies files between folders and
-//                local or remote databases, two panes, like Norton Commander
+//                local or remote databases, two panes, like Norton Commander.
+//                Shown only while the user "admin" is signed in.
 // Save and Save As are greyed out unless a console is the front-most showing
 // window; Delete also needs that console's file to be deletable (a file
 // opened or saved through the File System Access API, in Chrome or Edge).
@@ -141,7 +142,7 @@ function fileMenu(viewport) {
     enabled: () => Boolean(frontConsole()?.canDeleteFile),
   });
   menu.addSeparator();
-  menu.addItem('File Copy', () => FileCopyWindow.instance.open(viewport));
+  menu.addItem('File Copy', () => FileCopyWindow.instance.open(viewport), { visible: isAdmin });
   return menu;
 }
 

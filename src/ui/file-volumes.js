@@ -7,10 +7,14 @@
 //                    directory handle: picked with showDirectoryPicker in
 //                    Chrome or Edge, or the browser's private file system,
 //                    which every modern browser has). It has folders.
-//   DatabaseVolume   the scripts in one space (a user's, or the shared one) of
+//   DatabaseVolume   the scripts in one space (the signed-in user's) of
 //                    a database server, local or remote. A Python script is
 //                    listed as name.py (scripts in any other language are not listed). It has
 //                    no folders.
+//   ProjectsVolume   the projects in one space (the signed-in user's: those
+//                    My Projects shows) of a database server: each project a
+//                    folder, its scripts the files in it (name.py). A new
+//                    folder is a new project; deleting one deletes the project.
 //
 // Every volume has the same methods, all asynchronous. A path is an array of
 // folder names ([] is the top); an entry is { name, dir, size, modified }
@@ -25,6 +29,7 @@
 // transfer() copies (or moves) entries from one volume to another.
 
 import { SourceStore, REMOTE_SERVER_URL, LOCAL_SERVER_URL, spaceName } from './db-client.js';
+import { projectScriptCopy } from './projects.js';
 
 // ---------------------------------------------------------------- names
 
@@ -194,21 +199,120 @@ export class DatabaseVolume {
 }
 
 /**
- * The database volumes: the signed-in user's scripts and the shared scripts,
- * on the remote server and on the local one.
+ * The projects in one space of one server, as folders of their scripts: with
+ * the store's owner the signed-in user, the projects My Projects shows for that
+ * user on that server. Only projects of the store's space are listed (whatever
+ * else the server answers with, as it does for an administrator).
+ */
+export class ProjectsVolume {
+  /**
+   * @param {SourceStore} store - the projects of one space of one server
+   *   (resource 'projects', owner the user)
+   * @param {{id?: string, label?: string|(() => string)}} [options]
+   */
+  constructor(store, { id = 'projects', label = 'Projects' } = {}) {
+    this.store = store;
+    this.id = id;
+    this._label = label;
+    this.folders = true;
+  }
+
+  get label() { return typeof this._label === 'function' ? this._label() : this._label; }
+
+  async _projects() {
+    const space = this.store.space;   // a user name, or null for every space
+    return (await this.store.list() ?? [])
+      .filter((p) => String(p?.name ?? '').trim() !== '')
+      .filter((p) => space == null || same(String(p.owner ?? '').trim(), space));
+  }
+
+  async _project(name) {
+    const found = (await this._projects()).find((p) => same(String(p.name).trim(), name));
+    if (!found) throw new Error(`there is no project ${name}`);
+    return found;
+  }
+
+  _inProject(path) {
+    if (path.length !== 1) throw new Error(path.length ? 'a project has no folders' : 'scripts go in a project: open one first');
+    return path[0];
+  }
+
+  async list(path) {
+    if (path.length === 0) {
+      return sortEntries((await this._projects()).map((project) => ({
+        name: String(project.name).trim(),
+        dir: true,
+        size: null,
+        modified: project.updated_at ? Date.parse(project.updated_at) || null : null,
+        project,
+      })));
+    }
+    const project = await this._project(this._inProject(path));
+    const modified = project.updated_at ? Date.parse(project.updated_at) || null : null;
+    return sortEntries((project.scripts ?? [])
+      .filter((sc) => (sc.language ?? 'python') === 'python')
+      .map((sc) => ({ name: scriptFileName(sc), dir: false, size: encoder.encode(sc.content ?? '').length, modified, script: sc })));
+  }
+
+  async read(path, entry) {
+    const project = await this._project(this._inProject(path));
+    const script = (project.scripts ?? []).find((sc) => same(scriptFileName(sc), entry.name));
+    if (!script) throw new Error(`there is no script ${entry.name} in ${project.name}`);
+    return encoder.encode(script.content ?? '');
+  }
+
+  async write(path, name, bytes) {
+    const project = await this._project(this._inProject(path));
+    const language = languageOf(name);
+    if (!language) throw new Error('a project keeps only scripts: .py files');
+    let content;
+    try { content = decoder.decode(bytes); } catch { throw new Error('it is not a text file, so a project cannot keep it'); }
+    const scripts = (project.scripts ?? []).map(projectScriptCopy);
+    const existing = scripts.find((sc) => same(scriptFileName(sc), name));
+    if (existing) existing.content = content;
+    else scripts.push({ name: stripExtension(name), language, content });
+    await this.store.update(project.id, { scripts });
+  }
+
+  /** At the top, makes a new, empty, unshared project; there are no folders in a project. */
+  async mkdir(path, name) {
+    if (path.length) throw new Error('a project has no folders');
+    await this.store.create({ name, description: '', shared: false, scripts: [] });
+  }
+
+  /** At the top, deletes a project with its scripts; in a project, takes the script out. */
+  async remove(path, entry) {
+    if (path.length === 0) {
+      await this.store.remove((await this._project(entry.name)).id);
+      return;
+    }
+    const project = await this._project(this._inProject(path));
+    const scripts = (project.scripts ?? []).map(projectScriptCopy);
+    const kept = scripts.filter((sc) => !same(scriptFileName(sc), entry.name));
+    if (kept.length === scripts.length) throw new Error(`there is no script ${entry.name} in ${project.name}`);
+    await this.store.update(project.id, { scripts: kept });
+  }
+}
+
+/**
+ * The database volumes, in the order File Copy lists them: the signed-in
+ * user's scripts and projects on the local server, then on the remote one.
  * @param {{fetch?: typeof fetch, remoteUrl?: string, localUrl?: string}} [options]
  */
 export function databaseVolumes({ fetch: fetchFn, remoteUrl = REMOTE_SERVER_URL, localUrl = LOCAL_SERVER_URL } = {}) {
-  const make = (id, server, url, space, label) => new DatabaseVolume(
-    new SourceStore({ resource: 'scripts', key: 'script', owner: space, baseUrl: url, fetch: fetchFn }),
-    { id, label });
-  const mine = () => spaceName();
-  const title = (server) => () => `${server} database: ${spaceName() ? `${spaceName()}'s scripts` : 'shared projects'}`;
+  const owner = () => spaceName();
+  const user = () => spaceName() || 'no user';
+  const scripts = (id, url, server) => new DatabaseVolume(
+    new SourceStore({ resource: 'scripts', key: 'script', owner, baseUrl: url, fetch: fetchFn }),
+    { id, label: () => `${server} database: ${user()}'s scripts` });
+  const projects = (id, url, server) => new ProjectsVolume(
+    new SourceStore({ resource: 'projects', key: 'project', owner, baseUrl: url, fetch: fetchFn }),
+    { id, label: () => `${server} database: ${user()}'s projects` });
   return [
-    make('remote-mine', 'Remote', remoteUrl, mine, title('Remote')),
-    make('remote-shared', 'Remote', remoteUrl, '', 'Remote database: shared projects'),
-    make('local-mine', 'Local', localUrl, mine, title('Local')),
-    make('local-shared', 'Local', localUrl, '', 'Local database: shared projects'),
+    scripts('local-scripts', localUrl, 'Local'),
+    projects('local-projects', localUrl, 'Local'),
+    scripts('remote-scripts', remoteUrl, 'Remote'),
+    projects('remote-projects', remoteUrl, 'Remote'),
   ];
 }
 

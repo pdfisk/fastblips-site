@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser, signIn, signOut, getToken, setToken, sessionUser, canWriteDatabase } from '../src/ui/db-client.js';
+import { SourceStore, StoreError, TABLES, setUser, userName, setSpace, spaceName, registerUser, findUser, signIn, signOut, getToken, setToken, sessionUser, canWriteDatabase, isAdmin } from '../src/ui/db-client.js';
 
 // A fake fetch that records requests and answers from a list of responses.
 function fakeFetch(...responses) {
@@ -219,4 +219,25 @@ test('sessionUser asks GET /session and canWriteDatabase needs has_database_writ
   for (const user of [null, undefined, {}, { has_database_write_permission: 'true' }, { has_database_write_permission: 1 }]) {
     assert.equal(canWriteDatabase(user), false);
   }
+});
+
+test('isAdmin: true only while the user "admin" is signed in and is the current user', async () => {
+  const base = { baseUrl: 'http://db.test' };
+  setUser('');
+  assert.equal(isAdmin(), false);
+  await signIn({ name: 'peter', password: 'pw' }, { ...base, fetch: fakeFetch({ status: 201, body: { token: 't1', user: { id: 7, name: 'Peter', admin: true } } }) });
+  setUser('Peter');
+  assert.equal(isAdmin(), false, 'only the user called admin');
+  setUser('admin');                      // Settings > User: just the name, not signed in as admin
+  assert.equal(isAdmin(), false);
+  await signIn({ name: 'admin', password: 'pw' }, { ...base, fetch: fakeFetch({ status: 201, body: { token: 't2', user: { id: 1, name: 'admin', admin: false } } }) });
+  setUser('admin');
+  assert.equal(isAdmin(), true);
+  setUser('someone');
+  assert.equal(isAdmin(), false);
+  setUser('Admin');                      // back to admin (names ignore case)
+  assert.equal(isAdmin(), true);
+  await signOut({ ...base, fetch: fakeFetch({ status: 204 }) });
+  assert.equal(isAdmin(), false, 'signed out');
+  setUser('');
 });
