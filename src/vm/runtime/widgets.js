@@ -575,6 +575,8 @@ export const WIDGET_CLASSES = Object.freeze([
     method('toggle'),
     method('setDismissOnTap', ['boolean']),
     method('isDismissOnTap', [], 'boolean'),
+    method('setTimeout', ['number']),
+    method('getTimeout', [], 'number'),
     method('onChange', ['handler:boolean']),
   ]),
 ]);

@@ -2319,10 +2319,20 @@ mobile's qx.ui.mobile.container.Drawer. A Composite.
   - Closed, the Drawer takes no clicks (pointer-events: none) and its children are
     inert, so a closed drawer cannot be reached with the keyboard or a screen
     reader. Open, the rest of the area is dimmed.
-  - It closes on a tap on the dimmed area (unless dismissOnTap is false, when the
-    dimmed area still blocks the page behind it), on Escape, and on a swipe on the
-    panel of SWIPE_DISTANCE (50) pixels toward its edge, more along that axis than
-    across it.
+  - The user closes it in only two ways: a tap on the dimmed area outside the
+    panel (unless dismissOnTap is false, when the dimmed area still blocks the
+    page behind it), or leaving it unused for the drawer timeout. Escape and
+    swipes do not close it. A program can still set open to false.
+  - The drawer timeout is Settings > Drawer Time (DRAWER_TIMEOUTS: Never, 3, 5,
+    10 or 30 seconds; DEFAULT_DRAWER_TIMEOUT is 5 seconds), remembered in
+    localStorage (crumb.drawerTimeout): drawerTimeout() / setDrawerTimeout(ms).
+    The wait starts when the drawer opens and starts again on any use of the
+    panel (pointerdown, pointermove, keydown, wheel, input, focusin). A drawer's
+    own timeout property (ms, 0 for never) overrides the setting; null, the
+    default, follows it. A program sets it with setTimeout(seconds) and reads
+    the wait in force with getTimeout(), in seconds; it is saved as timeout
+    (milliseconds) when set. The designer sets 0 while designing, so a drawer shown
+    open there stays open; under Test it follows the setting.
   - The children are in the panel, placed by a layout manager as a Composite's
     are: vbox at first. A layout is given the panel's size, not the area's, so
     that layout() and the panel agree; the Drawer's padding is inside the panel.

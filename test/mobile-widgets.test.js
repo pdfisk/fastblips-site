@@ -36,7 +36,7 @@ class FakeElement extends EventTarget {
 
 let NavigationBar;
 let Carousel;
-let Drawer;
+let Drawer, setDrawerTimeout, drawerTimeout, drawerTimeoutLabel, DEFAULT_DRAWER_TIMEOUT;
 let Widget;
 let ProgramWidgetHost;
 let FreeLayer;
@@ -82,7 +82,7 @@ before(async () => {
   ({ Widget } = await import('../src/ui/widgets/widget.js'));
   ({ NavigationBar } = await import('../src/ui/widgets/navigation-bar.js'));
   ({ Carousel } = await import('../src/ui/widgets/carousel.js'));
-  ({ Drawer } = await import('../src/ui/widgets/drawer.js'));
+  ({ Drawer, setDrawerTimeout, drawerTimeout, drawerTimeoutLabel, DEFAULT_DRAWER_TIMEOUT } = await import('../src/ui/widgets/drawer.js'));
   ({ ProgramWidgetHost, FreeLayer } = await import('../src/ui/program-widgets.js'));
   ({ WidgetError } = await import('../src/vm/runtime/widgets.js'));
 });
@@ -321,8 +321,9 @@ test('Drawer: the panel is as wide as panelSize, or as the area when that is les
   assert.equal(top.side, 'right');
 });
 
-test('Drawer: a tap on the dimmed page, a swipe toward the edge, and Escape close it', () => {
+test('Drawer: only a tap outside the panel closes it; Escape and a swipe do not', () => {
   const drawer = drawerOf();
+  drawer.timeout = 0;
   drawer.open = true;
   drawer.scrim.dispatchEvent(new Event('click'));
   assert.equal(drawer.open, false);
@@ -332,28 +333,53 @@ test('Drawer: a tap on the dimmed page, a swipe toward the edge, and Escape clos
   drawer.scrim.dispatchEvent(new Event('click'));
   assert.equal(drawer.open, true, 'dismissOnTap false: the dimmed page is not a way out');
   key(drawer, 'Escape');
-  assert.equal(drawer.open, false);
-  key(drawer, 'Escape');                         // already closed: nothing
+  assert.equal(drawer.open, true, 'Escape does not close it');
+  drawer.panel.dispatchEvent(pointer('pointerdown', 200, 100));
+  drawer.panel.dispatchEvent(pointer('pointerup', 100, 100));
+  assert.equal(drawer.open, true, 'a swipe toward the edge does not close it');
+});
+
+test('Drawer: it closes after the timeout, which starts again while the panel is used', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  setDrawerTimeout(5000);
+  assert.equal(drawerTimeout(), 5000);
+  const drawer = drawerOf();
+  assert.equal(drawer.effectiveTimeout, 5000);
+  drawer.open = true;
+  t.mock.timers.tick(4000);
+  assert.equal(drawer.open, true);
+  drawer.panel.dispatchEvent(new Event('pointermove'));   // in use: the wait starts again
+  t.mock.timers.tick(4000);
+  assert.equal(drawer.open, true);
+  t.mock.timers.tick(1000);
+  assert.equal(drawer.open, false, '5 seconds unused: closed');
+
+  drawer.open = true;                    // closed by hand: no timer left behind
+  drawer.open = false;
+  drawer.open = true;
+  t.mock.timers.tick(4999);
+  assert.equal(drawer.open, true);
+  t.mock.timers.tick(1);
   assert.equal(drawer.open, false);
 
-  // swipes, for each side: does the drawer stay open?
-  const swipe = (d, from, to) => {
-    d.open = true;
-    d.panel.dispatchEvent(pointer('pointerdown', ...from));
-    d.panel.dispatchEvent(pointer('pointerup', ...to));
-    return d.open;
-  };
-  assert.equal(swipe(drawerOf('left'), [200, 100], [120, 105]), false);   // 80 toward the edge
-  assert.equal(swipe(drawerOf('left'), [200, 100], [180, 100]), true);    // too short
-  assert.equal(swipe(drawerOf('left'), [100, 100], [190, 100]), true);    // away from the edge
-  assert.equal(swipe(drawerOf('left'), [200, 100], [140, 220]), true);    // more down than across
-  assert.equal(swipe(drawerOf('right'), [100, 100], [190, 100]), false);
-  assert.equal(swipe(drawerOf('top'), [100, 200], [105, 120]), false);
-  assert.equal(swipe(drawerOf('bottom'), [100, 100], [100, 190]), false);
-  const closed = drawerOf('left');
-  closed.panel.dispatchEvent(pointer('pointerdown', 200, 100));
-  closed.panel.dispatchEvent(pointer('pointerup', 100, 100));
-  assert.equal(closed.open, false);
+  drawer.timeout = 0;                    // its own 0: until a tap outside
+  drawer.open = true;
+  t.mock.timers.tick(60000);
+  assert.equal(drawer.open, true);
+  drawer.timeout = 2000;                 // its own value wins over Settings
+  t.mock.timers.tick(2000);
+  assert.equal(drawer.open, false);
+
+  drawer.timeout = null;                 // Settings > Drawer Time: Never
+  setDrawerTimeout(0);
+  drawer.open = true;
+  t.mock.timers.tick(60000);
+  assert.equal(drawer.open, true);
+  drawer.open = false;
+  assert.equal(drawerTimeoutLabel(0), 'Never');
+  assert.equal(drawerTimeoutLabel(5000), '5 seconds');
+  assert.throws(() => setDrawerTimeout(-1), /drawer timeout/);
+  setDrawerTimeout(DEFAULT_DRAWER_TIMEOUT);
 });
 
 // ---- as a program uses them -----------------------------------------------------------------

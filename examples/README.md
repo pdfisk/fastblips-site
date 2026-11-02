@@ -31,7 +31,7 @@ example is missing from this file.
 | `layouts-tour.py` | The layouts working together in an app, and a Stack | Composite, Stack |
 | `mobile-navigation.py` | A phone app's pages: a bar whose title and buttons follow the page | NavigationBar, Stack, ListPanel, TextArea, TextField |
 | `mobile-carousel.py` | A photo gallery to swipe through, with dots | Carousel, Image, NavigationBar |
-| `mobile-drawer.py` | A menu that slides in from any edge, and the four ways to close it | Drawer, NavigationBar, SelectBox |
+| `mobile-drawer.py` | A drawer whose menu chooses the edge it slides in from; it closes after 5 seconds, on a tap outside, or on Close | Drawer, NavigationBar, Button |
 | `mobile-app.py` | A whole small app: introduction, notes, settings and a menu | NavigationBar, Stack, Drawer, Carousel, Image, CheckGroupBox, RadioGroupBox, SelectBox, ListPanel, TextField |
 | `tic-tac-toe.py` | A two-player game on a board of cells | Board |
 | `canvas-demo.py` | A bar chart, then a turning 3D scene | Canvas |

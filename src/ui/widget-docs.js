@@ -279,8 +279,11 @@ it is on top. Closed, it is out of sight and takes no clicks. set_open(True) sli
 it in, set_open(False) out, toggle() the other way; is_open() says which. The
 panel is set_panel_size(n) pixels wide (high, for the top and bottom; 260 at first)
 and comes from set_side("left"), "right", "top" or "bottom" (get_side()). A tap on
-the dimmed page closes it unless set_dismiss_on_tap(False); a swipe on the panel
-toward its edge, and Escape, close it too. on_change(function) is called with
+the dimmed page outside the panel closes it unless set_dismiss_on_tap(False), and
+so does leaving it unused for the drawer timeout (Settings > Drawer Time, 5
+seconds at first; using the panel starts the wait again). set_timeout(seconds)
+gives this drawer its own wait (0: until a tap outside); get_timeout() says the
+wait in force, in seconds. on_change(function) is called with
 the drawer and whether it is open now, whoever changed it. Its children are placed
 in the panel by a layout, as a Composite's are (vbox at first), and it has a
 Composite's methods (see Composite).

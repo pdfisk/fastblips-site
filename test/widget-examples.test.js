@@ -458,44 +458,46 @@ test('mobile-carousel.py: a gallery stepped through by swiping, the dots and the
   assert.equal(gallery.dots, true);
 });
 
-test('mobile-drawer.py: a menu that slides in from any side, and four ways to close it', async () => {
+test('mobile-drawer.py: Open... slides it in; its menu picks the side; 5 seconds, a tap outside or Close closes it', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const app = await runExample('mobile-drawer.py', PHONE);
   const drawer = app.byId('drawer');
-  const look = () => [drawer.open, drawer.side, drawer.panelSize, app.byId('bar').backText, app.byId('status').text];
-  assert.deepEqual(look(), [false, 'left', 240, 'Menu', 'The drawer is closed']);
+  const look = () => [drawer.open, drawer.side, app.byId('bar').backText, app.byId('status').text];
+  assert.deepEqual(look(), [false, 'left', 'Open...', 'The drawer is closed']);
   assert.deepEqual(at(drawer), [0, 0, 360, 640], 'it covers the whole screen');
+  assert.equal(drawer.timeout, 5000);
 
-  app.tap(app.byId('bar'), 'back');                // the Menu button
-  assert.deepEqual(look(), [true, 'left', 240, 'Close', 'The drawer is open']);
-  assert.equal(app.byId('item-home').element.inert, false, 'open: its buttons can be used');
-  app.click(app.byId('item-profile'));             // choosing an item closes it
-  assert.deepEqual([app.byId('page-title').text, app.byId('bar').title, drawer.open], ['Profile', 'Profile', false]);
-  assert.equal(app.byId('item-home').element.inert, true, 'closed: they cannot be reached');
+  app.tap(app.byId('bar'), 'back');                // Open...
+  assert.deepEqual(look(), [true, 'left', 'Close...', 'The drawer is open, on the left']);
+  assert.equal(app.byId('side-top').element.inert, false, 'open: its buttons can be used');
+  app.click(app.byId('side-top'));                 // the menu chooses the side; it stays open
+  assert.deepEqual(look(), [true, 'top', 'Close...', 'The drawer is open, on the top']);
+  assert.equal(drawer.panelSize, 260);
+  app.click(app.byId('side-right'));
+  assert.deepEqual([drawer.open, drawer.side, drawer.panelSize], [true, 'right', 240]);
+
+  t.mock.timers.tick(5000);                        // 5 seconds unused
+  app.settle();
+  assert.deepEqual(look(), [false, 'right', 'Open...', 'The drawer is closed']);
+  assert.equal(app.byId('side-top').element.inert, true, 'closed: they cannot be reached');
 
   app.tap(app.byId('bar'), 'back');
+  t.mock.timers.tick(4000);
+  assert.equal(drawer.open, true, 'still open before 5 seconds');
   app.click(app.byId('close'));                    // its own Close button
-  assert.equal(drawer.open, false);
+  assert.deepEqual(look(), [false, 'right', 'Open...', 'The drawer is closed']);
+
   app.tap(app.byId('bar'), 'back');
-  drawer.scrim.dispatchEvent(new Event('click'));  // a tap on the dimmed page
-  app.settle();
-  assert.equal(drawer.open, false);
-  app.tap(app.byId('bar'), 'back');
-  drawer.element.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' }));   // Escape
+  drawer.scrim.dispatchEvent(new Event('click'));  // a tap outside it
   app.settle();
   assert.equal(drawer.open, false);
 
-  app.click(app.byId('dismiss'));                  // with dismissing off, the dimmed page is not a way out
-  assert.deepEqual([drawer.dismissOnTap, app.byId('dismiss').label], [false, 'Close on tap outside: off']);
   app.tap(app.byId('bar'), 'back');
-  drawer.scrim.dispatchEvent(new Event('click'));
+  drawer.element.dispatchEvent(Object.assign(new Event('keydown'), { key: 'Escape' }));   // Escape is not a way out
   app.settle();
   assert.equal(drawer.open, true);
-  app.click(app.byId('close'));
-
-  app.pick(app.byId('side'), 2);                   // top and bottom are shorter panels
-  assert.deepEqual([drawer.side, drawer.panelSize], ['top', 180]);
-  app.pick(app.byId('side'), 1);
-  assert.deepEqual([drawer.side, drawer.panelSize], ['right', 240]);
+  app.tap(app.byId('bar'), 'back');                // Close... closes it
+  assert.deepEqual(look(), [false, 'right', 'Open...', 'The drawer is closed']);
 });
 
 test('mobile-app.py: Pocket Notes: an introduction, notes, settings, and a menu to move between them', async () => {

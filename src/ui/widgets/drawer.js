@@ -9,10 +9,13 @@
 // is !important, as a program's widgets are given an inline pointer-events:auto,
 // which would otherwise let the closed drawer catch every tap on the page), and
 // its children are inert. Open, a panel panelSize pixels wide (high, for the top and bottom)
-// has slid in from `side`, the rest of the area is dimmed, and a tap on the
-// dimmed part closes it unless dismissOnTap is false. A swipe on the panel
-// toward its edge, and Escape, also close it. The panel holds children placed
-// by a layout manager, as a Composite's are: the default is vbox.
+// has slid in from `side` and the rest of the area is dimmed. The user closes
+// it in only two ways: a tap on the dimmed part outside the panel (unless
+// dismissOnTap is false), or leaving it alone for the drawer timeout
+// (Settings > Drawer Time, 5 seconds at first; any use of the panel starts the
+// wait again). A program can still close it with open = false. The panel
+// holds children placed by a layout manager, as a Composite's are: the
+// default is vbox.
 //
 // A change of state fires a change event with detail { open }, whoever made it.
 
@@ -24,8 +27,45 @@ export const SIDES = Object.freeze(['left', 'right', 'top', 'bottom']);
 /** The size of the panel, in pixels, until it is set. */
 export const DEFAULT_PANEL_SIZE = 260;
 
-/** How far the panel must be swiped toward its edge to close, in pixels. */
-export const SWIPE_DISTANCE = 50;
+// ---- the drawer timeout (Settings > Drawer Time) ----
+
+/** The choices in Settings > Drawer Time, in milliseconds; 0 is never. */
+export const DRAWER_TIMEOUTS = Object.freeze([0, 3000, 5000, 10000, 30000]);
+
+/** How long an open drawer waits, unused, before it closes, until it is set. */
+export const DEFAULT_DRAWER_TIMEOUT = 5000;
+
+const TIMEOUT_KEY = 'crumb.drawerTimeout';
+let drawerTimeoutMs = null;   // set by setDrawerTimeout() on this page
+
+/** How long an open drawer stays without being used before it closes, in milliseconds (0: it stays). */
+export function drawerTimeout() {
+  if (drawerTimeoutMs !== null) return drawerTimeoutMs;
+  try {
+    const saved = globalThis.localStorage?.getItem(TIMEOUT_KEY);
+    const value = saved == null || saved === '' ? NaN : Number(saved);
+    if (Number.isFinite(value) && value >= 0) return value;
+  } catch { /* storage blocked */ }
+  return DEFAULT_DRAWER_TIMEOUT;
+}
+
+/** Chooses the drawer timeout (milliseconds, 0 for never) and remembers it for the next visit. */
+export function setDrawerTimeout(ms) {
+  ms = Number(ms);
+  if (!Number.isFinite(ms) || ms < 0) throw new Error('a drawer timeout is a number of milliseconds, 0 or more');
+  drawerTimeoutMs = ms;
+  try { globalThis.localStorage?.setItem(TIMEOUT_KEY, String(ms)); } catch { /* not remembered */ }
+}
+
+/** A drawer timeout as the Settings menu shows it: 5000 is "5 seconds", 0 is "Never". */
+export function drawerTimeoutLabel(ms) {
+  if (!ms) return 'Never';
+  const seconds = ms / 1000;
+  return `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+}
+
+// What counts as using the open panel: each starts the timeout again.
+const ACTIVITY = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'input', 'focusin'];
 
 const STYLE = `
 .cr-drawer{z-index:10;overflow:hidden;pointer-events:none !important}
@@ -62,6 +102,8 @@ export class Drawer extends Composite {
     this._panelSize = DEFAULT_PANEL_SIZE;
     this._open = false;
     this._dismissOnTap = true;
+    this._timeout = null;    // null: the Settings value
+    this._timer = null;
     this.scrim = document.createElement('div');
     this.scrim.className = 'cr-drawer-scrim';
     this.panel = document.createElement('div');
@@ -69,11 +111,10 @@ export class Drawer extends Composite {
     this.panel.tabIndex = -1;   // focused when it opens, so Escape reaches it
     this.element.appendChild(this.scrim);
     this.element.appendChild(this.panel);
+    // A tap outside the panel (on the dimmed page) closes it.
     this.scrim.addEventListener('click', () => { if (this._dismissOnTap) this.open = false; });
-    this.element.addEventListener('keydown', (e) => { if (e.key === 'Escape' && this._open) this.open = false; });
-    this.panel.addEventListener('pointerdown', (e) => { this._swipe = { x: e.clientX, y: e.clientY }; });
-    this.panel.addEventListener('pointerup', (e) => this._swiped(e));
-    this.panel.addEventListener('pointercancel', () => { this._swipe = null; });
+    // Using the panel keeps it open: the timeout starts again.
+    for (const type of ACTIVITY) this.panel.addEventListener(type, () => { if (this._open) this._startTimer(); });
     this.side = side;
     this._syncContent();
   }
@@ -104,8 +145,9 @@ export class Drawer extends Composite {
     this._open = next;
     this.element.classList.toggle('cr-drawer-open', next);
     this._syncContent();
-    // Open, the panel takes the focus, so the keyboard (Escape) works in it at once.
+    // Open, the panel takes the focus, so the keyboard works in it at once.
     if (next) this.panel.focus?.({ preventScroll: true });
+    if (next) this._startTimer(); else this._stopTimer();
     this.element.dispatchEvent(new CustomEvent('change', { detail: { open: next } }));
   }
 
@@ -115,6 +157,33 @@ export class Drawer extends Composite {
   /** Whether a tap on the dimmed page behind the panel closes it. */
   get dismissOnTap() { return this._dismissOnTap; }
   set dismissOnTap(value) { this._dismissOnTap = Boolean(value); }
+
+  /**
+   * How long this drawer stays open without being used, in milliseconds (0:
+   * until a tap outside), or null (the default) to follow Settings > Drawer
+   * Time. The designer sets 0, so a drawer opened to be designed stays open.
+   */
+  get timeout() { return this._timeout; }
+  set timeout(value) {
+    this._timeout = value == null ? null : Math.max(0, Number(value) || 0);
+    if (this._open) this._startTimer();
+  }
+
+  /** The timeout in force: this drawer's own, else the Settings value. */
+  get effectiveTimeout() { return this._timeout ?? drawerTimeout(); }
+
+  _startTimer() {
+    this._stopTimer();
+    const ms = this.effectiveTimeout;
+    if (!ms) return;
+    this._timer = setTimeout(() => { this._timer = null; this.open = false; }, ms);
+    this._timer?.unref?.();   // under Node (tests), a waiting drawer keeps nothing running
+  }
+
+  _stopTimer() {
+    if (this._timer !== null) clearTimeout(this._timer);
+    this._timer = null;
+  }
 
   // Closed, the children cannot be reached by the keyboard or a screen reader.
   _syncContent() {
@@ -135,18 +204,6 @@ export class Drawer extends Composite {
   remove(child) {
     super.remove(child);
     child.element.inert = false;
-  }
-
-  // A swipe on the panel toward its edge closes it.
-  _swiped(e) {
-    const start = this._swipe;
-    this._swipe = null;
-    if (!start || !this._open) return;
-    const dx = e.clientX - start.x;
-    const dy = e.clientY - start.y;
-    const toward = { left: -dx, right: dx, top: -dy, bottom: dy }[this._side];
-    const across = this._side === 'left' || this._side === 'right' ? Math.abs(dy) : Math.abs(dx);
-    if (toward >= SWIPE_DISTANCE && toward > across) this.open = false;
   }
 
   layout() {

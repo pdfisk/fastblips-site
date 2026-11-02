@@ -585,6 +585,7 @@ export class ProgramWidgetHost {
           put('panelSize', w.panelSize, DEFAULT_PANEL_SIZE);
           put('open', w.open, false);
           put('dismissOnTap', w.dismissOnTap, true);
+          put('timeout', w.timeout, null);
         }
         if (w instanceof GroupBox) {
           node.text = w.text;
@@ -864,6 +865,7 @@ export class ProgramWidgetHost {
           if (typeof node.side === 'string') widgetCall(() => { w.side = node.side; });
           if (num(node.panelSize) !== undefined) w.panelSize = node.panelSize;
           if (typeof node.dismissOnTap === 'boolean') w.dismissOnTap = node.dismissOnTap;
+          if (num(node.timeout) !== undefined) w.timeout = node.timeout;
           if (node.open === true) w.open = true;
         }
         break;
@@ -987,6 +989,9 @@ export class ProgramWidgetHost {
         case 'toggle': w.toggle(); return undefined;
         case 'setDismissOnTap': w.dismissOnTap = a; return undefined;
         case 'isDismissOnTap': return w.dismissOnTap;
+        // In seconds, as sleep() is: how long it stays open unused (0: until a tap outside).
+        case 'setTimeout': w.timeout = Math.max(0, Number(a) || 0) * 1000; return undefined;
+        case 'getTimeout': return w.effectiveTimeout / 1000;
         default: break;
       }
     }

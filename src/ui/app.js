@@ -23,6 +23,7 @@ import { ProjectsWindow } from './windows/projects-window.js';
 import { SERVERS, setServer, serverName, userName, setUser } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
+import { DRAWER_TIMEOUTS, drawerTimeout, setDrawerTimeout, drawerTimeoutLabel } from './widgets/drawer.js';
 import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
 import { runParameter, projectParameter, startAppRuntime, startProjectRuntime } from './run-app.js';
@@ -203,6 +204,13 @@ function settingsMenu() {
     label: durationLabel(ms),
     action: () => { setToastDuration(ms); sampleToast(); },
     checked: () => toastDuration() === ms,
+  })));
+  // Drawer Time: how long an open Drawer stays without being used before it
+  // closes (it also closes on a tap outside it). 5 seconds at first.
+  menu.addSubmenu('Drawer Time', () => DRAWER_TIMEOUTS.map((ms) => ({
+    label: drawerTimeoutLabel(ms),
+    action: () => setDrawerTimeout(ms),
+    checked: () => drawerTimeout() === ms,
   })));
   // User: whose space the Database windows, the Designer and programs read
   // and save in. Shared is the space of records with no owner. File > Sign In

@@ -33,6 +33,7 @@ import { ListPanel } from '../widgets/list-panel.js';
 import { Label } from '../widgets/label.js';
 import { Menu } from '../widgets/menu.js';
 import { Spacer } from '../widgets/spacer.js';
+import { Drawer } from '../widgets/drawer.js';
 import {
   FreeLayer, ProgramWidgetHost, fetchDoc, storeDoc, listDocs,
 } from '../program-widgets.js';
@@ -228,6 +229,8 @@ class PreviewPanel extends Panel {
       const widget = this.host.build(root, (w, node) => {
         this.nodeOf.set(w, node);
         this.widgetOf.set(node, w);
+        // A drawer opened to be designed stays open; under Test it times out as in a program.
+        if (w instanceof Drawer) w.timeout = this.testing ? null : 0;
       });
       this.layer.add(widget);
       if (widget instanceof Window) {
