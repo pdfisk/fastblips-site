@@ -73,27 +73,29 @@ export function setServer(name) {
 
 /** What a user name may be: 2 to 30 letters, digits, - or _ (as on the server). */
 export const USER_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{1,29}$/i;
-const USER_KEY = 'crumb.user';
-let user = null;        // set by setUser() on this page
+// Every session starts signed out: the user and the sign-in tokens live only
+// in this page, never in storage. Earlier builds remembered them in
+// localStorage under these keys; whatever is left there is cleared on load.
+const LEGACY_SIGN_IN_KEYS = ['crumb.user', 'crumb.tokens'];
+try {
+  for (const key of LEGACY_SIGN_IN_KEYS) globalThis.localStorage?.removeItem(key);
+} catch { /* storage blocked */ }
+
+let user = '';          // set by setUser() on this page
 let pageSpace = null;   // set by setSpace() on this page
 
 /**
- * The user this browser works as (Settings > User), or '' for none: the one
- * chosen on this page, else the one remembered from an earlier visit. There
- * is a name; the token that proves it is kept by signIn().
+ * The user this browser works as, or '' for none. Chosen on this page only:
+ * a new session (page load) starts signed out. There is a name; the token
+ * that proves it is kept by signIn().
  */
 export function userName() {
-  if (user !== null) return user;
-  try {
-    const saved = globalThis.localStorage?.getItem(USER_KEY)?.trim() ?? '';
-    if (USER_NAME_PATTERN.test(saved)) return saved;
-  } catch { /* storage blocked */ }
-  return '';
+  return user;
 }
 
 /**
- * Switches user ('' for none), remembers the choice for the next visit and
- * announces it with a cr-userchange event on document.
+ * Switches user ('' for none) for this session and announces it with a
+ * cr-userchange event on document.
  */
 export function setUser(name) {
   name = String(name ?? '').trim();
@@ -101,10 +103,6 @@ export function setUser(name) {
     throw new Error('a user name is 2 to 30 letters, digits, - or _, starting with a letter or digit');
   }
   user = name;
-  try {
-    if (name) globalThis.localStorage?.setItem(USER_KEY, name);
-    else globalThis.localStorage?.removeItem(USER_KEY);
-  } catch { /* not remembered */ }
   globalThis.document?.dispatchEvent(new CustomEvent('cr-userchange', { detail: { name } }));
 }
 
@@ -121,39 +119,18 @@ export function setSpace(owner) { pageSpace = owner == null ? null : String(owne
 function trimUrl(url) { return String(url).trim().replace(/\/+$/, ''); }
 
 // Sign-in tokens, one per server (a token from one server means nothing to
-// another), remembered in localStorage between visits.
-const TOKEN_KEY = 'crumb.tokens';
+// another), kept for this page only: a new session starts with none.
 const tokens = new Map();   // server URL -> token, for this page
-let tokensRead = false;
-
-function readTokens() {
-  if (tokensRead) return;
-  tokensRead = true;
-  try {
-    const saved = JSON.parse(globalThis.localStorage?.getItem(TOKEN_KEY) ?? '{}');
-    for (const [url, token] of Object.entries(saved)) if (typeof token === 'string' && token) tokens.set(url, token);
-  } catch { /* storage blocked or not JSON */ }
-}
-
-function saveTokens() {
-  try {
-    if (tokens.size) globalThis.localStorage?.setItem(TOKEN_KEY, JSON.stringify(Object.fromEntries(tokens)));
-    else globalThis.localStorage?.removeItem(TOKEN_KEY);
-  } catch { /* not remembered */ }
-}
 
 /** The sign-in token for a server (the one in use by default), or '' for none. */
 export function getToken(baseUrl = getServerUrl()) {
-  readTokens();
   return tokens.get(trimUrl(typeof baseUrl === 'function' ? baseUrl() : baseUrl)) ?? '';
 }
 
 /** Remembers the token for a server, or forgets it if token is empty. */
 export function setToken(token, baseUrl = getServerUrl()) {
-  readTokens();
   const url = trimUrl(typeof baseUrl === 'function' ? baseUrl() : baseUrl);
   if (token) tokens.set(url, String(token)); else tokens.delete(url);
-  saveTokens();
 }
 
 /** An error from the server or the network, with a readable message. */
