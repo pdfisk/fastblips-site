@@ -1,8 +1,11 @@
 // DatabaseWindow: a browser for one table of source records on the database
 // server (rails/server) - the records listed on the left, the selected one
 // edited on the right. Records can be created, viewed, edited and deleted.
-// Save (and Compile, which saves) is shown only to a user whose
-// has_database_write_permission is true; others can browse and open records.
+// Save sits to the right of New and is always shown, but is enabled only for
+// a selected record (or a new one) whose text has changed, and only for a user
+// whose has_database_write_permission is true. Delete is enabled only while a
+// record is selected. Compile (which saves) is shown only to a user who may
+// write; others can browse and open records.
 // PythonDatabaseWindow chooses the table; there is one such window, opened
 // from the Views menu.
 
@@ -78,10 +81,11 @@ export class DatabaseWindow extends HSplitWindow {
 
     this.listPanel.element.addEventListener('select', (e) => this._onSelect(e.detail.item));
     this.recordPanel.element.addEventListener('change', () => this.updateButtons());
-    this.recordPanel.element.addEventListener('submit', () => this.save());
-    // Ctrl/Cmd+S saves.
+    // Enter and Ctrl/Cmd+S save, as the Save button does: only when it is enabled.
+    const saveIfEnabled = () => { if (this.saveButton.enabled) this.save(); };
+    this.recordPanel.element.addEventListener('submit', saveIfEnabled);
     this.element.addEventListener('keydown', (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); this.save(); }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveIfEnabled(); }
     });
     // Settings > Database switched server: reload from the new one.
     this._onServerChange = () => { if (this.isOpen) this.refresh(); };
@@ -254,9 +258,13 @@ export class DatabaseWindow extends HSplitWindow {
 
   updateButtons() {
     const editing = Boolean(this.current);
-    this.saveButton.visible = this.canWrite;
-    this.saveButton.enabled = this.canWrite && editing && (this.dirty || this.current.id == null);
-    this.deleteButton.enabled = editing;
+    const selected = this.current?.id != null;   // a record from the list, not a new one
+    // Save: always there; enabled once the selected (or new) record's text has changed.
+    this.saveButton.enabled = this.canWrite && editing && this.dirty;
+    this.saveButton.element.title = this.canWrite ? ''
+      : 'Sign in as a user who may write to the database to save';
+    // Delete: only for a record selected in the list.
+    this.deleteButton.enabled = selected;
     if (this.consoleButton) this.consoleButton.enabled = editing;
     if (this.compileButton) {
       this.compileButton.visible = this.canWrite;
