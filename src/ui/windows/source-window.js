@@ -20,14 +20,21 @@ export class SourceWindow extends Window {
     });
     this.element.classList.add('cr-source-window');
     this.scripts = scripts.map((s) => ({ name: String(s.name ?? ''), source: String(s.source ?? '') }));
-    const editor = (script) => new MonacoPanel({ text: script.source, readOnly: true, language: 'python' });
-    if (this.scripts.length === 1) {
-      this.content = editor(this.scripts[0]);
-    } else {
-      this.tabs = new TabPanel();
-      for (const script of this.scripts) this.tabs.addTab(script.name || 'Script', editor(script));
-      this.content = this.tabs;
-    }
+    this.content = sourceView(this.scripts);
+    if (this.content instanceof TabPanel) this.tabs = this.content;
     this.buttonBar.addButton('Close', () => this.close());
   }
+}
+
+/**
+ * A read-only view of scripts ({name, source}, in order): a code editor for
+ * one script, or a TabPanel with one editor per script. Used by SourceWindow
+ * and by MobileLaunchWindow, which shows it in place of the output.
+ */
+export function sourceView(scripts) {
+  const editor = (script) => new MonacoPanel({ text: String(script.source ?? ''), readOnly: true, language: 'python' });
+  if (scripts.length === 1) return editor(scripts[0]);
+  const tabs = new TabPanel();
+  for (const script of scripts) tabs.addTab(String(script.name ?? '') || 'Script', editor(script));
+  return tabs;
 }

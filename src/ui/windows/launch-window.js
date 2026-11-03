@@ -7,7 +7,8 @@ import { Window } from './window.js';
 import { AppScreen } from '../widgets/app-screen.js';
 import { ProgramRunner, ProgramSetRunner } from '../program-runner.js';
 import { runUrl, projectUrl } from '../app-list.js';
-import { SourceWindow } from './source-window.js';
+import { SourceWindow, sourceView } from './source-window.js';
+import { Stack } from '../widgets/stack.js';
 
 /**
  * Fills a Launch menu with the standard items: Desktop, Mobile, a separator
@@ -96,7 +97,7 @@ export class LaunchWindow extends Window {
     });
     this.goButton = this.buttonBar.addButton('Go', () => this.go());
     this.resetButton = this.buttonBar.addButton('Reset', () => this.reset());
-    this.sourceButton = this.buttonBar.addButton('Show source', () => this.showSource());
+    this.sourceButton = this.buttonBar.addButton('Show source', () => this.toggleSource());
     this.autoStart = Boolean(autoStart);
     this._autoStarted = false;
   }
@@ -142,17 +143,48 @@ export class LaunchWindow extends Window {
   showSource() {
     if (!this.parent) return null;
     if (this.sourceWindow?.isOpen) return this.sourceWindow.open(this.parent);
-    const scripts = this.programs
-      ? this.runner.programs.map((p) => ({ name: p.name, source: p.source }))
-      : [{ name: this.title, source: this.source }];
-    // Just below and right of this window, kept inside the screen.
-    const b = this.bounds;
-    const width = 520;
-    const x = Math.max(0, Math.min(b.x + 32, this.parent.element.clientWidth - width - 8));
-    const win = new SourceWindow({ title: this.title, scripts, x, y: b.y + 32, width });
+    const { scripts } = this;
+    const { x, y, width } = this._sourcePlacement(520);
+    const win = new SourceWindow({ title: this.title, scripts, x, y, width });
     win.element.addEventListener('close', () => { if (this.sourceWindow === win) this.sourceWindow = null; });
     this.sourceWindow = win;
     return win.open(this.parent);
+  }
+
+  /** What the Show source button does: here, showSource(). */
+  toggleSource() { return this.showSource(); }
+
+  /** The source this window runs, as [{ name, source }]: the copy taken at
+   *  launch, or each script of a project, in order. */
+  get scripts() {
+    return this.programs
+      ? this.runner.programs.map((p) => ({ name: p.name, source: p.source }))
+      : [{ name: this.title, source: this.source }];
+  }
+
+  /**
+   * Where the SourceWindow goes: beside this window, so it does not cover
+   * the program's output - to the right if there is room, else to the left.
+   * With room on neither side (a small screen), it is narrowed to the wider
+   * side if that leaves a usable width, else it overlaps, kept on screen.
+   */
+  _sourcePlacement(preferred) {
+    const gap = 8;
+    const min = 280;   // SourceWindow's minWidth
+    const b = this.bounds;
+    const total = this.parent.element.clientWidth;
+    const right = total - (b.x + b.width) - 2 * gap;   // room to the right
+    const left = b.x - 2 * gap;                         // room to the left
+    const y = b.y;
+    if (right >= preferred) return { x: b.x + b.width + gap, y, width: preferred };
+    if (left >= preferred) return { x: b.x - gap - preferred, y, width: preferred };
+    if (Math.max(right, left) >= min) {
+      return right >= left
+        ? { x: b.x + b.width + gap, y, width: right }
+        : { x: gap, y, width: left };
+    }
+    const width = Math.min(preferred, total - 2 * gap);
+    return { x: Math.max(0, Math.min(b.x + 32, total - width - gap)), y: b.y + 32, width };
   }
 
   /** The running Process, or null. */
@@ -191,6 +223,12 @@ export class MobileLaunchWindow extends LaunchWindow {
     // Roughly the window's size; open() makes the content area exact.
     super({ width: width + 8, height: height + 62, ...options, resizable: false });
     this.element.classList.add('cr-mobile-launch-window');
+    // The phone screen is a Stack: the app's screen (the output), and the
+    // source in its place when Show source is pressed.
+    this.stack = new Stack();
+    this.content = this.stack;
+    this.stack.add(this.screen);
+    this.sourcePanel = null;   // made the first time the source is shown
     // Text output a little larger and darker than elsewhere, easier to read
     // on the phone-sized screen.
     const { style } = this.textPanel.textArea;
@@ -199,6 +237,37 @@ export class MobileLaunchWindow extends LaunchWindow {
     // A theme can change the title bar and borders: keep the screen exact.
     this._onTheme = () => requestAnimationFrame(() => this.fitScreen());
     document.addEventListener('cr-themechange', this._onTheme);
+  }
+
+  /** True while the phone screen shows the source instead of the output. */
+  get showingSource() { return this.sourcePanel !== null && this.stack.selectedWidget === this.sourcePanel; }
+
+  /**
+   * Shows the source in place of the output, on the phone screen (read-only;
+   * a project's scripts one tab each). The Show source button becomes
+   * Show output. Returns the source view.
+   */
+  showSource() {
+    if (!this.sourcePanel) this.sourcePanel = this.stack.add(sourceView(this.scripts));
+    this.stack.select(this.stack.children.indexOf(this.sourcePanel));
+    this.sourceButton.label = 'Show output';
+    return this.sourcePanel;
+  }
+
+  /** Shows the output (the app's screen) again; the button reads Show source. */
+  showOutput() {
+    this.stack.select(this.stack.children.indexOf(this.screen));
+    this.sourceButton.label = 'Show source';
+    return this.screen;
+  }
+
+  /** The Show source / Show output button: switches between the two. */
+  toggleSource() { return this.showingSource ? this.showOutput() : this.showSource(); }
+
+  /** Go shows the output, then runs the program. */
+  go() {
+    this.showOutput();
+    return super.go();
   }
 
   /** Sizes the window so its content area is exactly screenSize. */

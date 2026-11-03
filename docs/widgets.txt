@@ -817,7 +817,8 @@ opened from a console's Launch menu; any number can be open at once.
     (src/ui/windows/source-window.js) with the source the window runs - the
     copy taken at launch, or for a project one tab per script, in order;
     pressed again it brings that window to the front, and it closes with
-    the launch window.
+    the launch window. In a MobileLaunchWindow the source is instead shown
+    on the phone screen, in place of the output (see MobileLaunchWindow).
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
@@ -848,6 +849,13 @@ MobileLaunchWindow
     StatusBar.
   - Its text output is 2px larger than the theme's font size, and its
     colour is the theme's text colour mixed 25% towards black.
+  - Its content is a Stack (window.stack) holding the app's screen and, once
+    Show source is first pressed, the read-only source (window.sourcePanel:
+    a code editor, or for a project one tab per script). The Show source
+    button switches between them (toggleSource()) and reads Show output
+    while the source is showing; showSource() and showOutput() pick one,
+    and window.showingSource says which is showing. Go shows the output
+    before it runs the program. No SourceWindow is opened.
 
 
 TranscriptWindow (singleton)
@@ -1808,7 +1816,8 @@ opened from a console's Launch menu; any number can be open at once.
     (src/ui/windows/source-window.js) with the source the window runs - the
     copy taken at launch, or for a project one tab per script, in order;
     pressed again it brings that window to the front, and it closes with
-    the launch window.
+    the launch window. In a MobileLaunchWindow the source is instead shown
+    on the phone screen, in place of the output (see MobileLaunchWindow).
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
@@ -1839,6 +1848,13 @@ MobileLaunchWindow
     StatusBar.
   - Its text output is 2px larger than the theme's font size, and its
     colour is the theme's text colour mixed 25% towards black.
+  - Its content is a Stack (window.stack) holding the app's screen and, once
+    Show source is first pressed, the read-only source (window.sourcePanel:
+    a code editor, or for a project one tab per script). The Show source
+    button switches between them (toggleSource()) and reads Show output
+    while the source is showing; showSource() and showOutput() pick one,
+    and window.showingSource says which is showing. Go shows the output
+    before it runs the program. No SourceWindow is opened.
 
 
 TranscriptWindow (singleton)
