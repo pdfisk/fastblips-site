@@ -2517,8 +2517,16 @@ works on any device, phone included.
     at the record's priority.
   - The Viewport has no Navbar or windows: its content is an AppScreen that
     fills it (a TextPanel with the program's widgets over it), and a
-    ButtonBar with Go and Reset buttons is docked along its bottom.
+    ButtonBar with Go, Reset and Show source buttons is docked along its
+    bottom.
   - Go and Reset act as in a LaunchWindow (a ProgramRunner does both).
+  - A Show source button, after Go and Reset, shows the program's source
+    (read-only; for a project one tab per script, in order) in place of the
+    output, as in a MobileLaunchWindow: the content is a Stack (page.stack)
+    holding the AppScreen and the source, the button reads Show output
+    while the source is showing, and pressing it switches back. Go shows
+    the output before it runs the program. The button is disabled until
+    the program has loaded.
   - The program starts by itself as soon as it has loaded from the
     database, as if Go were pressed.
   - While the program loads, the text panel says so and the buttons are

@@ -6,6 +6,8 @@
 //     with the program's widgets (New Button, ...) over it.
 //   - Go and Reset buttons sit in a ButtonBar along the bottom of the
 //     Viewport and act as in a LaunchWindow (see ProgramRunner).
+//   - A Show source button switches the screen to the program's source and
+//     back (Show output), as in a MobileLaunchWindow.
 //   - The program starts as soon as it has loaded, as if Go were pressed.
 //
 // ?project=<owner>/<name> runs a project the same way: every script of that
@@ -19,6 +21,8 @@
 import { Viewport } from './widgets/viewport.js';
 import { AppScreen } from './widgets/app-screen.js';
 import { ButtonBar } from './widgets/button-bar.js';
+import { Stack } from './widgets/stack.js';
+import { sourceView } from './windows/source-window.js';
 import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
 import { ProgramRunner, ProgramSetRunner } from './program-runner.js';
@@ -128,10 +132,12 @@ export async function findProject(value, { stores } = {}) {
   return null;
 }
 
-// Builds the full-page app: an AppScreen filling the Viewport with Go and
-// Reset buttons along the bottom. load() resolves to null (nothing found) or
-// { owner, runner(screen) }, which makes the runner for the screen; the
-// runner is started as soon as it is made.
+// Builds the full-page app: a Stack filling the Viewport, holding an
+// AppScreen (and the source, once shown), with Go, Reset and Show source
+// buttons along the bottom. load() resolves to null (nothing found) or
+// { owner, runner(screen), scripts }, which makes the runner for the screen;
+// the runner is started as soon as it is made. scripts ([{ name, source }])
+// is what Show source shows.
 function startPage(name, load, notFound) {
   document.title = name;
   const viewport = Viewport.instance.mount(document.body);
@@ -141,12 +147,35 @@ function startPage(name, load, notFound) {
   const { textPanel } = screen;
   textPanel.text = `Loading ${name}...`;
   const buttonBar = new ButtonBar();
-  const page = { viewport, screen, textPanel, buttonBar, runner: null };
-  page.goButton = buttonBar.addButton('Go', () => page.runner?.go());
+  const stack = new Stack();
+  stack.add(screen);
+  const page = {
+    viewport, stack, screen, textPanel, buttonBar, runner: null, scripts: [], sourcePanel: null,
+    /** True while the source is showing in place of the output. */
+    get showingSource() { return this.sourcePanel !== null && stack.selectedWidget === this.sourcePanel; },
+    /** Shows the source in place of the output (read-only; a project's scripts one tab each). */
+    showSource() {
+      if (!this.sourcePanel) this.sourcePanel = stack.add(sourceView(this.scripts));
+      stack.select(stack.children.indexOf(this.sourcePanel));
+      this.sourceButton.label = 'Show output';
+      return this.sourcePanel;
+    },
+    /** Shows the output (the app's screen) again. */
+    showOutput() {
+      stack.select(stack.children.indexOf(screen));
+      this.sourceButton.label = 'Show source';
+      return screen;
+    },
+    /** The Show source / Show output button: switches between the two. */
+    toggleSource() { return this.showingSource ? this.showOutput() : this.showSource(); },
+  };
+  page.goButton = buttonBar.addButton('Go', () => { page.showOutput(); page.runner?.go(); });
   page.resetButton = buttonBar.addButton('Reset', () => page.runner?.reset());
+  page.sourceButton = buttonBar.addButton('Show source', () => page.toggleSource());
   page.goButton.enabled = false;
   page.resetButton.enabled = false;
-  viewport.content = screen;
+  page.sourceButton.enabled = false;
+  viewport.content = stack;
   viewport.statusBar = buttonBar;
 
   page.ready = load().then((found) => {
@@ -157,8 +186,10 @@ function startPage(name, load, notFound) {
     textPanel.text = '';
     setSpace(found.owner);
     page.runner = found.runner(screen);
+    page.scripts = found.scripts ?? [];
     page.goButton.enabled = true;
     page.resetButton.enabled = true;
+    page.sourceButton.enabled = page.scripts.length > 0;
     page.runner.go();
     return page;
   }, (err) => {
@@ -171,7 +202,8 @@ function startPage(name, load, notFound) {
 
 /**
  * Builds the page for the program called name and loads it. Returns
- * { viewport, screen, textPanel, buttonBar, goButton, resetButton, runner, ready },
+ * { viewport, stack, screen, textPanel, buttonBar, goButton, resetButton, sourceButton,
+ * runner, scripts, ready, showSource(), showOutput(), toggleSource() },
  * where ready resolves once the program is loaded and started (runner is
  * set then).
  */
@@ -181,6 +213,7 @@ export function startRuntime(name) {
     if (!found) return null;
     return {
       owner: found.owner,
+      scripts: [{ name, source: found.record.content ?? '' }],
       runner: (screen) => new ProgramRunner({
         language: found.language,
         source: found.record.content ?? '',
@@ -219,10 +252,15 @@ export function startAppRuntime(name) {
     const { kind, found } = app;
     if (kind === 'project') {
       if (found.programs.length === 0) throw new Error('the project has no scripts to run');
-      return { owner: found.owner, runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }) };
+      return {
+      owner: found.owner,
+      scripts: found.programs.map((p) => ({ name: p.name, source: p.source })),
+      runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }),
+    };
     }
     return {
       owner: found.owner,
+      scripts: [{ name, source: found.record.content ?? '' }],
       runner: (screen) => new ProgramRunner({
         language: found.language,
         source: found.record.content ?? '',
@@ -245,6 +283,10 @@ export function startProjectRuntime(name) {
     const found = await findProject(name);
     if (!found) return null;
     if (found.programs.length === 0) throw new Error('the project has no scripts to run');
-    return { owner: found.owner, runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }) };
+    return {
+      owner: found.owner,
+      scripts: found.programs.map((p) => ({ name: p.name, source: p.source })),
+      runner: (screen) => new ProgramSetRunner({ programs: found.programs, screen }),
+    };
   }, `There is no project named "${name}" in the database.\n`);
 }
