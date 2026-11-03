@@ -22,10 +22,11 @@ import { Viewport } from './widgets/viewport.js';
 import { AppScreen } from './widgets/app-screen.js';
 import { ButtonBar } from './widgets/button-bar.js';
 import { Stack } from './widgets/stack.js';
-import { sourceView } from './windows/source-window.js';
+import { SourceEditor } from './windows/source-window.js';
 import { SourceStore, TABLES, StoreError, USER_NAME_PATTERN, setSpace } from './db-client.js';
 import { PythonConsoleWindow } from './windows/python-console-window.js';
-import { ProgramRunner, ProgramSetRunner } from './program-runner.js';
+import { ProgramRunner, ProgramSetRunner, describeCompile } from './program-runner.js';
+import { Toast } from './toast.js';
 import { PROJECTS, projectPrograms } from './projects.js';
 
 /** The tables searched for the program, in order, and their languages. */
@@ -150,28 +151,47 @@ function startPage(name, load, notFound) {
   const stack = new Stack();
   stack.add(screen);
   const page = {
-    viewport, stack, screen, textPanel, buttonBar, runner: null, scripts: [], sourcePanel: null,
+    viewport, stack, screen, textPanel, buttonBar, runner: null, scripts: [], sourceEditor: null, sourcePanel: null,
     /** True while the source is showing in place of the output. */
     get showingSource() { return this.sourcePanel !== null && stack.selectedWidget === this.sourcePanel; },
-    /** Shows the source in place of the output (read-only; a project's scripts one tab each). */
+    /** Shows the source in place of the output, editable (a project's scripts one tab each). */
     showSource() {
-      if (!this.sourcePanel) this.sourcePanel = stack.add(sourceView(this.scripts));
+      if (!this.sourcePanel) {
+        this.sourceEditor = new SourceEditor(this.scripts, {
+          onChange: (editor) => { this.compileButton.enabled = editor.changed; },
+        });
+        this.sourcePanel = stack.add(this.sourceEditor.view);
+      }
+      this.compileButton.enabled = this.sourceEditor.changed;
       stack.select(stack.children.indexOf(this.sourcePanel));
       this.sourceButton.label = 'Show output';
+      this.compileButton.visible = true;
+      buttonBar.layout();
       return this.sourcePanel;
     },
     /** Shows the output (the app's screen) again. */
     showOutput() {
       stack.select(stack.children.indexOf(screen));
       this.sourceButton.label = 'Show source';
+      this.compileButton.visible = false;
+      buttonBar.layout();
       return screen;
     },
     /** The Show source / Show output button: switches between the two. */
     toggleSource() { return this.showingSource ? this.showOutput() : this.showSource(); },
+    /** Compiles the source as edited (the Compile button): later Gos run it. */
+    compile() {
+      if (!this.runner) return null;
+      const result = this.sourceEditor ? this.sourceEditor.compileWith(this.runner) : this.runner.recompile();
+      Toast.show(viewport, describeCompile(result));
+      return result;
+    },
   };
   page.goButton = buttonBar.addButton('Go', () => { page.showOutput(); page.runner?.go(); });
   page.resetButton = buttonBar.addButton('Reset', () => page.runner?.reset());
   page.sourceButton = buttonBar.addButton('Show source', () => page.toggleSource());
+  page.compileButton = buttonBar.addButton('Compile', () => page.compile());
+  page.compileButton.visible = false;   // shown only with the source
   page.goButton.enabled = false;
   page.resetButton.enabled = false;
   page.sourceButton.enabled = false;

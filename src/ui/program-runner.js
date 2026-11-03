@@ -4,6 +4,7 @@
 
 import { StatusBar } from './widgets/status-bar.js';
 import { scheduler } from './runtime.js';
+import { chunkToJson, sourceHash } from '../vm/chunk-json.js';
 
 export class ProgramRunner {
   /**
@@ -30,6 +31,7 @@ export class ProgramRunner {
     this.language = language;
     this.source = String(source ?? '');
     this._compiled = compiled;
+    this._recompiled = null;   // set by recompile()
     this._priority = priority;
     this.screen = screen;
     this.output = output ?? screen?.textPanel;
@@ -39,7 +41,41 @@ export class ProgramRunner {
 
   get name() { return typeof this._name === 'function' ? this._name() : this._name; }
 
-  get compiled() { return typeof this._compiled === 'function' ? this._compiled() : this._compiled; }
+  /** The compiled code a run uses: recompile()'s, else the one given. */
+  get compiled() {
+    if (this._recompiled) return this._recompiled;
+    return typeof this._compiled === 'function' ? this._compiled() : this._compiled;
+  }
+
+  /** The source each run uses, as a one-item list (as ProgramSetRunner's). */
+  get sources() { return [this.source]; }
+
+  /**
+   * Compiles the source afresh (a launch window's Compile button), without
+   * running it: sources[0] if given (the source as edited), else the current
+   * source. On success that becomes the source, and its new code is used by
+   * every later Go, in place of the compiled code given and of this page's
+   * compile cache; nothing is saved to the database. On failure the source
+   * and code used before are kept.
+   * Returns { ok, errorCount, errors, scripts: 1, sources }, sources as
+   * this.sources afterwards.
+   */
+  recompile(sources = null) {
+    const source = sources ? String(sources[0] ?? '') : this.source;
+    const done = (fields) => ({ scripts: 1, ...fields, sources: this.sources });
+    const fail = (errors, errorCount = 1) => done({ ok: false, errorCount, errors });
+    if (!this.language?.compileSource) return fail('This program cannot be compiled\n');
+    let result;
+    try {
+      result = this.language.compileSource(source);
+    } catch (e) {
+      return fail(`Compile failed: ${e?.message ?? e}\n`);
+    }
+    if (!result.chunk) return fail(result.errors, result.errorCount || 1);
+    this.source = source;
+    this._recompiled = chunkToJson(result.chunk, { sourceHash: sourceHash(source) });
+    return done({ ok: true, errorCount: 0, errors: '' });
+  }
 
   get priority() { return typeof this._priority === 'function' ? this._priority() : this._priority; }
 
@@ -125,9 +161,14 @@ export class ProgramSetRunner {
     this.screen = screen;
     this.output = screen.textPanel;
     this.runners = [];
+    this._recompiled = [];   // per program, by index: set by recompile()
+    this._sources = [];      // likewise, the sources they were compiled from
   }
 
   get programs() { return typeof this._programs === 'function' ? this._programs() : this._programs; }
+
+  /** The source each program runs, in order: as given, or as last compiled by recompile(). */
+  get sources() { return this.programs.map((p, i) => this._sources[i] ?? String(p.source ?? '')); }
 
   /** The Processes started, in order (none for a program with load errors). */
   get processes() { return this.runners.map((r) => r.process).filter(Boolean); }
@@ -141,7 +182,10 @@ export class ProgramSetRunner {
    */
   go() {
     this.reset();
-    this.runners = this.programs.map((p) => new ProgramRunner({ ...p, screen: this.screen }));
+    const sources = this.sources;
+    this.runners = this.programs.map((p, i) => new ProgramRunner({
+      ...p, source: sources[i], compiled: this._recompiled[i] ?? p.compiled, screen: this.screen,
+    }));
     for (const runner of this.runners) runner.start();
     return this.processes;
   }
@@ -151,12 +195,56 @@ export class ProgramSetRunner {
     for (const runner of this.runners) runner.stop();
   }
 
+  /**
+   * Compiles the programs' sources afresh, as ProgramRunner.recompile does.
+   * Given sources (one per program, as edited), only those that differ from
+   * the current ones are compiled; without, every program is. Each that
+   * compiles runs its new source and code at later Gos. Returns { ok,
+   * errorCount, errors, scripts, sources }: scripts is how many were
+   * compiled, errors names each failing script, sources is this.sources
+   * afterwards.
+   */
+  recompile(sources = null) {
+    const programs = this.programs;
+    const current = this.sources;
+    let errorCount = 0;
+    let errors = '';
+    let scripts = 0;
+    programs.forEach((p, i) => {
+      if (sources && String(sources[i] ?? '') === current[i]) return;
+      scripts += 1;
+      const runner = new ProgramRunner({ ...p, source: current[i] });
+      const result = runner.recompile(sources ? [sources[i]] : null);
+      if (result.ok) {
+        this._recompiled[i] = runner.compiled;
+        this._sources[i] = runner.source;
+      } else {
+        errorCount += result.errorCount;
+        errors += `${p.name}: ${result.errors}`;
+      }
+    });
+    return { ok: errorCount === 0, errorCount, errors, scripts, sources: this.sources };
+  }
+
   /** Stops the programs, clears the output and removes their widgets. */
   reset() {
     this.stop();
     this.output.text = '';
     this.screen.clearWidgets();
   }
+}
+
+/**
+ * The toast for a recompile() result: { message, kind }. A failure names the
+ * first error.
+ */
+export function describeCompile({ ok, errorCount, errors, scripts }) {
+  if (ok) {
+    const what = scripts === 1 ? 'the source' : `${scripts} scripts`;   // 0: nothing had changed
+    return { kind: 'success', message: `Compiled ${what}: Go runs the new code` };
+  }
+  const first = String(errors ?? '').trim().split('\n')[0];
+  return { kind: 'error', message: `${errorCount} compile error${errorCount === 1 ? '' : 's'}${first ? `: ${first}` : ''}` };
 }
 
 /** ", compiled code" or ", cached" for a StatusBar message; '' when compiled from source. */

@@ -813,12 +813,27 @@ opened from a console's Launch menu; any number can be open at once.
     same in DesktopLaunchWindow and MobileLaunchWindow.
   - Its ButtonBar has Go, Reset and Show source buttons (window.goButton,
     window.resetButton and window.sourceButton), which call go(), reset()
-    and showSource(). Show source opens a read-only SourceWindow
+    and showSource(). Show source opens a SourceWindow
     (src/ui/windows/source-window.js) with the source the window runs - the
     copy taken at launch, or for a project one tab per script, in order;
     pressed again it brings that window to the front, and it closes with
     the launch window. In a MobileLaunchWindow the source is instead shown
     on the phone screen, in place of the output (see MobileLaunchWindow).
+  - Wherever the source is shown it can be edited (a SourceEditor), and
+    there is a Compile button (in the SourceWindow's button bar, or the
+    MobileLaunchWindow's while it shows the source). It is enabled only
+    while the source differs from the one last compiled (at first, the
+    copy taken at launch). compile(editor) compiles the edited source,
+    without running it (runner.recompile(texts); for a project only the
+    scripts that changed), and every later Go runs that source and its new
+    code instead of the compiled code the window was given or this page's
+    compile cache; Compile is then disabled until the next edit. Nothing is
+    saved to the database or back to the console. A toast says it compiled,
+    or how many errors there were and the first; on errors the source and
+    code used before are kept and Compile stays enabled (for a project,
+    each script that compiled uses its new source). Closing a SourceWindow
+    drops edits not compiled; opened again, it shows the source as last
+    compiled.
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
@@ -850,12 +865,15 @@ MobileLaunchWindow
   - Its text output is 2px larger than the theme's font size, and its
     colour is the theme's text colour mixed 25% towards black.
   - Its content is a Stack (window.stack) holding the app's screen and, once
-    Show source is first pressed, the read-only source (window.sourcePanel:
+    Show source is first pressed, the editable source (window.sourceEditor,
+    a SourceEditor, whose view is window.sourcePanel:
     a code editor, or for a project one tab per script). The Show source
     button switches between them (toggleSource()) and reads Show output
     while the source is showing; showSource() and showOutput() pick one,
     and window.showingSource says which is showing. Go shows the output
-    before it runs the program. No SourceWindow is opened.
+    before it runs the program. No SourceWindow is opened. The Compile
+    button (window.compileButton) is shown only while the source is, and
+    enabled only when it has been edited since it was last compiled.
 
 
 TranscriptWindow (singleton)
@@ -1812,12 +1830,27 @@ opened from a console's Launch menu; any number can be open at once.
     same in DesktopLaunchWindow and MobileLaunchWindow.
   - Its ButtonBar has Go, Reset and Show source buttons (window.goButton,
     window.resetButton and window.sourceButton), which call go(), reset()
-    and showSource(). Show source opens a read-only SourceWindow
+    and showSource(). Show source opens a SourceWindow
     (src/ui/windows/source-window.js) with the source the window runs - the
     copy taken at launch, or for a project one tab per script, in order;
     pressed again it brings that window to the front, and it closes with
     the launch window. In a MobileLaunchWindow the source is instead shown
     on the phone screen, in place of the output (see MobileLaunchWindow).
+  - Wherever the source is shown it can be edited (a SourceEditor), and
+    there is a Compile button (in the SourceWindow's button bar, or the
+    MobileLaunchWindow's while it shows the source). It is enabled only
+    while the source differs from the one last compiled (at first, the
+    copy taken at launch). compile(editor) compiles the edited source,
+    without running it (runner.recompile(texts); for a project only the
+    scripts that changed), and every later Go runs that source and its new
+    code instead of the compiled code the window was given or this page's
+    compile cache; Compile is then disabled until the next edit. Nothing is
+    saved to the database or back to the console. A toast says it compiled,
+    or how many errors there were and the first; on errors the source and
+    code used before are kept and Compile stays enabled (for a project,
+    each script that compiled uses its new source). Closing a SourceWindow
+    drops edits not compiled; opened again, it shows the source as last
+    compiled.
   - The program starts by itself the first time the window is opened, once
     it is in the Viewport and laid out (a MobileLaunchWindow is fitted to
     its phone screen first), as if Go were pressed. Restoring the window
@@ -1849,12 +1882,15 @@ MobileLaunchWindow
   - Its text output is 2px larger than the theme's font size, and its
     colour is the theme's text colour mixed 25% towards black.
   - Its content is a Stack (window.stack) holding the app's screen and, once
-    Show source is first pressed, the read-only source (window.sourcePanel:
+    Show source is first pressed, the editable source (window.sourceEditor,
+    a SourceEditor, whose view is window.sourcePanel:
     a code editor, or for a project one tab per script). The Show source
     button switches between them (toggleSource()) and reads Show output
     while the source is showing; showSource() and showOutput() pick one,
     and window.showingSource says which is showing. Go shows the output
-    before it runs the program. No SourceWindow is opened.
+    before it runs the program. No SourceWindow is opened. The Compile
+    button (window.compileButton) is shown only while the source is, and
+    enabled only when it has been edited since it was last compiled.
 
 
 TranscriptWindow (singleton)
@@ -2521,12 +2557,16 @@ works on any device, phone included.
     bottom.
   - Go and Reset act as in a LaunchWindow (a ProgramRunner does both).
   - A Show source button, after Go and Reset, shows the program's source
-    (read-only; for a project one tab per script, in order) in place of the
+    (editable; for a project one tab per script, in order) in place of the
     output, as in a MobileLaunchWindow: the content is a Stack (page.stack)
     holding the AppScreen and the source, the button reads Show output
     while the source is showing, and pressing it switches back. Go shows
     the output before it runs the program. The button is disabled until
-    the program has loaded.
+    the program has loaded. While the source is showing a Compile button
+    (page.compileButton) is shown too; it acts as in a launch window
+    (page.compile()): enabled only when the source has been edited since
+    it was last compiled, it compiles the edits, later Gos run them, and a
+    toast gives the result. Nothing is saved to the database.
   - The program starts by itself as soon as it has loaded from the
     database, as if Go were pressed.
   - While the program loads, the text panel says so and the buttons are

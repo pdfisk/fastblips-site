@@ -5,9 +5,10 @@
 
 import { Window } from './window.js';
 import { AppScreen } from '../widgets/app-screen.js';
-import { ProgramRunner, ProgramSetRunner } from '../program-runner.js';
+import { ProgramRunner, ProgramSetRunner, describeCompile } from '../program-runner.js';
+import { Toast } from '../toast.js';
 import { runUrl, projectUrl } from '../app-list.js';
-import { SourceWindow, sourceView } from './source-window.js';
+import { SourceWindow, SourceEditor } from './source-window.js';
 import { Stack } from '../widgets/stack.js';
 
 /**
@@ -145,21 +146,35 @@ export class LaunchWindow extends Window {
     if (this.sourceWindow?.isOpen) return this.sourceWindow.open(this.parent);
     const { scripts } = this;
     const { x, y, width } = this._sourcePlacement(520);
-    const win = new SourceWindow({ title: this.title, scripts, x, y, width });
+    const win = new SourceWindow({ title: this.title, scripts, x, y, width, onCompile: (editor) => this.compile(editor) });
     win.element.addEventListener('close', () => { if (this.sourceWindow === win) this.sourceWindow = null; });
     this.sourceWindow = win;
     return win.open(this.parent);
+  }
+
+  /**
+   * Compiles the source (the Compile button, shown with the source): the
+   * source as edited in editor (a SourceEditor), if given, else the current
+   * source afresh. Later Gos run what compiled. The result pops up as a
+   * toast. Returns the runner's recompile() result.
+   */
+  compile(editor = null) {
+    const result = editor ? editor.compileWith(this.runner) : this.runner.recompile();
+    if (!this.programs) this.source = this.runner.source;
+    if (this.parent) Toast.show(this.parent, describeCompile(result));
+    return result;
   }
 
   /** What the Show source button does: here, showSource(). */
   toggleSource() { return this.showSource(); }
 
   /** The source this window runs, as [{ name, source }]: the copy taken at
-   *  launch, or each script of a project, in order. */
+   *  launch, or each script of a project, in order - as last compiled. */
   get scripts() {
+    const { sources } = this.runner;
     return this.programs
-      ? this.runner.programs.map((p) => ({ name: p.name, source: p.source }))
-      : [{ name: this.title, source: this.source }];
+      ? this.runner.programs.map((p, i) => ({ name: p.name, source: sources[i] }))
+      : [{ name: this.title, source: sources[0] }];
   }
 
   /**
@@ -228,7 +243,11 @@ export class MobileLaunchWindow extends LaunchWindow {
     this.stack = new Stack();
     this.content = this.stack;
     this.stack.add(this.screen);
-    this.sourcePanel = null;   // made the first time the source is shown
+    this.sourceEditor = null;  // a SourceEditor, made the first time the source is shown
+    this.sourcePanel = null;   // its view, on the stack
+    // Shown only with the source; enabled only when it has been edited.
+    this.compileButton = this.buttonBar.addButton('Compile', () => this.compile(this.sourceEditor));
+    this.compileButton.visible = false;
     // Text output a little larger and darker than elsewhere, easier to read
     // on the phone-sized screen.
     const { style } = this.textPanel.textArea;
@@ -243,14 +262,22 @@ export class MobileLaunchWindow extends LaunchWindow {
   get showingSource() { return this.sourcePanel !== null && this.stack.selectedWidget === this.sourcePanel; }
 
   /**
-   * Shows the source in place of the output, on the phone screen (read-only;
-   * a project's scripts one tab each). The Show source button becomes
-   * Show output. Returns the source view.
+   * Shows the source in place of the output, on the phone screen, where it
+   * can be edited (a project's scripts one tab each). The Show source button
+   * becomes Show output, and Compile is shown. Returns the source view.
    */
   showSource() {
-    if (!this.sourcePanel) this.sourcePanel = this.stack.add(sourceView(this.scripts));
+    if (!this.sourcePanel) {
+      this.sourceEditor = new SourceEditor(this.scripts, {
+        onChange: (editor) => { this.compileButton.enabled = editor.changed; },
+      });
+      this.sourcePanel = this.stack.add(this.sourceEditor.view);
+    }
+    this.compileButton.enabled = this.sourceEditor.changed;
     this.stack.select(this.stack.children.indexOf(this.sourcePanel));
     this.sourceButton.label = 'Show output';
+    this.compileButton.visible = true;
+    this.buttonBar.layout();
     return this.sourcePanel;
   }
 
@@ -258,6 +285,8 @@ export class MobileLaunchWindow extends LaunchWindow {
   showOutput() {
     this.stack.select(this.stack.children.indexOf(this.screen));
     this.sourceButton.label = 'Show source';
+    this.compileButton.visible = false;
+    this.buttonBar.layout();
     return this.screen;
   }
 
