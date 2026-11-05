@@ -291,16 +291,16 @@ function myProjectsButton(viewport) {
   return new Button('My Projects', () => ProjectsWindow.instance.open(viewport));
 }
 
-// The Libraries button, after My Projects, opens the Libraries window: the
-// projects other users have shared (not the signed-in user's own), from which
-// one is launched in a Desktop launch window or copied into My Projects. They
-// cannot be modified. There is one Libraries window; choosing the button again
-// brings it to the front.
+// The Shared Projects button, after My Projects, opens a new Shared Projects
+// window: the projects other users have shared (not the signed-in user's own),
+// from which one is launched in a Desktop launch window or copied into My
+// Projects. They cannot be modified. As with Python Console, each press opens
+// another window.
 function librariesButton(viewport) {
-  return new Button('Libraries', () => CommunityProjectsWindow.instance.open(viewport));
+  return new Button('Shared Projects', () => new CommunityProjectsWindow().open(viewport));
 }
 
-// The Help menu, after Libraries, is where the documentation is:
+// The Help menu, after Shared Projects, is where the documentation is:
 //   Welcome                the Welcome window: what FastBlips is, with links
 //                          into the documentation (also shown at startup
 //                          unless its "Show this window" box is cleared)

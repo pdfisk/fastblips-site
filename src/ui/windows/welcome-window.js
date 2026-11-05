@@ -19,8 +19,8 @@ export const WELCOME_TEXT = [
     + 'print text, draw on a canvas, run a game with physics, or be a whole app made '
     + 'of windows, buttons and lists. Several programs can run at once; Windows > '
     + 'Process Browser shows them.',
-  'Keep your work in My Projects, borrow from the projects other people share in '
-    + 'Libraries, and publish an app so anyone can open it at '
+  'Keep your work in My Projects, borrow from what other people share in '
+    + 'Shared Projects, and publish an app so anyone can open it at '
     + 'fastblips.com?app=<you>/<name>, on a desktop or a phone.',
 ];
 

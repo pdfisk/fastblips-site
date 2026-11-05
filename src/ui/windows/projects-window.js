@@ -109,7 +109,7 @@ export class ProjectsWindow extends HSplitWindow {
     this._onSourceChange = () => { if (this.isOpen) this.refresh(); };
     document.addEventListener('cr-dbserverchange', this._onSourceChange);
     document.addEventListener('cr-userchange', this._onSourceChange);
-    // A project was copied here from Libraries.
+    // A project was copied here from Shared Projects.
     document.addEventListener('cr-projectscopied', this._onSourceChange);
     this.updateButtons();
   }

@@ -143,7 +143,7 @@ export function sharedProjects(records) {
 }
 
 /**
- * The Libraries list: the shared projects among records that belong to other
+ * The Shared Projects list: the shared projects among records that belong to other
  * users, by name. The signed-in user's own are left out (they are in My
  * Projects); with nobody signed in, every shared project is listed.
  * @param {object[]} records - the projects read from the server

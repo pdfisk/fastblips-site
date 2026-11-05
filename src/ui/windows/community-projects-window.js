@@ -1,5 +1,5 @@
-// CommunityProjectsWindow: the Libraries window, a singleton opened by the
-// Navbar's Libraries button, that lists every project other users have shared
+// CommunityProjectsWindow: a Shared Projects window, opened by the Navbar's
+// Shared Projects button (each press opens a new one, as a console does), that lists every project other users have shared
 // (the "shared" flag of a project; the signed-in user's own are in My Projects
 // and are left out), in a grid with the
 // columns Name, Owner, Scripts and Updated, so they can be launched. The
@@ -7,7 +7,7 @@
 // right a tabbed detail panel for the selected project - Details (name,
 // owner, description), Scripts (its scripts, in order) and Source (the
 // selected script's source, read only). A project keeps its own copies of
-// its scripts, so they are read with it. Library projects can be launched and
+// its scripts, so they are read with it. Shared projects can be launched and
 // copied but never modified. Choosing
 // a project and pressing Launch (or double-clicking it, or pressing Enter)
 // runs the project as it was last saved in a new Desktop launch window. Copy
@@ -30,8 +30,6 @@ import { RUN_TABLES } from '../run-app.js';
 import { CopyProjectWindow } from './copy-project-window.js';
 import { spaceName, userName } from '../db-client.js';
 import { Toast } from '../toast.js';
-
-let instance = null;
 
 /** The Owner cell: the user whose space the project is in, or (shared). */
 export function projectOwner(project) {
@@ -56,21 +54,31 @@ export function projectUpdated(project) {
 
 const projectKey = (project) => String(project.id);
 
-export class CommunityProjectsWindow extends HSplitWindow {
-  /** The single CommunityProjectsWindow, created on first use. */
-  static get instance() {
-    if (!instance) instance = new CommunityProjectsWindow();
-    return instance;
-  }
+/**
+ * The caption for a Shared Projects window joining the viewport: plain
+ * "Shared Projects" when it is the only one, else numbered with the lowest
+ * number no other open Shared Projects window has.
+ */
+export function sharedProjectsTitle(viewport, self = null) {
+  const used = new Set((viewport?.windows ?? [])
+    .filter((w) => w !== self && w instanceof CommunityProjectsWindow)
+    .map((w) => (w.title === 'Shared Projects' ? 1 : Number(/^Shared Projects (\d+)$/.exec(w.title)?.[1]))));
+  let n = 1;
+  while (used.has(n)) n++;
+  return n === 1 ? 'Shared Projects' : `Shared Projects ${n}`;
+}
 
+// How many have been opened, so each new window cascades from the last (as consoles do).
+let opened = 0;
+
+export class CommunityProjectsWindow extends HSplitWindow {
   /**
    * @param {{list?: () => Promise<object[]>, get?: (id: number) => Promise<object>}} [options] -
    *   how the projects are read (tests): all of them, and one by id
    */
   constructor({ list, get } = {}) {
-    if (instance) throw new Error('CommunityProjectsWindow is a singleton; use CommunityProjectsWindow.instance');
-    super({ title: 'Libraries', x: 220, y: 90, width: 760, height: 380, minWidth: 480, minHeight: 220, position: 0.5 });
-    instance = this;
+    const offset = (opened++ % 8) * 24;   // cascade each new window
+    super({ title: 'Shared Projects', x: 220 + offset, y: 90 + offset, width: 760, height: 380, minWidth: 480, minHeight: 220, position: 0.5 });
     this.element.classList.add('cr-libraries-window');
     this._read = list ?? (() => allProjectStore().list());
     // A project as it is now saved, with its copies of its scripts.
@@ -178,7 +186,7 @@ export class CommunityProjectsWindow extends HSplitWindow {
     const project = this.selectedProject;
     if (!project || !this.parent) return null;
     if (!spaceName()) {
-      Toast.show(this.parent, { kind: 'error', message: 'Sign in (File > Sign In) to copy a library project to My Projects' });
+      Toast.show(this.parent, { kind: 'error', message: 'Sign in (File > Sign In) to copy a shared project to My Projects' });
       return null;
     }
     let full;
@@ -228,18 +236,33 @@ export class CommunityProjectsWindow extends HSplitWindow {
     this.sourcePanel.text = !this.full ? 'Loading...' : script?.content ?? '';
   }
 
-  /** Shows the window and reads the projects afresh. */
+  /**
+   * Shows the window and reads the projects afresh. When it is added to the
+   * viewport, its caption is numbered if other Shared Projects windows are
+   * open there: Shared Projects, Shared Projects 2, ... (the lowest free number).
+   */
   open(viewport) {
+    if (this.parent !== viewport) this.title = sharedProjectsTitle(viewport, this);
     super.open(viewport);
     this.refresh();
     this.grid.grid.focus();
     return this;
   }
 
+  /** Closes the window; a closed one is done with, so it stops listening for changes. */
+  close() {
+    const closed = super.close();
+    if (closed) this._stopListening();
+    return closed;
+  }
+
   dispose() {
+    this._stopListening();
+    super.dispose();
+  }
+
+  _stopListening() {
     document.removeEventListener('cr-dbserverchange', this._forget);
     document.removeEventListener('cr-userchange', this._forget);
-    super.dispose();
-    instance = null;
   }
 }

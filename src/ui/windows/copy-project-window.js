@@ -1,4 +1,4 @@
-// CopyProjectWindow: the dialog opened by the Libraries window's Copy
+// CopyProjectWindow: the dialog opened by the Shared Projects window's Copy
 // button. It names the project being copied and has a Name field, which can
 // be edited before the copy is stored as a project of the signed-in user in
 // My Projects (with copies of its scripts: see copyProject in projects.js).
