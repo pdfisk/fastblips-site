@@ -677,7 +677,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
       the page is offline, the theme's own monospace font is used.
-    - Database: Remote (https://fastblip-e2ba34b072c4.herokuapp.com, the
+    - Database: Remote (https://api.fastblips.com, the
       default) or Local (http://localhost:3000). Open Database windows
       reload from the new server.
   - The Windows menu lists every open window by title, front-most first,
@@ -1697,7 +1697,7 @@ StatusBar is docked at the bottom, and the TranscriptWindow is open.
       source, output and lists, and in the Monaco editor. The font is
       fetched from Google Fonts when first chosen; until it arrives, or if
       the page is offline, the theme's own monospace font is used.
-    - Database: Remote (https://fastblip-e2ba34b072c4.herokuapp.com, the
+    - Database: Remote (https://api.fastblips.com, the
       default) or Local (http://localhost:3000). Open Database windows
       reload from the new server.
   - The Windows menu lists every open window by title, front-most first,

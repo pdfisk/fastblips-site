@@ -15,8 +15,8 @@
 //
 // No DOM is needed, so it also runs (and is tested) under Node.
 
-/** The deployed (Heroku) server: the default. */
-export const REMOTE_SERVER_URL = 'https://fastblip-e2ba34b072c4.herokuapp.com';
+/** The deployed server (Heroku, at api.fastblips.com): the default. */
+export const REMOTE_SERVER_URL = 'https://api.fastblips.com';
 
 /** A server running on this machine, chosen with ?db=local. */
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
