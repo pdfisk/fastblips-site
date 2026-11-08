@@ -20,7 +20,7 @@ import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
-import { SERVERS, setServer, serverName, userName, setUser, isAdmin } from './db-client.js';
+import { SERVERS, setServer, serverName, userName, setUser, isAdmin, forumLink } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
 import { DRAWER_TIMEOUTS, drawerTimeout, setDrawerTimeout, drawerTimeoutLabel } from './widgets/drawer.js';
@@ -61,6 +61,7 @@ export function startDesktop() {
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(myProjectsButton(viewport));
   navbar.add(librariesButton(viewport));
+  navbar.add(forumButton());
   navbar.add(helpMenu(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
@@ -300,7 +301,30 @@ function librariesButton(viewport) {
   return new Button('Shared Projects', () => new CommunityProjectsWindow().open(viewport));
 }
 
-// The Help menu, after Shared Projects, is where the documentation is:
+// The Forum button, after Shared Projects, opens the FastBlips forum in a new
+// tab: signed in as this page's user when there is one (a one-time link from
+// the server, see forumLink), else at the forum's front page.
+function forumButton() {
+  return new Button('Forum', () => openForum());
+}
+
+/** Opens the forum (at path, e.g. '/getting-started') in a new tab. */
+export async function openForum(path) {
+  // The tab is opened now, while the click still counts as the user's: one
+  // opened after waiting for the server is often blocked as a pop-up. In the
+  // desktop (Electron) app this blank tab is refused, and the link itself is
+  // opened instead, in the system browser.
+  const tab = globalThis.open?.('about:blank', '_blank');
+  const url = await forumLink({ returnTo: path });
+  if (tab && !tab.closed) {
+    tab.opener = null;
+    tab.location.replace(url);
+  } else {
+    globalThis.open?.(url, '_blank', 'noopener');
+  }
+}
+
+// The Help menu, after Forum, is where the documentation is:
 //   Welcome                the Welcome window: what FastBlips is, with links
 //                          into the documentation (also shown at startup
 //                          unless its "Show this window" box is cleared)

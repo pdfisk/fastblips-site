@@ -21,6 +21,10 @@ export const REMOTE_SERVER_URL = 'https://api.fastblips.com';
 /** A server running on this machine, chosen with ?db=local. */
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
+/** The forum that goes with each server (the same Rails app, on its forum host). */
+export const REMOTE_FORUM_URL = 'https://forum.fastblips.com';
+export const LOCAL_FORUM_URL = 'http://forum.localhost:3000';
+
 /**
  * The tables the Views menu offers: the scripts table, one language each.
  * (Each language had a table of its own before the server merged them.)
@@ -365,6 +369,34 @@ export async function signOut({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
   } catch { /* already signed out, or no server: the token goes either way */ }
   setToken('', store.baseUrl);
   signedInName = '';
+}
+
+/** The forum for the server in use. */
+export function getForumUrl() {
+  return serverName() === 'local' ? LOCAL_FORUM_URL : REMOTE_FORUM_URL;
+}
+
+/**
+ * The address that opens the forum. When this page is signed in, it is a
+ * one-time link from the server (POST /forum_handoff) that signs the forum in
+ * as the same user; it works once, within a minute. Otherwise, or if the
+ * server cannot give one, it is the forum's own address. Never fails.
+ * @param {{returnTo?: string, baseUrl?: string|(() => string),
+ *          forumUrl?: string|(() => string), fetch?: typeof fetch}} [options] -
+ *   returnTo is a path on the forum to land on (e.g. '/getting-started')
+ */
+export async function forumLink({ returnTo, baseUrl = getServerUrl, forumUrl = getForumUrl, fetch: fetchFn } = {}) {
+  const path = typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '';
+  const plain = trimUrl(typeof forumUrl === 'function' ? forumUrl() : forumUrl) + (path || '/');
+  const store = new SourceStore({ resource: 'forum_handoff', key: 'forum_handoff', baseUrl, fetch: fetchFn });
+  if (!getToken(store.baseUrl)) return plain;
+  store.noSignInHint = true;
+  try {
+    const data = await store._request('POST', '', path ? { return_to: path } : {});
+    return typeof data?.url === 'string' && /^https?:\/\//.test(data.url) ? data.url : plain;
+  } catch {
+    return plain;
+  }
 }
 
 /**
