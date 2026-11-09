@@ -372,6 +372,8 @@ fires a select event; the keyboard moves the selection.
   - new GridPanel({columns: [{label, width?}], rows, emptyText}).
   - Rows are {value, cells, sort?} objects: cells are the text shown, and
     sort (optional) is what the column is sorted by instead of the text.
+    emphasis: true shows a row in bold (a topic with unread posts); title
+    is a tooltip for the row.
     rows (get and set) keeps the selected row through a refresh.
   - Clicking a column header sorts by that column; clicking it again
     reverses the order. The header stays in view as the rows scroll.
@@ -399,6 +401,10 @@ A Panel that is filled by a single List element.
     selected. selectedIndex, selectedItem and select(index) give access to
     it; Up, Down, Home and End move it.
   - An optional emptyText is shown when there are no items.
+  - An item may also have header: true (a heading between groups of rows,
+    never selected and skipped by the keys), icon (a symbol before the
+    label), detail (a short text at the right, such as a count), badge:
+    true (shows the detail as a highlighted pill) and title (a tooltip).
 
 
 TabPanel
@@ -1392,6 +1398,8 @@ fires a select event; the keyboard moves the selection.
   - new GridPanel({columns: [{label, width?}], rows, emptyText}).
   - Rows are {value, cells, sort?} objects: cells are the text shown, and
     sort (optional) is what the column is sorted by instead of the text.
+    emphasis: true shows a row in bold (a topic with unread posts); title
+    is a tooltip for the row.
     rows (get and set) keeps the selected row through a refresh.
   - Clicking a column header sorts by that column; clicking it again
     reverses the order. The header stays in view as the rows scroll.
@@ -1419,6 +1427,10 @@ A Panel that is filled by a single List element.
     selected. selectedIndex, selectedItem and select(index) give access to
     it; Up, Down, Home and End move it.
   - An optional emptyText is shown when there are no items.
+  - An item may also have header: true (a heading between groups of rows,
+    never selected and skipped by the keys), icon (a symbol before the
+    label), detail (a short text at the right, such as a count), badge:
+    true (shows the detail as a highlighted pill) and title (a tooltip).
 
 
 TabPanel
@@ -2875,3 +2887,76 @@ Designer button opens one.
     node is exactly what the widget host saves (toJson, saveComposite),
     so a composite saved by a program opens in the designer and the
     other way round.
+
+
+Forum widgets
+=============
+Made for the Forum window (src/ui/windows/forum-window.js), and usable
+anywhere in the IDE. They are not (yet) program widgets.
+
+HtmlPanel
+---------
+A Panel that shows formatted HTML (a forum post, a preview) and scrolls.
+The HTML is sanitized first (src/ui/html-sanitize.js): an allowlist of tags
+and attributes; links only http(s) or mailto, opened in a new tab; images
+only https or data:image; script, style, forms and frames are removed.
+Spoilers open and close when clicked.
+
+  - new HtmlPanel({html, emptyText}); html (get and set), showText(text).
+  - CONTENT_STYLE is the look of the content (headings, code, quotes,
+    tables) for any element with the class cr-html.
+
+CardListPanel
+-------------
+A Panel showing a scrolling column of cards, with an optional heading and a
+line under it. A card: author with a round avatar (an image, else the first
+letter on a colour from the name), a meta line (when), badges, an optional
+context line, a body of HTML (sanitized) or text, and action links.
+
+  - new CardListPanel({items, emptyText, heading, subheading}).
+  - Items are {value, author, avatar?, meta?, metaTitle?, badges?: [{label,
+    tone?}], context?, html? | text?, actions?: [{name, label, tone?}],
+    highlight?}; tone is 'warning' or 'danger'.
+  - Clicking an action fires action with detail {action, item, index}.
+  - replaceItem(value, item), scrollToTop(), scrollToEnd(),
+    scrollToItem(value); busy = true greys out every action.
+
+Pager
+-----
+« ‹ Page 2 of 5 › » for a list read a page at a time. set(page,
+totalPages) shows where the list is; choosing another page fires change
+with detail {page}. page and totalPages get and set.
+
+CheckBox
+--------
+A box that is ticked or not, with a label (qooxdoo's CheckBox). new
+CheckBox(label, checked); checked, label and enabled get and set; change
+fires (detail {checked}) when the user ticks or clears it.
+
+MarkdownEditor
+--------------
+A Panel for writing a post: formatting buttons (Bold, Italic, Code, Link,
+Quote, List, Python code block, Spoiler) that wrap the selection, and Write
+/ Preview. The preview is the HTML that previewer, an async function
+(text) => html, gives (the forum's server); with none, there is no Preview.
+
+  - new MarkdownEditor({text, placeholder, previewer}); text, placeholder,
+    readOnly get and set; mode is 'write' or 'preview'; setMode(mode),
+    insert(text), format(how), focus().
+  - Ctrl+B, Ctrl+I and Ctrl+K format; Ctrl+Enter fires submit.
+
+ForumWindow, ForumComposeWindow, ForumModerationWindow
+------------------------------------------------------
+The forum in the IDE (Navbar > Forum). ForumWindow: boards in their groups
+(a ListPanel with headings and unread counts) on the left; on the right the
+topics (a GridPanel, unread in bold, with search and a Pager) above the
+posts of the topic chosen (a CardListPanel with Quote, Edit, Delete,
+Approve and Block, as the user may). Buttons: New Topic, Reply,
+Follow/Unfollow, Topic (Edit, Pin, Lock, Delete, first/latest post, Open in
+Browser), Refresh and, for moderators, Moderation.
+ForumComposeWindow writes a new topic, a reply, an edited post or an edited
+topic (title; moderators also board, Pinned and Locked).
+ForumModerationWindow has Pending, Activity, Users and History tabs.
+All of it goes through src/ui/forum-client.js to the server's /forum API
+(rails/app/controllers/forum_api_controller.rb and
+forum_moderation_controller.rb).

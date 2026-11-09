@@ -2,6 +2,15 @@
 //
 // Items are { label, value } objects. The selection is tracked by value, so
 // replacing the items (e.g. on a refresh) keeps the same row selected.
+//
+// An item may also have:
+//   header: true   a heading between groups of rows (e.g. the forum's board
+//                  groups): shown in small capitals, never selected, skipped
+//                  by the arrow keys
+//   icon           a short text (a symbol) before the label
+//   detail         a short text at the right end of the row (a count)
+//   badge: true    shows the detail as a highlighted pill (e.g. unread)
+//   title          a tooltip for the row
 
 import { Panel } from './panel.js';
 
@@ -13,6 +22,15 @@ const STYLE = `
 .cr-list li[aria-selected="true"]{background:var(--cr-list-selected)}
 .cr-list:focus li[aria-selected="true"]{background:var(--cr-list-selected-focus);color:var(--cr-list-selected-focus-text)}
 .cr-list-empty{color:var(--cr-text-faint);padding:6px 8px}
+.cr-list li.cr-list-rich{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.cr-list-icon{flex:none;width:1.2em;text-align:center;color:var(--cr-text-muted)}
+.cr-list-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.cr-list-detail{flex:none;color:var(--cr-text-faint);font-size:var(--cr-font-size-small)}
+.cr-list-detail.cr-list-badge{color:var(--cr-accent-text);background:var(--cr-accent);border-radius:8px;
+  padding:0 6px;line-height:16px;font-weight:600}
+.cr-list li.cr-list-header{padding:8px 8px 2px;font:600 11px var(--cr-font-ui);letter-spacing:.06em;
+  text-transform:uppercase;color:var(--cr-text-faint);cursor:default;background:none}
+.cr-list li.cr-list-header:first-child{padding-top:4px}
 `;
 
 function installStyle() {
@@ -69,13 +87,15 @@ export class ListPanel extends Panel {
   }
 
   get selectedIndex() {
-    return this._items.findIndex((item) => item.value === this._selectedValue);
+    if (this._selectedValue === undefined) return -1;
+    return this._items.findIndex((item) => !item.header && item.value === this._selectedValue);
   }
 
   get selectedItem() { return this._items[this.selectedIndex] ?? null; }
 
   /** Selects the item at `index` (-1 for none) and fires a select event. */
   select(index) {
+    if (this._items[index]?.header) return;   // headings are never selected
     const item = this._items[index];
     const value = item ? item.value : undefined;
     if (value === this._selectedValue) return;
@@ -90,14 +110,16 @@ export class ListPanel extends Panel {
   }
 
   _key(e) {
-    const n = this._items.length;
+    // The rows that can be selected (headings cannot), by index.
+    const rows = this._items.map((item, i) => (item.header ? -1 : i)).filter((i) => i >= 0);
+    const n = rows.length;
     if (n === 0) return;
-    const i = this.selectedIndex;
-    const next = { ArrowDown: Math.min(n - 1, i + 1), ArrowUp: Math.max(0, i - 1),
+    const at = rows.indexOf(this.selectedIndex);
+    const next = { ArrowDown: Math.min(n - 1, at + 1), ArrowUp: Math.max(0, at - 1),
       Home: 0, End: n - 1 }[e.key];
     if (next === undefined) return;
     e.preventDefault();
-    this.select(next);
+    this.select(rows[next]);
   }
 
   _render() {
@@ -106,8 +128,30 @@ export class ListPanel extends Panel {
       const li = document.createElement('li');
       li.dataset.index = String(index);
       li.setAttribute('role', 'option');
+      if (item.header) {
+        li.className = 'cr-list-header';
+        li.setAttribute('role', 'presentation');
+        li.textContent = item.label;
+        return li;
+      }
       li.setAttribute('aria-selected', String(index === selected));
-      li.textContent = item.label;
+      if (item.title) li.title = item.title;
+      if (item.icon == null && item.detail == null) {
+        li.textContent = item.label;
+        return li;
+      }
+      li.classList.add('cr-list-rich');
+      const part = (cls, text) => {
+        const span = document.createElement('span');
+        span.className = cls;
+        span.textContent = text;
+        return span;
+      };
+      if (item.icon != null) li.appendChild(part('cr-list-icon', item.icon));
+      li.appendChild(part('cr-list-label', item.label));
+      if (item.detail != null && item.detail !== '') {
+        li.appendChild(part(`cr-list-detail${item.badge ? ' cr-list-badge' : ''}`, item.detail));
+      }
       return li;
     }));
     if (this._items.length === 0 && this.emptyText) {

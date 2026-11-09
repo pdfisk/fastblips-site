@@ -32,6 +32,7 @@ import { FileCopyWindow } from './windows/file-copy-window.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
 import { PythonHelpWindow } from './windows/python-help-window.js';
 import { WelcomeWindow, showWelcomeAtStartup } from './windows/welcome-window.js';
+import { ForumWindow } from './windows/forum-window.js';
 
 /**
  * Starts the UI the page calls for: with ?app=<owner>/<name>, that project (or
@@ -61,7 +62,7 @@ export function startDesktop() {
   navbar.add(windowsMenu(viewport, transcript));
   navbar.add(myProjectsButton(viewport));
   navbar.add(librariesButton(viewport));
-  navbar.add(forumButton());
+  navbar.add(forumButton(viewport));
   navbar.add(helpMenu(viewport));
   navbar.add(new Spacer());
   navbar.add(signInLabel());
@@ -301,14 +302,17 @@ function librariesButton(viewport) {
   return new Button('Shared Projects', () => new CommunityProjectsWindow().open(viewport));
 }
 
-// The Forum button, after Shared Projects, opens the FastBlips forum in a new
-// tab: signed in as this page's user when there is one (a one-time link from
-// the server, see forumLink), else at the forum's front page.
-function forumButton() {
-  return new Button('Forum', () => openForum());
+// The Forum button, after Shared Projects, opens the Forum window: the
+// FastBlips forum inside the IDE, where everything is done - reading,
+// searching, posting, replying, following and moderating - as the signed-in
+// user (see ForumWindow). There is one; pressing the button again brings it
+// to the front. (Its Topic > Open in Browser opens a topic on
+// forum.fastblips.com, as openForum below does.)
+function forumButton(viewport) {
+  return new Button('Forum', () => ForumWindow.instance.open(viewport));
 }
 
-/** Opens the forum (at path, e.g. '/getting-started') in a new tab. */
+/** Opens the forum's web pages (at path, e.g. '/getting-started') in a new tab. */
 export async function openForum(path) {
   // The tab is opened now, while the click still counts as the user's: one
   // opened after waiting for the server is often blocked as a pop-up. In the

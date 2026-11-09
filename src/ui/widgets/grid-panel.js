@@ -24,6 +24,7 @@ const STYLE = `
 .cr-grid-handle:hover,.cr-grid-handle.cr-dragging{background:var(--cr-divider)}
 .cr-grid .cr-grid-filler{padding:0;border-right:0;cursor:default}
 .cr-grid td{padding:2px 8px;white-space:pre;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.cr-grid tr.cr-grid-emphasis td{font-weight:600}
 .cr-grid tr[aria-selected="true"] td{background:var(--cr-list-selected)}
 .cr-grid:focus tr[aria-selected="true"] td{background:var(--cr-list-selected-focus);
   color:var(--cr-list-selected-focus-text)}
@@ -43,9 +44,11 @@ export class GridPanel extends Panel {
    * @param {object} options
    * @param {{label: string, width?: string}[]} options.columns - the column
    *   headers; width is any CSS width (the rest share what is left)
-   * @param {{value: any, cells: string[], sort?: any[]}[]} [options.rows] -
+   * @param {{value: any, cells: string[], sort?: any[], emphasis?: boolean, title?: string}[]} [options.rows] -
    *   value identifies the row; sort, if given, replaces cells as what a
-   *   column is sorted by (e.g. a timestamp for a column showing a date)
+   *   column is sorted by (e.g. a timestamp for a column showing a date);
+   *   emphasis shows the row in bold (e.g. a topic with unread posts); title
+   *   is a tooltip for the row
    * @param {string} [options.emptyText] - shown when there are no rows
    */
   constructor({ columns = [], rows = [], emptyText = '' } = {}) {
@@ -218,6 +221,8 @@ export class GridPanel extends Panel {
       tr.dataset.index = String(index);
       tr.setAttribute('role', 'row');
       tr.setAttribute('aria-selected', String(index === selected));
+      if (row.emphasis) tr.classList.add('cr-grid-emphasis');
+      if (row.title) tr.title = row.title;
       for (const text of row.cells) {
         const td = document.createElement('td');
         td.setAttribute('role', 'gridcell');
