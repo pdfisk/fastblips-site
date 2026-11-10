@@ -5,11 +5,20 @@
 // may change their scripts. It sets the user of db-client.js, whose space the
 // Database windows, the Designer and programs then read and save in. Signing
 // out is the SignOutWindow (File > Sign Out, shown instead while signed in).
+//
+// With the desktop app's own database in use (Settings > Database > Desktop),
+// there are no accounts: any name signs in, with no password, and names the
+// space to work in. The forum, and copying to the Remote database, need the
+// FastBlips account on the remote server: openRemote (File > FastBlips
+// Account, and the Forum window's Sign In to Post) signs in there, and works
+// as that name in the desktop database too.
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { Toast } from '../toast.js';
-import { userName, setUser, signIn, USER_NAME_PATTERN } from '../db-client.js';
+import {
+  userName, setUser, signIn, USER_NAME_PATTERN, isDesktopServer, REMOTE_SERVER_URL,
+} from '../db-client.js';
 
 const STYLE = `
 .cr-sign-in{box-sizing:border-box;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
@@ -85,6 +94,8 @@ export class SignInWindow extends Window {
     instance = this;
     this.signInCall = signInCall;
     this.busy = false;   // waiting for the server
+    this.forForum = false;   // signing in to the remote account (openRemote)
+    this.purpose = '';       // 'forum' when that is what the remote account is for
     this.element.classList.add('cr-sign-in-window');
     this.panel = new SignInPanel();
     this.content = this.panel;
@@ -111,18 +122,37 @@ export class SignInWindow extends Window {
   /** The password typed (not trimmed). */
   get password() { return this.panel.passwordInput.value; }
 
+  /** True when signing in to the desktop database: a name, no password. */
+  get passwordless() { return !this.forForum && isDesktopServer(); }
+
+  // What the status line says when nothing is happening.
+  _statusText() {
+    const user = userName();
+    if (this.forForum) {
+      return this.purpose === 'forum' ? 'Your FastBlips account (Register makes one)'
+        : 'Your FastBlips account on the remote server, for the forum and the Remote database';
+    }
+    if (this.passwordless) {
+      return user ? `Working as ${user} in the desktop database` : 'Desktop database: any name, no password';
+    }
+    return user ? `Signed in as ${user}` : 'Not signed in: working in the shared space';
+  }
+
   /** Shows the user signed in now, and puts their name in the field. */
   refresh() {
     const user = userName();
+    this.title = !this.forForum ? 'Sign In' : this.purpose === 'forum' ? 'Sign In to the Forum' : 'FastBlips Account';
     this.panel.nameInput.value = user;
     this.panel.passwordInput.value = '';
-    this.panel.status.textContent = user ? `Signed in as ${user}` : 'Not signed in: working in the shared space';
+    this.panel.passwordInput.disabled = this.passwordless;
+    this.panel.passwordInput.placeholder = this.passwordless ? 'not needed' : '';
+    this.panel.status.textContent = this._statusText();
     this.panel.error.textContent = '';
     this.updateButtons();
   }
 
   updateButtons() {
-    this.signInButton.enabled = this.name !== '' && this.password !== '' && !this.busy;
+    this.signInButton.enabled = this.name !== '' && (this.passwordless || this.password !== '') && !this.busy;
     this.buttonBar.layout();
   }
 
@@ -134,7 +164,7 @@ export class SignInWindow extends Window {
    */
   async signIn() {
     const name = this.name;
-    if (!name || !this.password || this.busy) return false;
+    if (!name || (!this.password && !this.passwordless) || this.busy) return false;
     if (!USER_NAME_PATTERN.test(name)) return this._fail('A user name is 2 to 30 letters, digits, - or _');
     this.busy = true;
     this.panel.error.textContent = '';
@@ -142,7 +172,8 @@ export class SignInWindow extends Window {
     this.updateButtons();
     let user;
     try {
-      user = await this.signInCall({ name, password: this.password });
+      user = await this.signInCall({ name, password: this.passwordless ? '' : this.password },
+        this.forForum ? { baseUrl: REMOTE_SERVER_URL } : undefined);
     } catch (e) {
       this.busy = false;
       return this._fail(e?.message || 'Could not sign in');
@@ -154,14 +185,16 @@ export class SignInWindow extends Window {
     const signedInAs = user.name ?? name;
     setUser(signedInAs);
     this.close();
-    if (viewport) Toast.show(viewport, { kind: 'success', message: `Signed in as ${signedInAs}` });
+    if (viewport) {
+      Toast.show(viewport, { kind: 'success',
+        message: this.forForum ? `Signed in to the forum as ${signedInAs}` : `Signed in as ${signedInAs}` });
+    }
     return true;
   }
 
   // Shows why signing in failed and gives the name field the focus back.
   _fail(message) {
-    const user = userName();
-    this.panel.status.textContent = user ? `Signed in as ${user}` : 'Not signed in: working in the shared space';
+    this.panel.status.textContent = this._statusText();
     this.panel.error.textContent = message;
     this.updateButtons();
     this.panel.passwordInput.value = '';
@@ -169,8 +202,28 @@ export class SignInWindow extends Window {
     return false;
   }
 
-  /** Opens the window showing the current user, with the name selected. */
+  /** Opens the window (File > Sign In) showing the current user, with the name selected. */
   open(viewport) {
+    if (!this.busy) this.forForum = false;
+    return this._show(viewport);
+  }
+
+  /**
+   * Opens the window to sign in to the FastBlips account on the remote
+   * server while the desktop database stays in use: File > FastBlips Account,
+   * or (purpose 'forum') the Forum window's Sign In to Post.
+   */
+  openRemote(viewport, purpose = '') {
+    if (!this.busy) { this.forForum = true; this.purpose = purpose; }
+    return this._show(viewport);
+  }
+
+  /** openRemote for the forum. */
+  openForForum(viewport) {
+    return this.openRemote(viewport, 'forum');
+  }
+
+  _show(viewport) {
     super.open(viewport);
     this.refresh();
     this.panel.nameInput.focus();

@@ -21,9 +21,17 @@ export const REMOTE_SERVER_URL = 'https://api.fastblips.com';
 /** A server running on this machine, chosen with ?db=local. */
 export const LOCAL_SERVER_URL = 'http://localhost:3000';
 
-/** The forum that goes with each server (the same Rails app, on its forum host). */
-export const REMOTE_FORUM_URL = 'https://forum.fastblips.com';
-export const LOCAL_FORUM_URL = 'http://forum.localhost:3000';
+/**
+ * The desktop app's own database (electron/src/db): a SQLite file on this
+ * computer, answered by the app's main process at this address with the same
+ * routes as the Rails server. Only there in the desktop app.
+ */
+export const DESKTOP_SERVER_URL = 'fbdb://local';
+
+/** True in the desktop (Electron) app, where the Desktop database exists. */
+export function isDesktopApp() {
+  return globalThis.fastblipsDesktop?.isDesktop === true;
+}
 
 /**
  * The tables the Views menu offers: the scripts table, one language each.
@@ -33,34 +41,61 @@ export const TABLES = {
   python: { resource: 'scripts', key: 'script', language: 'python', title: 'Python', owner: spaceName },
 };
 
-/** The servers Settings > Database offers: [name, label, url]. */
-export const SERVERS = [
-  ['remote', 'Remote', REMOTE_SERVER_URL],
-  ['local', 'Local', LOCAL_SERVER_URL],
-];
+/**
+ * The servers Settings > Database offers: [name, label, url]. Desktop comes
+ * first, and only in the desktop app.
+ */
+export function serverChoices() {
+  return [
+    ...(isDesktopApp() ? [['desktop', 'Desktop (this computer)', DESKTOP_SERVER_URL]] : []),
+    ['remote', 'Remote', REMOTE_SERVER_URL],
+    ['local', 'Local', LOCAL_SERVER_URL],
+  ];
+}
+
+/** The servers offered when this page loaded (serverChoices() is always current). */
+export const SERVERS = serverChoices();
+
+const SERVER_URLS = { desktop: DESKTOP_SERVER_URL, remote: REMOTE_SERVER_URL, local: LOCAL_SERVER_URL };
+const knownServer = (name) => serverChoices().some(([n]) => n === name);
 const STORAGE_KEY = 'crumb.dbServer';
 let chosen = null;   // set by setServer() on this page
 
 /**
- * The server in use, 'remote' or 'local': the one chosen in Settings on this
- * page, else a db=local query parameter, else the choice remembered from an
- * earlier visit, else 'remote'.
+ * The server in use, 'desktop', 'remote' or 'local': the one chosen in
+ * Settings on this page, else a db= query parameter, else the choice
+ * remembered from an earlier visit, else 'desktop' in the desktop app and
+ * 'remote' elsewhere.
  */
 export function serverName() {
-  if (chosen) return chosen;
+  if (chosen && knownServer(chosen)) return chosen;
   try {
-    if (new URLSearchParams(globalThis.location.search).get('db')?.trim().toLowerCase() === 'local') return 'local';
+    const asked = new URLSearchParams(globalThis.location.search).get('db')?.trim().toLowerCase();
+    if (asked && knownServer(asked)) return asked;
   } catch { /* no location */ }
   try {
     const saved = globalThis.localStorage?.getItem(STORAGE_KEY);
-    if (saved === 'local' || saved === 'remote') return saved;
+    if (saved && knownServer(saved)) return saved;
   } catch { /* storage blocked */ }
-  return 'remote';
+  return isDesktopApp() ? 'desktop' : 'remote';
 }
 
 /** The URL of the server in use. */
 export function getServerUrl() {
-  return serverName() === 'local' ? LOCAL_SERVER_URL : REMOTE_SERVER_URL;
+  return SERVER_URLS[serverName()];
+}
+
+/** True when the server in use is the desktop app's own database. */
+export function isDesktopServer() {
+  return serverName() === 'desktop';
+}
+
+/**
+ * The server for what lives only on a Rails server - the forum, and user
+ * accounts: the one in use, except that Desktop uses the remote server.
+ */
+export function accountServerUrl() {
+  return isDesktopServer() ? REMOTE_SERVER_URL : getServerUrl();
 }
 
 /**
@@ -68,7 +103,7 @@ export function getServerUrl() {
  * next visit and announces it with a cr-dbserverchange event on document.
  */
 export function setServer(name) {
-  if (name !== 'local' && name !== 'remote') throw new Error(`unknown database server '${name}'`);
+  if (!knownServer(name)) throw new Error(`unknown database server '${name}'`);
   chosen = name;
   try { globalThis.localStorage?.setItem(STORAGE_KEY, name); } catch { /* not remembered */ }
   globalThis.document?.dispatchEvent(new CustomEvent('cr-dbserverchange',
@@ -269,9 +304,13 @@ export class SourceStore {
       if (response.status === 401 && !this.noSignInHint) {
         // A token the server no longer accepts is dropped, so the next sign-in starts clean.
         if (token) setToken('', this.baseUrl);
+        // With the desktop database in use, File > Sign In is the desktop's;
+        // the remote server's sign-in is File > FastBlips Account.
+        const where = isDesktopServer() && this.baseUrl !== DESKTOP_SERVER_URL
+          ? 'File > FastBlips Account' : 'File > Sign In';
         throw new StoreError(token
-          ? 'Your sign-in has expired: sign in again (File > Sign In)'
-          : 'Sign in first (File > Sign In) to change the remote database',
+          ? `Your sign-in has expired: sign in again (${where})`
+          : `Sign in first (${where}) to change the remote database`,
         { status: 401, details: data });
       }
       throw new StoreError(errorMessage(response.status, data), { status: response.status, details: data });
@@ -369,34 +408,6 @@ export async function signOut({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
   } catch { /* already signed out, or no server: the token goes either way */ }
   setToken('', store.baseUrl);
   signedInName = '';
-}
-
-/** The forum for the server in use. */
-export function getForumUrl() {
-  return serverName() === 'local' ? LOCAL_FORUM_URL : REMOTE_FORUM_URL;
-}
-
-/**
- * The address that opens the forum. When this page is signed in, it is a
- * one-time link from the server (POST /forum_handoff) that signs the forum in
- * as the same user; it works once, within a minute. Otherwise, or if the
- * server cannot give one, it is the forum's own address. Never fails.
- * @param {{returnTo?: string, baseUrl?: string|(() => string),
- *          forumUrl?: string|(() => string), fetch?: typeof fetch}} [options] -
- *   returnTo is a path on the forum to land on (e.g. '/getting-started')
- */
-export async function forumLink({ returnTo, baseUrl = getServerUrl, forumUrl = getForumUrl, fetch: fetchFn } = {}) {
-  const path = typeof returnTo === 'string' && returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '';
-  const plain = trimUrl(typeof forumUrl === 'function' ? forumUrl() : forumUrl) + (path || '/');
-  const store = new SourceStore({ resource: 'forum_handoff', key: 'forum_handoff', baseUrl, fetch: fetchFn });
-  if (!getToken(store.baseUrl)) return plain;
-  store.noSignInHint = true;
-  try {
-    const data = await store._request('POST', '', path ? { return_to: path } : {});
-    return typeof data?.url === 'string' && /^https?:\/\//.test(data.url) ? data.url : plain;
-  } catch {
-    return plain;
-  }
 }
 
 /**

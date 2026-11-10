@@ -46,6 +46,11 @@ const page = [
 const html = standalone
   ? ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
+    '<title>FastBlips</title>',
+    // Relative paths, so the page also works from a subfolder. The files sit
+    // next to index.html in web/ and are made by electron/scripts/make-icon.py.
+    '<link rel="icon" href="favicon.ico" sizes="any">',
+    '<link rel="apple-touch-icon" href="apple-touch-icon.png">',
     '<style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>',
     '</head><body>', page, '</body></html>'].join('\n')
   : page;

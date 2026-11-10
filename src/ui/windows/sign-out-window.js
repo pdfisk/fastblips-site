@@ -4,7 +4,7 @@
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
-import { userName, setUser, signOut } from '../db-client.js';
+import { userName, setUser, signOut, isDesktopServer, REMOTE_SERVER_URL } from '../db-client.js';
 import { Toast } from '../toast.js';
 import { installStyle } from './sign-in-window.js';
 
@@ -60,6 +60,8 @@ export class SignOutWindow extends Window {
     const viewport = this.parent;
     const name = userName();
     signOut();   // the server forgets the token; the user is signed out here whatever it answers
+    // With the desktop database, a remote sign-in (for the forum) may be held too.
+    if (isDesktopServer()) signOut({ baseUrl: REMOTE_SERVER_URL });
     setUser('');
     this.close();
     if (viewport && name) Toast.show(viewport, { kind: 'success', message: `Signed out ${name}` });

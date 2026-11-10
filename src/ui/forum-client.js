@@ -5,13 +5,14 @@
 // searching, previews and moderation.
 //
 // Reading needs no sign-in; anything that changes the forum sends the sign-in
-// token (File > Sign In), as SourceStore does. Errors are StoreErrors with a
+// token (File > Sign In), as SourceStore does. With the desktop database in
+// use the forum is still the remote server's, with the remote sign-in. Errors are StoreErrors with a
 // readable message. No DOM is needed, so it runs (and is tested) under Node.
 //
 // Also here: the small pure helpers the windows use to show what the server
 // answers (boardItems, topicRow, postCard, ...), so they can be tested too.
 
-import { SourceStore, getServerUrl } from './db-client.js';
+import { SourceStore, accountServerUrl } from './db-client.js';
 
 const enc = encodeURIComponent;
 
@@ -23,8 +24,12 @@ function query(params) {
 }
 
 export class ForumClient {
-  /** @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options] */
-  constructor({ baseUrl = getServerUrl, fetch: fetchFn } = {}) {
+  /**
+   * @param {{baseUrl?: string|(() => string), fetch?: typeof fetch}} [options] -
+   *   the server: by default the one in use, or the remote server when the
+   *   desktop database is in use (the forum lives only on a Rails server)
+   */
+  constructor({ baseUrl = accountServerUrl, fetch: fetchFn } = {}) {
     this._store = new SourceStore({ resource: 'forum', key: 'forum', baseUrl, fetch: fetchFn });
   }
 
@@ -213,7 +218,7 @@ export function topicSummary(topic) {
 
 /** Why a user cannot post here, or '' if they can. */
 export function postingProblem({ user, board, topic } = {}) {
-  if (!user) return 'Sign in (File > Sign In) to post in the forum';
+  if (!user) return 'Sign in to post in the forum (Sign In to Post)';
   if (user.moderation_state === 'blocked') return 'Your account cannot post in the forum';
   if (topic && !topic.can_reply) return topic.locked ? 'This topic is locked' : 'You cannot reply here';
   if (board && !board.can_post) return board.locked ? `Only moderators post in ${board.name}` : `You cannot post in ${board.name}`;

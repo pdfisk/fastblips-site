@@ -11,6 +11,7 @@ import { NotificationWindow } from './notification-window.js';
 import { Toast } from '../toast.js';
 import {
   registerUser, setUser, USER_NAME_PATTERN, EMAIL_PATTERN, passwordProblem, serverName,
+  isDesktopServer, accountServerUrl,
 } from '../db-client.js';
 
 const STYLE = `
@@ -72,7 +73,7 @@ export class RegisterWindow extends Window {
    * @param {{register?: typeof registerUser}} options -
    *   register is the call that creates the user (replaced in tests)
    */
-  constructor({ register = registerUser } = {}) {
+  constructor({ register = (fields) => registerUser(fields, { baseUrl: accountServerUrl }) } = {}) {
     if (instance) throw new Error('RegisterWindow is a singleton; use RegisterWindow.instance');
     super({ title: 'Register', x: 140, y: 110, width: 340, height: 205, resizable: false });
     instance = this;
@@ -190,7 +191,12 @@ export class RegisterWindow extends Window {
   }
 
   _showNote() {
-    this.panel.note.textContent = `On the ${serverName()} server. The e-mail address is optional.`;
+    // With the desktop database in use, an account is made on the remote
+    // server: it is what the forum and sharing need. The desktop database
+    // itself needs none (File > Sign In takes any name there).
+    this.panel.note.textContent = isDesktopServer()
+      ? 'An account on the remote server, for the forum and sharing. The e-mail address is optional.'
+      : `On the ${serverName()} server. The e-mail address is optional.`;
   }
 
   /** Opens the window with empty fields and the name field focused. */

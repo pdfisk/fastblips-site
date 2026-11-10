@@ -4,6 +4,8 @@
 // source and the other is the target.
 //
 // A pane shows one of (the pulldown, in this order):
+//   Desktop database: <user>'s scripts  (the desktop app only) the same two,
+//   Desktop database: <user>'s projects in the app's own database
 //   Local database: <user>'s scripts    the user's scripts, as name.py
 //   Local database: <user>'s projects   the user's projects (as My Projects
 //                                       shows them), a folder each, holding
@@ -13,11 +15,14 @@
 // F7 in a projects pane makes a new (empty, unshared) project; F8 on a project
 // deletes it with its scripts, after asking.
 //
-// File > File Copy is shown only while the user "admin" is signed in (File >
-// Sign In); the window closes if the user changes. It has no sign-in of its own:
-// the remote server is reached with the token from File > Sign In, and the
-// local server (a development server on this computer) trusts requests from
-// this computer without one.
+// In a browser, File > File Copy is shown only while the user "admin" is
+// signed in (File > Sign In), and the window closes if the user changes. In
+// the desktop app it is everyone's: it is how work moves between the desktop
+// database and the remote one, so it opens on Desktop projects and Remote
+// projects. It has no sign-in of its own: the remote server is reached with
+// the token from File > Sign In (in the desktop app, File > FastBlips
+// Account), and the local server (a development server on this computer)
+// trusts requests from this computer without one.
 //
 // Keys:  Tab           switch pane
 //        Up Down Home End PgUp PgDn   move
@@ -38,7 +43,10 @@
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
 import { databaseVolumes, transfer, removeEntries, describeResult, formatSize } from '../file-volumes.js';
-import { isAdmin } from '../db-client.js';
+import { isAdmin, isDesktopApp } from '../db-client.js';
+
+/** Whether File Copy is offered: to everyone in the desktop app, else to admin. */
+export const canUseFileCopy = () => isDesktopApp() || isAdmin();
 
 let instance = null;
 
@@ -346,7 +354,12 @@ export class FileCopyWindow extends Window {
 
   // ------------------------------------------------------------ opening
 
-  /** Opens the window; the first time, the left pane shows the user's scripts on the local server and the right one those on the remote server. */
+  /**
+   * Opens the window; the first time, the left pane shows the user's
+   * projects in the desktop database and the right one those on the remote
+   * server (in the desktop app), else their scripts on the local and the
+   * remote server.
+   */
   open(viewport) {
     super.open(viewport);
     if (!this._started) {
@@ -360,8 +373,10 @@ export class FileCopyWindow extends Window {
   }
 
   async start() {
-    const left = this.databases.find((v) => v.id === 'local-scripts') ?? this.databases[0];
-    const right = this.databases.find((v) => v.id === 'remote-scripts') ?? this.databases[1] ?? left;
+    const find = (id) => this.databases.find((v) => v.id === id);
+    const desktop = find('desktop-projects');
+    const left = desktop ?? find('local-scripts') ?? this.databases[0];
+    const right = (desktop ? find('remote-projects') : find('remote-scripts')) ?? this.databases[1] ?? left;
     await Promise.all([this.leftPane.load(left, []), this.rightPane.load(right, [])]);
   }
 
@@ -380,10 +395,10 @@ export class FileCopyWindow extends Window {
     if (volume) await pane.load(volume, []);
   }
 
-  // A new user: the database panes show that user's space. Unless admin is
-  // still signed in, the window closes (File Copy is admin's only).
+  // A new user: the database panes show that user's space. In a browser,
+  // unless admin is still signed in, the window closes (File Copy is admin's).
   _userChanged() {
-    if (!isAdmin() && this.isOpen) { this.close(); return; }
+    if (!canUseFileCopy() && this.isOpen) { this.close(); return; }
     for (const pane of [this.leftPane, this.rightPane]) {
       if (pane.volume && this.databases.includes(pane.volume)) pane.load(pane.volume, []);
     }

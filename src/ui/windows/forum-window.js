@@ -39,7 +39,8 @@ import { Label } from '../widgets/label.js';
 import { Menu } from '../widgets/menu.js';
 import { Spacer } from '../widgets/spacer.js';
 import { Toast } from '../toast.js';
-import { userName, forumLink } from '../db-client.js';
+import { userName, isDesktopServer } from '../db-client.js';
+import { SignInWindow } from './sign-in-window.js';
 import {
   ForumClient, boardItems, allBoards, topicRow, postCard, topicSummary, postingProblem,
 } from '../forum-client.js';
@@ -130,6 +131,7 @@ export class ForumWindow extends HSplitWindow {
     this._buildTopicMenu();
     this.refreshButton = this.buttonBar.addButton('Refresh', () => this.refresh());
     this.moderationButton = this.buttonBar.addButton('Moderation', () => this.openModeration());
+    this.signInButton = this.buttonBar.addButton('Sign In to Post', () => this.signInToPost());
     this.buttonBar.add(new Spacer());
     this.userLabel = this.buttonBar.add(new Label(''));
 
@@ -154,8 +156,6 @@ export class ForumWindow extends HSplitWindow {
     m.addSeparator();
     m.addItem('Go to First Post', () => this.loadPosts(1), { enabled: () => Boolean(t()) });
     m.addItem('Go to Latest Post', () => this.loadPosts('last'), { enabled: () => Boolean(t()) });
-    m.addSeparator();
-    m.addItem('Open in Browser', () => this.openInBrowser(), { enabled: () => Boolean(t()) });
   }
 
   // ---- what the window shows -----------------------------------------------------
@@ -499,6 +499,16 @@ export class ForumWindow extends HSplitWindow {
     this.postList.replaceItem(saved.id, postCard(this.posts[i], { canReply: this.topic?.can_reply }));
   }
 
+  /**
+   * Opens the Sign In window: with the desktop database in use, in its forum
+   * mode, which signs in to the remote server (the forum's) and keeps the
+   * desktop database; otherwise as File > Sign In does.
+   */
+  signInToPost() {
+    const win = SignInWindow.instance;
+    return isDesktopServer() ? win.openForForum(this.parent) : win.open(this.parent);
+  }
+
   /** Opens the Forum Moderation window (moderators). */
   openModeration() {
     if (!this.user?.moderator) return null;
@@ -506,16 +516,6 @@ export class ForumWindow extends HSplitWindow {
     win.client = this.client;
     win.onChange = () => this.refresh();
     return win.open(this.parent);
-  }
-
-  /** Opens the topic shown on forum.fastblips.com in a new tab, signed in. */
-  async openInBrowser() {
-    const t = this.topic;
-    if (!t?.board) return;
-    const path = `/${t.board.slug}/${t.slug}`;
-    const tab = globalThis.open?.('about:blank', '_blank');
-    const url = await forumLink({ returnTo: path });
-    if (tab && !tab.closed) { tab.opener = null; tab.location.replace(url); } else globalThis.open?.(url, '_blank', 'noopener');
   }
 
   updateButtons() {
@@ -528,9 +528,11 @@ export class ForumWindow extends HSplitWindow {
     this.followButton.label = t?.following ? 'Unfollow' : 'Follow';
     this.topicMenu.button.disabled = !loaded;
     this.moderationButton.visible = Boolean(user?.moderator);
+    this.signInButton.visible = Boolean(this.overview) && !user;
     const standing = user?.moderation_state === 'pending_moderation' ? ' (new: posts are checked first)'
       : user?.moderation_state === 'blocked' ? ' (blocked)' : '';
-    this.userLabel.text = !this.overview ? '' : user ? `Posting as ${user.name}${standing}` : 'Reading only: sign in to post';
+    this.userLabel.text = !this.overview ? '' : user ? `Posting as ${user.name}${standing}`
+      : isDesktopServer() ? 'Reading only: the forum needs your FastBlips account' : 'Reading only: sign in to post';
     this.buttonBar.layout();
   }
 

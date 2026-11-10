@@ -20,7 +20,7 @@ import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
-import { SERVERS, setServer, serverName, userName, setUser, isAdmin, forumLink } from './db-client.js';
+import { serverChoices, setServer, serverName, userName, setUser, isDesktopServer, isDesktopApp } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
 import { DRAWER_TIMEOUTS, drawerTimeout, setDrawerTimeout, drawerTimeoutLabel } from './widgets/drawer.js';
@@ -28,7 +28,8 @@ import { isMobileDevice } from './device.js';
 import { startMobile } from './mobile/app.js';
 import { runParameter, projectParameter, startAppRuntime, startProjectRuntime } from './run-app.js';
 import { CommunityProjectsWindow } from './windows/community-projects-window.js';
-import { FileCopyWindow } from './windows/file-copy-window.js';
+import { FileCopyWindow, canUseFileCopy } from './windows/file-copy-window.js';
+import { canBackUpDatabase, backUpDesktopDatabase, restoreDesktopDatabase } from './desktop-database.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
 import { PythonHelpWindow } from './windows/python-help-window.js';
 import { WelcomeWindow, showWelcomeAtStartup } from './windows/welcome-window.js';
@@ -114,9 +115,17 @@ function schedulerSummary() {
 //   Save         the front-most console's source, to its file
 //   Save As...   the front-most console's source, to a new file
 //   Delete       the front-most console's file, after confirming
-//   File Copy    the File Copy window: copies files between folders and
-//                local or remote databases, two panes, like Norton Commander.
-//                Shown only while the user "admin" is signed in.
+//   FastBlips Account...  (desktop app, desktop database in use) signs in to
+//                the account on the remote server, for the forum and for
+//                copying to the Remote database, keeping the desktop database
+//   File Copy    the File Copy window: copies files between the desktop,
+//                local and remote databases, two panes, like Norton
+//                Commander. In a browser, shown only while the user "admin"
+//                is signed in; in the desktop app, to everyone.
+//   Back Up Database...   (desktop app) a copy of the desktop database, to a
+//                file the user picks
+//   Restore Database...   (desktop app) replaces the desktop database with a
+//                backup, after asking; the old one is kept as fastblips.sqlite.bak
 // Save and Save As are greyed out unless a console is the front-most showing
 // window; Delete also needs that console's file to be deletable (a file
 // opened or saved through the File System Access API, in Chrome or Edge).
@@ -133,6 +142,7 @@ function fileMenu(viewport) {
     () => (userName() ? SignOutWindow : SignInWindow).instance.open(viewport),
   );
   menu.addItem('Register...', () => RegisterWindow.instance.open(viewport));
+  menu.addItem('FastBlips Account...', () => SignInWindow.instance.openRemote(viewport), { visible: isDesktopServer });
   menu.addSeparator();
   menu.addItem('New Python', newConsole(PythonConsoleWindow));
   menu.addSeparator();
@@ -144,12 +154,25 @@ function fileMenu(viewport) {
     enabled: () => Boolean(frontConsole()?.canDeleteFile),
   });
   menu.addSeparator();
-  menu.addItem('File Copy', () => FileCopyWindow.instance.open(viewport), { visible: isAdmin });
+  menu.addItem('File Copy', () => FileCopyWindow.instance.open(viewport), { visible: canUseFileCopy });
+  menu.addSeparator();
+  const run = (job) => async () => {
+    try {
+      const result = await job();
+      if (result) Toast.show(viewport, { kind: 'success', message: result.message });
+    } catch (e) {
+      Toast.show(viewport, { kind: 'error', message: e.message });
+    }
+  };
+  menu.addItem('Back Up Database...', run(backUpDesktopDatabase), { visible: canBackUpDatabase });
+  menu.addItem('Restore Database...', run(restoreDesktopDatabase), { visible: canBackUpDatabase });
   return menu;
 }
 
-// The sign-in status, in the Navbar just left of the build timestamp. Kept
-// current as the user changes (File > Sign In, Sign Out, Register, Settings > User).
+// The sign-in status, in the Navbar just left of the build timestamp, and
+// "Desktop database" while the desktop app's own database is in use. Kept
+// current as the user changes (File > Sign In, Sign Out, Register, Settings >
+// User) and as Settings > Database changes.
 function signInLabel() {
   const label = new Label('');
   label.element.classList.add('cr-nav-user');
@@ -159,9 +182,13 @@ function signInLabel() {
   label.element.style.justifyContent = 'flex-end';
   label.element.style.textAlign = 'right';
   label.preferredWidth = () => Math.ceil(label.element.getBoundingClientRect().width);
-  const show = () => { label.text = userName() ? `Signed in as ${userName()}` : 'Not signed in'; };
+  const show = () => {
+    const who = userName() ? `Signed in as ${userName()}` : 'Not signed in';
+    label.text = isDesktopServer() ? `${who} \u00b7 Desktop database` : who;
+  };
   show();
   document.addEventListener('cr-userchange', show);
+  document.addEventListener('cr-dbserverchange', show);
   return label;
 }
 
@@ -191,7 +218,7 @@ function settingsMenu() {
     action: () => setCodeFont(name),
     checked: () => codeFontName() === name,
   })));
-  menu.addSubmenu('Database', () => SERVERS.map(([name, label]) => ({
+  menu.addSubmenu('Database', () => serverChoices().map(([name, label]) => ({
     label,
     action: () => setServer(name),
     checked: () => serverName() === name,
@@ -303,29 +330,11 @@ function librariesButton(viewport) {
 }
 
 // The Forum button, after Shared Projects, opens the Forum window: the
-// FastBlips forum inside the IDE, where everything is done - reading,
-// searching, posting, replying, following and moderating - as the signed-in
-// user (see ForumWindow). There is one; pressing the button again brings it
-// to the front. (Its Topic > Open in Browser opens a topic on
-// forum.fastblips.com, as openForum below does.)
+// FastBlips forum, used entirely inside the IDE - reading, searching,
+// posting, replying, following and moderating - as the signed-in user (see
+// ForumWindow). There is one; pressing the button again brings it to the front.
 function forumButton(viewport) {
   return new Button('Forum', () => ForumWindow.instance.open(viewport));
-}
-
-/** Opens the forum's web pages (at path, e.g. '/getting-started') in a new tab. */
-export async function openForum(path) {
-  // The tab is opened now, while the click still counts as the user's: one
-  // opened after waiting for the server is often blocked as a pop-up. In the
-  // desktop (Electron) app this blank tab is refused, and the link itself is
-  // opened instead, in the system browser.
-  const tab = globalThis.open?.('about:blank', '_blank');
-  const url = await forumLink({ returnTo: path });
-  if (tab && !tab.closed) {
-    tab.opener = null;
-    tab.location.replace(url);
-  } else {
-    globalThis.open?.(url, '_blank', 'noopener');
-  }
 }
 
 // The Help menu, after Forum, is where the documentation is:

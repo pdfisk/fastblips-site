@@ -2952,8 +2952,8 @@ The forum in the IDE (Navbar > Forum). ForumWindow: boards in their groups
 topics (a GridPanel, unread in bold, with search and a Pager) above the
 posts of the topic chosen (a CardListPanel with Quote, Edit, Delete,
 Approve and Block, as the user may). Buttons: New Topic, Reply,
-Follow/Unfollow, Topic (Edit, Pin, Lock, Delete, first/latest post, Open in
-Browser), Refresh and, for moderators, Moderation.
+Follow/Unfollow, Topic (Edit, Pin, Lock, Delete, first/latest post),
+Refresh and, for moderators, Moderation.
 ForumComposeWindow writes a new topic, a reply, an edited post or an edited
 topic (title; moderators also board, Pinned and Locked).
 ForumModerationWindow has Pending, Activity, Users and History tabs.
