@@ -8,12 +8,11 @@
 //                    Chrome or Edge, or the browser's private file system,
 //                    which every modern browser has). It has folders.
 //   DatabaseVolume   the scripts in one space (the signed-in user's) of
-//                    a database: the desktop app's own, or a server, local
-//                    or remote. A Python script is
-//                    listed as name.py (scripts in any other language are not listed). It has
-//                    no folders.
+//                    the database in use. A Python script is listed as
+//                    name.py (scripts in any other language are not
+//                    listed). It has no folders.
 //   ProjectsVolume   the projects in one space (the signed-in user's: those
-//                    My Projects shows) of a database server: each project a
+//                    My Projects shows) of the database in use: each project a
 //                    folder, its scripts the files in it (name.py). A new
 //                    folder is a new project; deleting one deletes the project.
 //
@@ -30,7 +29,7 @@
 // transfer() copies (or moves) entries from one volume to another.
 
 import {
-  SourceStore, REMOTE_SERVER_URL, LOCAL_SERVER_URL, DESKTOP_SERVER_URL, spaceName, isDesktopApp,
+  SourceStore, spaceName, getServerUrl,
 } from './db-client.js';
 import { projectScriptCopy } from './projects.js';
 
@@ -298,31 +297,19 @@ export class ProjectsVolume {
 }
 
 /**
- * The database volumes, in the order File Copy lists them: in the desktop
- * app, the signed-in user's scripts and projects in its own database (on
- * this computer) first; then on the local server, then on the remote one.
- * Copying between Desktop and Remote is how work moves to and from the
- * desktop database.
- * @param {{fetch?: typeof fetch, remoteUrl?: string, localUrl?: string,
- *          desktopUrl?: string, desktop?: boolean}} [options] - desktop says
- *   whether to list the desktop database (by default: in the desktop app)
+ * The two database volumes File Copy offers: the signed-in user's scripts and
+ * projects on the database in use (Settings > Database; the desktop app's own
+ * database in the desktop app). Both follow a change of user or of server.
+ * @param {{fetch?: typeof fetch, baseUrl?: string|(() => string)}} [options]
  */
-export function databaseVolumes({ fetch: fetchFn, remoteUrl = REMOTE_SERVER_URL, localUrl = LOCAL_SERVER_URL,
-  desktopUrl = DESKTOP_SERVER_URL, desktop = isDesktopApp() } = {}) {
+export function currentUserVolumes({ fetch: fetchFn, baseUrl = getServerUrl } = {}) {
   const owner = () => spaceName();
   const user = () => spaceName() || 'no user';
-  const scripts = (id, url, server) => new DatabaseVolume(
-    new SourceStore({ resource: 'scripts', key: 'script', owner, baseUrl: url, fetch: fetchFn }),
-    { id, label: () => `${server} database: ${user()}'s scripts` });
-  const projects = (id, url, server) => new ProjectsVolume(
-    new SourceStore({ resource: 'projects', key: 'project', owner, baseUrl: url, fetch: fetchFn }),
-    { id, label: () => `${server} database: ${user()}'s projects` });
   return [
-    ...(desktop ? [scripts('desktop-scripts', desktopUrl, 'Desktop'), projects('desktop-projects', desktopUrl, 'Desktop')] : []),
-    scripts('local-scripts', localUrl, 'Local'),
-    projects('local-projects', localUrl, 'Local'),
-    scripts('remote-scripts', remoteUrl, 'Remote'),
-    projects('remote-projects', remoteUrl, 'Remote'),
+    new DatabaseVolume(new SourceStore({ resource: 'scripts', key: 'script', owner, baseUrl, fetch: fetchFn }),
+      { id: 'scripts', label: () => `${user()}'s scripts` }),
+    new ProjectsVolume(new SourceStore({ resource: 'projects', key: 'project', owner, baseUrl, fetch: fetchFn }),
+      { id: 'projects', label: () => `${user()}'s projects` }),
   ];
 }
 

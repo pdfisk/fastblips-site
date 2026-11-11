@@ -6,6 +6,8 @@
 // whose has_database_write_permission is true. Delete is enabled only while a
 // record is selected. Compile (which saves) is shown only to a user who may
 // write; others can browse and open records.
+// Select, before New, limits the list to one category (Any shows them all);
+// Category sets the selected record's category, saved with it.
 // PythonDatabaseWindow chooses the table; there is one such window, opened
 // from the Views menu.
 
@@ -21,6 +23,16 @@ import { chunkToJsonString, sourceHash } from '../../vm/chunk-json.js';
 
 const instances = new Map();   // one window per subclass
 const DEFAULT_PRIORITY = 3;
+
+/** A script's categories: the value stored on the server, and its label. */
+export const CATEGORIES = [
+  { value: 'game', label: 'Game' },
+  { value: 'getting-started', label: 'Getting Started' },
+  { value: 'tutorial', label: 'Tutorial' },
+  { value: 'widget', label: 'Widget' },
+];
+const DEFAULT_CATEGORY = 'game';
+const categoryOf = (record) => record?.category ?? DEFAULT_CATEGORY;
 
 export class DatabaseWindow extends HSplitWindow {
   /** The table: a key of TABLES in db-client.js. Subclasses override. */
@@ -59,6 +71,14 @@ export class DatabaseWindow extends HSplitWindow {
     this.left = this.listPanel;
     this.right = this.recordPanel;
 
+    // Select: which category the list shows; null (Any) shows every record.
+    this.filter = null;
+    this.selectMenu = this.buttonBar.add(new Menu('Select'));
+    this.selectMenu.addItem('Any', () => this.setFilter(null), { checked: () => this.filter == null });
+    this.selectMenu.addSeparator();
+    for (const { value, label } of CATEGORIES) {
+      this.selectMenu.addItem(label, () => this.setFilter(value), { checked: () => this.filter === value });
+    }
     this.newButton = this.buttonBar.addButton('New', () => this.newRecord());
     this.saveButton = this.buttonBar.addButton('Save', () => this.save());
     this.deleteButton = this.buttonBar.addButton('Delete', () => this.deleteRecord());
@@ -66,12 +86,12 @@ export class DatabaseWindow extends HSplitWindow {
     if (cls.consoleClass) {
       this.compileButton = this.buttonBar.addButton('Compile', () => this.compile());
     }
-    // Priority: the record's priority, 1 to 5 (default 3), saved with it.
-    this.priority = DEFAULT_PRIORITY;
-    this.priorityMenu = this.buttonBar.add(new Menu('Priority'));
-    for (let level = 1; level <= 5; level++) {
-      this.priorityMenu.addItem(String(level), () => { this.priority = level; this.updateButtons(); },
-        { checked: () => this.priority === level, enabled: () => Boolean(this.current) });
+    // Category: the record's category (default Game), saved with it.
+    this.category = DEFAULT_CATEGORY;
+    this.categoryMenu = this.buttonBar.add(new Menu('Category'));
+    for (const { value, label } of CATEGORIES) {
+      this.categoryMenu.addItem(label, () => { this.category = value; this.updateButtons(); },
+        { checked: () => this.category === value, enabled: () => Boolean(this.current) });
     }
     if (cls.consoleClass) {
       this.consoleButton = this.buttonBar.addButton('Open in Console', () => this.openInConsole());
@@ -100,7 +120,7 @@ export class DatabaseWindow extends HSplitWindow {
     if (!this.current) return false;
     return this.recordPanel.name !== (this.current.name ?? '')
       || this.recordPanel.content !== (this.current.content ?? '')
-      || this.priority !== (this.current.priority ?? DEFAULT_PRIORITY);
+      || this.category !== categoryOf(this.current);
   }
 
   open(viewport) {
@@ -124,17 +144,19 @@ export class DatabaseWindow extends HSplitWindow {
     this.canWrite = canWriteDatabase(await this.sessionCall());
     try {
       // Listed by name, ignoring case (the server gives them by id).
-      const records = [...(await this.store.list() ?? [])].sort((x, y) => String(x.name ?? '')
+      const all = [...(await this.store.list() ?? [])];
+      const records = all.filter((r) => this.filter == null || categoryOf(r) === this.filter).sort((x, y) => String(x.name ?? '')
         .localeCompare(String(y.name ?? ''), undefined, { sensitivity: 'base' }) || x.id - y.id);
       this._suppressSelect = true;
       this.listPanel.items = records.map((r) => ({ value: r.id, label: rowLabel(r) }));
       this._suppressSelect = false;
       // The record being edited may have been deleted elsewhere.
-      if (this.current?.id != null && !records.some((r) => r.id === this.current.id) && !this.dirty) {
+      if (this.current?.id != null && !all.some((r) => r.id === this.current.id) && !this.dirty) {
         this._showRecord(null);
       }
       const space = this.store.space;
-      this.setStatus(`${records.length} record${records.length === 1 ? '' : 's'} · `
+      const shown = this.filter == null ? '' : ` (${CATEGORIES.find((c) => c.value === this.filter)?.label})`;
+      this.setStatus(`${records.length} record${records.length === 1 ? '' : 's'}${shown} · `
         + `${space == null ? '' : `${space || 'shared'} · `}${this.store.baseUrl}`);
     } catch (e) {
       this._suppressSelect = false;
@@ -143,11 +165,18 @@ export class DatabaseWindow extends HSplitWindow {
     this.updateButtons();
   }
 
+  /** Shows only the records of one category (null: all of them). */
+  setFilter(category) {
+    this.filter = category;
+    this.refresh();
+  }
+
   /** Starts a new, unsaved record. */
   newRecord() {
     if (!this._confirmDiscard()) return;
     this._selectId(null);
-    this._showRecord({ id: null, name: '', content: '' });
+    // A new record starts in the category being shown, if there is one.
+    this._showRecord({ id: null, name: '', content: '', category: this.filter ?? DEFAULT_CATEGORY });
     this.recordPanel.focusName();
     this.setStatus('New record — Save to create it');
   }
@@ -161,7 +190,7 @@ export class DatabaseWindow extends HSplitWindow {
       this.recordPanel.focusName();
       return null;
     }
-    const fields = { name, content: this.recordPanel.content, priority: this.priority };
+    const fields = { name, content: this.recordPanel.content, category: this.category };
     if (this.current.compiled_code !== undefined) fields.compiled_code = this.current.compiled_code;
     this.setStatus('Saving…');
     try {
@@ -244,7 +273,7 @@ export class DatabaseWindow extends HSplitWindow {
       scriptName,
       scriptOwner: this.current.owner ?? '',
       compiled: this.current.compiled_code ?? null,
-      priority: this.priority,
+      priority: this.current.priority ?? DEFAULT_PRIORITY,
     }).open(this.parent);
   }
 
@@ -300,7 +329,7 @@ export class DatabaseWindow extends HSplitWindow {
     this.current = record ? { ...record } : null;
     this.recordPanel.name = record?.name ?? '';
     this.recordPanel.content = record?.content ?? '';
-    this.priority = record?.priority ?? DEFAULT_PRIORITY;
+    this.category = categoryOf(record);
     this.recordPanel.enabled = Boolean(record);
     this.recordPanel.caption = !record ? ''
       : record.id == null ? 'new record'

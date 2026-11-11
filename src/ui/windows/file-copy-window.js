@@ -4,25 +4,23 @@
 // source and the other is the target.
 //
 // A pane shows one of (the pulldown, in this order):
-//   Desktop database: <user>'s scripts  (the desktop app only) the same two,
-//   Desktop database: <user>'s projects in the app's own database
-//   Local database: <user>'s scripts    the user's scripts, as name.py
-//   Local database: <user>'s projects   the user's projects (as My Projects
-//                                       shows them), a folder each, holding
-//                                       its scripts as name.py
-//   Remote database: <user>'s scripts
-//   Remote database: <user>'s projects
+//   <user>'s scripts            the signed-in user's scripts, as name.py
+//   <user>'s projects           the user's projects (as My Projects shows
+//                               them), a folder each, holding its scripts as
+//                               name.py
+//   Folder: <name>              a folder on this computer chosen earlier
+//   Folder on this computer...  asks for a folder (showDirectoryPicker: Chrome,
+//                               Edge and the desktop app; greyed out elsewhere)
+// Scripts and projects are on the database in use (Settings > Database; in
+// the desktop app, its own database), and follow a change of user or server.
 // F7 in a projects pane makes a new (empty, unshared) project; F8 on a project
 // deletes it with its scripts, after asking.
 //
 // In a browser, File > File Copy is shown only while the user "admin" is
 // signed in (File > Sign In), and the window closes if the user changes. In
-// the desktop app it is everyone's: it is how work moves between the desktop
-// database and the remote one, so it opens on Desktop projects and Remote
-// projects. It has no sign-in of its own: the remote server is reached with
-// the token from File > Sign In (in the desktop app, File > FastBlips
-// Account), and the local server (a development server on this computer)
-// trusts requests from this computer without one.
+// the desktop app it is everyone's. It opens on the user's scripts and
+// projects. It has no sign-in of its own: the database is reached with the
+// token from File > Sign In (in the desktop app, File > FastBlips Account).
 //
 // Keys:  Tab           switch pane
 //        Up Down Home End PgUp PgDn   move
@@ -42,13 +40,16 @@
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
-import { databaseVolumes, transfer, removeEntries, describeResult, formatSize } from '../file-volumes.js';
+import {
+  currentUserVolumes, DirectoryVolume, canPickFolder, transfer, removeEntries, describeResult, formatSize,
+} from '../file-volumes.js';
 import { isAdmin, isDesktopApp } from '../db-client.js';
 
 /** Whether File Copy is offered: to everyone in the desktop app, else to admin. */
 export const canUseFileCopy = () => isDesktopApp() || isAdmin();
 
 let instance = null;
+const PICK_FOLDER = 'pick-folder';   // the pulldown item that asks for a folder
 
 const STYLE = `
 .cr-fc{position:absolute;display:flex;flex-direction:column;gap:4px;box-sizing:border-box;padding:4px;
@@ -172,8 +173,14 @@ class FilePane {
       const option = document.createElement('option');
       option.value = o.id;
       option.textContent = o.label;
+      if (o.disabled) { option.disabled = true; option.title = o.title ?? ''; }
       return option;
     }));
+    this.showChoice();
+  }
+
+  /** Puts the pulldown back on what the pane shows (after a cancelled choice). */
+  showChoice() {
     if (this.volume) this.select.value = this.volume.id;
   }
 
@@ -320,14 +327,15 @@ export class FileCopyWindow extends Window {
 
   /**
    * @param {{volumes?: object[]}} [options] - the volumes the panes can show
-   *   (tests); databaseVolumes() by default
+   *   (tests); currentUserVolumes() by default
    */
   constructor({ volumes } = {}) {
     if (instance) throw new Error('FileCopyWindow is a singleton; use FileCopyWindow.instance');
     super({ title: 'File Copy', x: 70, y: 60, width: 800, height: 460, minWidth: 520, minHeight: 300 });
     instance = this;
     this.element.classList.add('cr-file-copy-window');
-    this.databases = volumes ?? databaseVolumes();
+    this.databases = volumes ?? currentUserVolumes();
+    this.folders = [];   // DirectoryVolumes for the folders chosen so far
     this.busy = false;
     this.stopRequested = false;
     this._asking = null;   // the question being asked, if any
@@ -348,6 +356,8 @@ export class FileCopyWindow extends Window {
 
     this.panel.element.addEventListener('keydown', (e) => this._key(e));
     document.addEventListener('cr-userchange', () => this._userChanged());
+    // Settings > Database switched server: the database panes read it instead.
+    document.addEventListener('cr-dbserverchange', () => this._reloadDatabases());
     this._started = false;
     this._refreshOptions();
   }
@@ -355,10 +365,8 @@ export class FileCopyWindow extends Window {
   // ------------------------------------------------------------ opening
 
   /**
-   * Opens the window; the first time, the left pane shows the user's
-   * projects in the desktop database and the right one those on the remote
-   * server (in the desktop app), else their scripts on the local and the
-   * remote server.
+   * Opens the window; the first time, the left pane shows the user's scripts
+   * and the right one their projects.
    */
   open(viewport) {
     super.open(viewport);
@@ -374,25 +382,63 @@ export class FileCopyWindow extends Window {
 
   async start() {
     const find = (id) => this.databases.find((v) => v.id === id);
-    const desktop = find('desktop-projects');
-    const left = desktop ?? find('local-scripts') ?? this.databases[0];
-    const right = (desktop ? find('remote-projects') : find('remote-scripts')) ?? this.databases[1] ?? left;
+    const left = find('scripts') ?? this.databases[0];
+    const right = find('projects') ?? this.databases[1] ?? left;
     await Promise.all([this.leftPane.load(left, []), this.rightPane.load(right, [])]);
   }
 
   /** The places a pane can show, in the order of the pulldown. */
-  get volumes() { return this.databases; }
+  get volumes() { return [...this.databases, ...this.folders]; }
 
   _refreshOptions() {
     const options = this.volumes.map((v) => ({ id: v.id, label: v.label }));
+    options.push(canPickFolder()
+      ? { id: PICK_FOLDER, label: 'Folder on this computer...' }
+      : { id: PICK_FOLDER, label: 'Folder on this computer...', disabled: true,
+        title: 'This browser cannot open folders; use Chrome, Edge or the desktop app' });
     for (const pane of [this.leftPane, this.rightPane]) pane.setOptions(options);
   }
 
   /** A pane's choice of where to look. */
   async choose(pane, id) {
     this.activate(pane);
+    if (id === PICK_FOLDER) { await this.pickFolder(pane); return; }
     const volume = this.volumes.find((v) => v.id === id) ?? null;
     if (volume) await pane.load(volume, []);
+  }
+
+  /**
+   * Asks for a folder on this computer and shows it in the pane. A folder
+   * chosen before is shown again rather than listed twice. Cancelling leaves
+   * the pane as it was.
+   */
+  async pickFolder(pane) {
+    let handle;
+    try {
+      handle = await globalThis.showDirectoryPicker({ id: 'fastblips-file-copy', mode: 'readwrite' });
+    } catch (e) {
+      pane.showChoice();
+      if (e?.name !== 'AbortError') this.status(`Cannot open the folder: ${e?.message || e}`, true);
+      return;
+    }
+    let volume = null;
+    for (const v of this.folders) {
+      if (await v.handle.isSameEntry?.(handle)) { volume = v; break; }
+    }
+    if (!volume) {
+      this._folderCount = (this._folderCount ?? 0) + 1;
+      volume = new DirectoryVolume(handle, { id: `folder-${this._folderCount}`, label: `Folder: ${handle.name}` });
+      this.folders.push(volume);
+      this._refreshOptions();
+    }
+    await pane.load(volume, []);
+  }
+
+  // The database panes read the database again from the top (a new server).
+  _reloadDatabases() {
+    for (const pane of [this.leftPane, this.rightPane]) {
+      if (pane.volume && this.databases.includes(pane.volume)) pane.load(pane.volume, []);
+    }
   }
 
   // A new user: the database panes show that user's space. In a browser,
