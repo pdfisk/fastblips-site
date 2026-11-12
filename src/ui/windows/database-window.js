@@ -25,9 +25,14 @@ import { chunkToJsonString, sourceHash } from '../../vm/chunk-json.js';
 const instances = new Map();   // one window per subclass
 const DEFAULT_PRIORITY = 3;
 
-/** A script's categories: the value stored on the server, and its label. */
+/**
+ * A script's categories: the value stored on the server, and its label.
+ * 'game' is a mobile game (tap or click): it was the only kind of game when
+ * categories began, so existing games keep that value.
+ */
 export const CATEGORIES = [
-  { value: 'game', label: 'Game' },
+  { value: 'game', label: 'Mobile Game' },
+  { value: 'desktop-game', label: 'Desktop Game' },
   { value: 'getting-started', label: 'Getting Started' },
   { value: 'tutorial', label: 'Tutorial' },
   { value: 'widget', label: 'Widget' },
@@ -87,7 +92,7 @@ export class DatabaseWindow extends HSplitWindow {
     if (cls.consoleClass) {
       this.compileButton = this.buttonBar.addButton('Compile', () => this.compile());
     }
-    // Category: the record's category (default Game), saved with it.
+    // Category: the record's category (default Mobile Game), saved with it.
     this.category = DEFAULT_CATEGORY;
     this.categoryMenu = this.buttonBar.add(new Menu('Category'));
     for (const { value, label } of CATEGORIES) {
