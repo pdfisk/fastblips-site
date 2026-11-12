@@ -1,6 +1,6 @@
 // The mobile UI, shown on a phone when the address names no app (no ?app=):
-// the list of shared projects, each a link that runs it full-page, and a link
-// to the full playground. It uses plain DOM rather than the desktop widgets
+// the list of shared projects that are mobile games (category mobile-game),
+// each a link that runs it full-page, and a link to the full playground. It uses plain DOM rather than the desktop widgets
 // (Viewport, Window, ...), which are built for a mouse and a large screen.
 
 import { installTheme } from '../theme.js';
@@ -19,6 +19,7 @@ const STYLE = `
   background:var(--cr-window-bg);border:1px solid var(--cr-window-border);box-shadow:var(--cr-window-shadow)}
 .cr-mobile h1{margin:0 0 4px;font-size:30px;line-height:1.2;text-align:center}
 .cr-mobile .cr-mobile-tagline{margin:0 0 16px;color:var(--cr-text-muted);text-align:center}
+.cr-mobile h2{margin:0 0 6px;font-size:18px;line-height:1.3}
 .cr-mobile p{margin:0 0 12px}
 .cr-mobile-apps{list-style:none;margin:0 0 4px;padding:0;display:flex;flex-direction:column;gap:8px}
 .cr-mobile-app{display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -51,8 +52,9 @@ export function startMobile() {
     <section class="cr-mobile-card">
       <h1>FastBlips</h1>
       <p class="cr-mobile-tagline">Apps made with Python</p>
-      <p class="cr-mobile-status">Loading projects...</p>
-      <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Shared projects"></ul>
+      <h2 class="cr-mobile-heading">Mobile games</h2>
+      <p class="cr-mobile-status">Loading games...</p>
+      <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Mobile games"></ul>
       <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>
     </section>
     <footer class="cr-mobile-footer"></footer>`;
@@ -62,9 +64,9 @@ export function startMobile() {
 
   const status = root.querySelector('.cr-mobile-status');
   const projectList = root.querySelector('.cr-mobile-projects');
-  // The projects anyone has shared, each a link that runs the project full-page.
-  const ready = listSharedProjects().then((projects) => {
-    status.textContent = projects.length ? 'Tap a project to run it.' : 'There are no shared projects yet.';
+  // The mobile games anyone has shared, each a link that runs the project full-page.
+  const ready = listSharedProjects({ category: 'mobile-game' }).then((projects) => {
+    status.textContent = projects.length ? 'Tap a game to play it.' : 'There are no shared mobile games yet.';
     projectList.replaceChildren(...projects.map((project) => {
       const li = document.createElement('li');
       const a = document.createElement('a');
@@ -78,7 +80,7 @@ export function startMobile() {
       return li;
     }));
   }, (err) => {
-    status.textContent = `Could not read the shared projects: ${err?.message ?? err}`;
+    status.textContent = `Could not read the shared games: ${err?.message ?? err}`;
   });
   return { root, ready };
 }

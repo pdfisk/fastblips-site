@@ -93,10 +93,10 @@ function fakeStore(records) {
 }
 
 const RECORDS = [
-  { id: 1, name: 'alpha', content: 'print(1)\n', category: 'game' },
-  { id: 2, name: 'bravo', content: 'print(2)\n', category: 'game' },
+  { id: 1, name: 'alpha', content: 'print(1)\n', category: 'mobile-game' },
+  { id: 2, name: 'bravo', content: 'print(2)\n', category: 'mobile-game' },
   { id: 3, name: 'charlie', content: 'print(3)\n', category: 'tutorial' },
-  { id: 4, name: 'delta', content: 'print(4)\n', category: 'game' },
+  { id: 4, name: 'delta', content: 'print(4)\n', category: 'mobile-game' },
 ];
 
 async function openWindow(records = RECORDS) {
@@ -161,7 +161,7 @@ test('database window: a category chosen for several records is stored on all of
   assert.equal(await win.save(), 3);
   assert.deepEqual(store.calls.filter((c) => c[0] === 'update'),
     [['update', 1, { category: 'desktop-game' }], ['update', 2, { category: 'desktop-game' }], ['update', 3, { category: 'desktop-game' }]]);
-  assert.deepEqual([1, 2, 3, 4].map((id) => store.rows.get(id).category), ['desktop-game', 'desktop-game', 'desktop-game', 'game']);
+  assert.deepEqual([1, 2, 3, 4].map((id) => store.rows.get(id).category), ['desktop-game', 'desktop-game', 'desktop-game', 'mobile-game']);
   assert.equal(store.rows.get(1).content, 'print(1)\n', 'only the category is sent');
   assert.deepEqual(win.listPanel.selectedValues, [1, 2, 3], 'the selection stays');
   assert.equal(win.saveButton.enabled, false, 'saved: nothing left to save');
@@ -175,7 +175,7 @@ test('database window: only records whose category differs are sent; failures ar
   await win._onSelect(win.listPanel.selectedItems);
   pick(win, 'Mobile Game').action();                   // 1 and 2 are games already
   await win.save();
-  assert.deepEqual(store.calls.filter((c) => c[0] === 'update'), [['update', 3, { category: 'game' }]]);
+  assert.deepEqual(store.calls.filter((c) => c[0] === 'update'), [['update', 3, { category: 'mobile-game' }]]);
   assert.equal(win.status.text, 'Set 1 record to Mobile Game');
   win.batch.category = 'bad';
   await win.save();

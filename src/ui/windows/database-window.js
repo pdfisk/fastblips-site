@@ -31,17 +31,16 @@ const DEFAULT_PRIORITY = 3;
 
 /**
  * A script's categories: the value stored on the server, and its label.
- * 'game' is a mobile game (tap or click): it was the only kind of game when
- * categories began, so existing games keep that value.
+ * The game categories have the same names as a project's (projects.js).
  */
 export const CATEGORIES = [
-  { value: 'game', label: 'Mobile Game' },
+  { value: 'mobile-game', label: 'Mobile Game' },
   { value: 'desktop-game', label: 'Desktop Game' },
   { value: 'getting-started', label: 'Getting Started' },
   { value: 'tutorial', label: 'Tutorial' },
   { value: 'widget', label: 'Widget' },
 ];
-const DEFAULT_CATEGORY = 'game';
+const DEFAULT_CATEGORY = 'mobile-game';
 const categoryOf = (record) => record?.category ?? DEFAULT_CATEGORY;
 
 export class DatabaseWindow extends HSplitWindow {

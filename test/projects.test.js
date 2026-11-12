@@ -144,7 +144,7 @@ test('sameList: same ids in the same order', () => {
   assert.equal(sameList([1, 2], [1]), false);
 });
 
-import { listSharedProjects } from '../src/ui/projects.js';
+import { listSharedProjects, PROJECT_CATEGORIES, projectCategory, projectCategoryLabel } from '../src/ui/projects.js';
 
 test('listSharedProjects: only shared projects that have scripts, by name', async () => {
   const store = { list: async () => [
@@ -155,6 +155,26 @@ test('listSharedProjects: only shared projects that have scripts, by name', asyn
   ] };
   const names = (await listSharedProjects({ store })).map((p) => p.name);
   assert.deepEqual(names, ['Alpha', 'zed']);
+});
+
+test('listSharedProjects with a category: only shared projects of that category (none given is development)', async () => {
+  const store = { list: async () => [
+    { id: 1, name: 'Racer', shared: true, category: 'mobile-game', scripts: [{ id: 1 }] },
+    { id: 2, name: 'Notes', shared: true, category: 'mobile-app', scripts: [{ id: 1 }] },
+    { id: 3, name: 'Private', shared: false, category: 'mobile-game', scripts: [{ id: 1 }] },
+    { id: 4, name: 'Empty', shared: true, category: 'mobile-game', scripts: [] },
+    { id: 5, name: 'Old', shared: true, scripts: [{ id: 1 }] },
+    { id: 6, name: 'Blocks', shared: true, category: 'mobile-game', scripts: [{ id: 2 }] },
+  ] };
+  assert.deepEqual((await listSharedProjects({ store, category: 'mobile-game' })).map((p) => p.name), ['Blocks', 'Racer']);
+  assert.deepEqual((await listSharedProjects({ store, category: 'development' })).map((p) => p.name), ['Old']);
+});
+
+test('project categories: five, development by default', () => {
+  assert.deepEqual(PROJECT_CATEGORIES.map((c) => c.value), ['development', 'desktop-game', 'desktop-app', 'mobile-game', 'mobile-app']);
+  assert.equal(projectCategory({}), 'development');
+  assert.equal(projectCategory({ category: 'desktop-app' }), 'desktop-app');
+  assert.equal(projectCategoryLabel('mobile-game'), 'Mobile Game');
 });
 
 // A store in memory: the target space's projects or scripts.
@@ -192,13 +212,15 @@ test('copyProject makes an unshared project of the user with copies of the scrip
   const projects = memoryStore();
   const { project } = await copyProject(SOURCE, { name: ' Pong copy ', projects });
   assert.deepEqual(projects.created.map(({ id, ...f }) => f), [{
-    name: 'Pong copy', description: 'Two paddles', shared: false,
+    name: 'Pong copy', description: 'Two paddles', shared: false, category: 'development',
     scripts: [
       { name: 'Ball', language: 'python', content: 'PRINT 1', priority: 3, compiled_code: '{"a":1}' },
       { name: 'Paddle', language: 'python', content: 'print(2)' },
     ],
   }]);
   assert.equal(project.name, 'Pong copy');
+  await copyProject({ ...SOURCE, category: 'mobile-game' }, { name: 'Pong 2', projects });
+  assert.equal(projects.created[1].category, 'mobile-game', 'a copy keeps the category');
 });
 
 test('copyProject refuses an empty name or one of the user\'s projects, making nothing', async () => {
@@ -217,10 +239,11 @@ test('a script store with no language sets the language it is given', async () =
   assert.deepEqual(fetch.calls[0].body, { script: { name: 'Ball', content: 'x', language: 'python', owner: 'ann' } });
 });
 
-test('projectDetails shows the name, owner, script count, update time and description', () => {
+test('projectDetails shows the name, owner, category, script count, update time and description', () => {
   assert.equal(
-    projectDetails({ name: 'Pong', owner: 'ann', description: ' Two paddles \n', scripts: [{}, {}] }, '9:05 AM'),
-    'Name:    Pong\nOwner:   ann\nScripts: 2\nUpdated: 9:05 AM\n\nTwo paddles',
+    projectDetails({ name: 'Pong', owner: 'ann', category: 'mobile-game', description: ' Two paddles \n', scripts: [{}, {}] }, '9:05 AM'),
+    'Name:     Pong\nOwner:    ann\nCategory: Mobile Game\nScripts:  2\nUpdated:  9:05 AM\n\nTwo paddles',
   );
-  assert.equal(projectDetails({ name: 'X' }), 'Name:    X\nOwner:   (shared)\nScripts: 0\n\n(no description)');
+  assert.equal(projectDetails({ name: 'X' }),
+    'Name:     X\nOwner:    (shared)\nCategory: Development\nScripts:  0\n\n(no description)');
 });

@@ -7,7 +7,9 @@
 // of the selected one in an edit window, whose Save changes that copy and
 // saves the project (the script it was copied from is left as it was);
 // Remove takes it out; Up and Down move it. Projects can be created, edited
-// and deleted. Opened from the Navbar's My Projects button.
+// and deleted. The Category button chooses the project's category
+// (Development, Desktop Game, Desktop App, Mobile Game or Mobile App), which
+// Save stores with it. Opened from the Navbar's My Projects button.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { ListPanel } from '../widgets/list-panel.js';
@@ -22,6 +24,7 @@ import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } fr
 import { PythonConsoleWindow } from './python-console-window.js';
 import {
   projectStore, scriptStore, byName, availableScripts, projectScriptCopy, findProjectScript, projectPrograms, sameScripts,
+  PROJECT_CATEGORIES, DEFAULT_PROJECT_CATEGORY, projectCategory, projectCategoryLabel,
 } from '../projects.js';
 
 // The console class that compiles and runs a script, by the language it is saved with.
@@ -58,6 +61,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.picker = null;    // the open ScriptPickerWindow, if any
     this.editors = new Map();   // the open ScriptEditWindows, by the key of the project script
     this.current = null;   // the project being edited; id null for a new one
+    this.category = DEFAULT_PROJECT_CATEGORY;   // the category chosen for it, which Save stores
     this._refreshToken = 0;
     this._suppressSelect = false;
 
@@ -87,6 +91,12 @@ export class ProjectsWindow extends HSplitWindow {
       { enabled: () => editing() && at() >= 0 && at() < this.projectPanel.names.length - 1 });
     this.projectsMenu = this.buttonBar.add(projectsMenu);
     this.scriptsMenu = this.buttonBar.add(scriptsMenu);
+    // Category: what kind of project it is; its label shows the one chosen.
+    this.categoryMenu = this.buttonBar.add(new Menu('Category'));
+    for (const { value, label } of PROJECT_CATEGORIES) {
+      this.categoryMenu.addItem(label, () => this.setCategory(value),
+        { checked: () => this.category === value, enabled: editing });
+    }
     this.buttonBar.add(new Separator());
     // As in a console: Launch runs the project's scripts together, in a
     // Desktop or Mobile launch window or, for the saved project, as a web page.
@@ -123,6 +133,7 @@ export class ProjectsWindow extends HSplitWindow {
     return this.projectPanel.name !== (this.current.name ?? '')
       || this.projectPanel.description !== (this.current.description ?? '')
       || this.projectPanel.shared !== Boolean(this.current.shared)
+      || this.category !== projectCategory(this.current)
       || !sameScripts(this.projectPanel.copies, this.savedScripts);
   }
 
@@ -180,9 +191,17 @@ export class ProjectsWindow extends HSplitWindow {
   newProject() {
     if (!this._confirmDiscard()) return;
     this._selectId(null);
-    this._showProject({ id: null, name: '', description: '', shared: false, scripts: [] });
+    this._showProject({ id: null, name: '', description: '', shared: false, category: DEFAULT_PROJECT_CATEGORY, scripts: [] });
     this.projectPanel.focusName();
     this.setStatus('New project — Save to create it');
+  }
+
+  /** Chooses the project's category; Save stores it. */
+  setCategory(value) {
+    if (!this.current) return;
+    this.category = value;
+    this.updateButtons();
+    if (this.dirty) this.setStatus(`Category ${projectCategoryLabel(value)} — Save to keep it`);
   }
 
   /** The space the project being edited is in: a user name, '' for shared. */
@@ -310,7 +329,7 @@ export class ProjectsWindow extends HSplitWindow {
     }
     const fields = {
       name, description: this.projectPanel.description, shared: this.projectPanel.shared,
-      scripts: this.projectPanel.copies,
+      category: this.category, scripts: this.projectPanel.copies,
     };
     this.setStatus('Saving…');
     try {
@@ -321,6 +340,7 @@ export class ProjectsWindow extends HSplitWindow {
       this.projectPanel.name = saved.name ?? '';
       this.projectPanel.description = saved.description ?? '';
       this.projectPanel.shared = Boolean(saved.shared);
+      this.category = projectCategory(saved);
       this.projectPanel.scripts = saved.scripts ?? [];
       await this.refresh();
       this._selectId(saved.id);
@@ -359,6 +379,10 @@ export class ProjectsWindow extends HSplitWindow {
   }
 
   updateButtons() {
+    // The Category button names the project's category, and is greyed out
+    // with no project.
+    this.categoryMenu.label = this.current ? `Category: ${projectCategoryLabel(this.category)}` : 'Category';
+    this.categoryMenu.button.disabled = !this.current;
     this.buttonBar.layout();
   }
 
@@ -382,6 +406,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.projectPanel.name = project?.name ?? '';
     this.projectPanel.description = project?.description ?? '';
     this.projectPanel.shared = Boolean(project?.shared);
+    this.category = projectCategory(project);
     this.projectPanel.space = this.space;
     this.projectPanel.scripts = project ? (project.scripts ?? []) : [];
     this.projectPanel.enabled = Boolean(project);

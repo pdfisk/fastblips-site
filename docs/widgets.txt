@@ -654,10 +654,12 @@ detection. A phone is a browser that reports itself as mobile, a mobile
 user agent, or a touch screen whose short side is under 600px; tablets get
 the full UI.
 
-The mobile UI (src/ui/mobile/app.js) is, for now, a single landing page
-with the name, a short description, a link to the full version
-(?ui=desktop) and the build time. It uses plain DOM and the theme
-variables, not the desktop widgets.
+The mobile UI (src/ui/mobile/app.js) is a single landing page with the
+name, a short description, the list of Mobile games - the shared projects
+whose category is mobile-game and that have scripts, by name, each a link
+that runs the project full-page - a link to the full version (?ui=desktop)
+and the build time. It uses plain DOM and the theme variables, not the
+desktop widgets.
 
 When the full UI starts, the Navbar is docked at the top of the Viewport
 with, from left to right, a File menu, a Database menu, Basic, Python,
@@ -1726,10 +1728,12 @@ detection. A phone is a browser that reports itself as mobile, a mobile
 user agent, or a touch screen whose short side is under 600px; tablets get
 the full UI.
 
-The mobile UI (src/ui/mobile/app.js) is, for now, a single landing page
-with the name, a short description, a link to the full version
-(?ui=desktop) and the build time. It uses plain DOM and the theme
-variables, not the desktop widgets.
+The mobile UI (src/ui/mobile/app.js) is a single landing page with the
+name, a short description, the list of Mobile games - the shared projects
+whose category is mobile-game and that have scripts, by name, each a link
+that runs the project full-page - a link to the full version (?ui=desktop)
+and the build time. It uses plain DOM and the theme variables, not the
+desktop widgets.
 
 When the full UI starts, the Navbar is docked at the top of the Viewport
 with, from left to right, a File menu, a Database menu, Basic, Python,
@@ -2204,9 +2208,18 @@ edited in a ProjectPanel on the right.
   - There is only one; ProjectsWindow.instance creates it on first use, and
     closing it keeps its state.
   - Its ButtonBar has two pulldown Menus - Projects (New, Save, Delete,
-    Refresh) and Scripts (Edit, Add, Remove, Up, Down) - then a Separator, a
-    Launch menu and a status line at the right end. A menu item is greyed
-    out when it cannot be used.
+    Refresh) and Scripts (Edit, Add, Remove, Up, Down) - a Category menu,
+    then a Separator, a Launch menu and a status line at the right end. A
+    menu item is greyed out when it cannot be used.
+  - Category (window.categoryMenu) is the project's category: Development,
+    Desktop Game, Desktop App, Mobile Game or Mobile App (stored as
+    development, desktop-game, desktop-app, mobile-game, mobile-app; see
+    PROJECT_CATEGORIES in src/ui/projects.js). Its label names the
+    project's category ("Category: Mobile Game") and the menu checks it;
+    it is greyed out with no project. A new project, and one saved before
+    categories existed, is Development. Choosing another is an unsaved
+    change until Save. The mobile landing page lists the shared projects
+    that are Mobile Game.
   - Launch is the same menu as in a console: Desktop, Mobile, a separator
     and Web. Web opens the project as it was last saved as a full page in
     a new browser tab, at ?project=<owner>/<name> (the page runs every
@@ -2237,7 +2250,7 @@ edited in a ProjectPanel on the right.
     and Down room to move.
   - New starts an empty project, which Save creates on the server; Save on
     an existing project updates its name, its description, whether it is
-    shared and its scripts in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
+    shared, its category and its scripts in one request, the scripts in their order. Enter in the name, Ctrl+Enter in the description, or
     Ctrl+S also saves. A project needs a name, unique in its space; it may
     have no scripts.
   - The Shared check box beside the name is the project's shared flag (the

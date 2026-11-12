@@ -3,7 +3,7 @@
 // Projects window that needs no DOM, so it also runs (and is tested) under
 // Node.
 //
-// A project record is { id, name, description, owner, shared, scripts }, where
+// A project record is { id, name, description, owner, shared, category, scripts }, where
 // scripts is the project's own copies of its scripts, in order, each
 // { name, language, content, priority?, compiled_code? } (a project script).
 // Adding a script to a project copies a script record into it (one of the
@@ -23,6 +23,31 @@ export const projectStore = () => new SourceStore(PROJECTS);
 export const scriptStore = () => new SourceStore(SCRIPTS);
 
 const LANGUAGE_TITLES = { python: 'Python' };
+
+/**
+ * A project's categories: the value stored on the server, and its label.
+ * The mobile start page lists the shared projects that are mobile games.
+ */
+export const PROJECT_CATEGORIES = [
+  { value: 'development', label: 'Development' },
+  { value: 'desktop-game', label: 'Desktop Game' },
+  { value: 'desktop-app', label: 'Desktop App' },
+  { value: 'mobile-game', label: 'Mobile Game' },
+  { value: 'mobile-app', label: 'Mobile App' },
+];
+
+/** The category a project has when none is given (and that older records read as). */
+export const DEFAULT_PROJECT_CATEGORY = 'development';
+
+/** A project's category: its own, or the default for a record that has none. */
+export function projectCategory(project) {
+  return project?.category || DEFAULT_PROJECT_CATEGORY;
+}
+
+/** The label of a category value: 'Mobile Game' for 'mobile-game'. */
+export function projectCategoryLabel(value) {
+  return PROJECT_CATEGORIES.find((c) => c.value === value)?.label ?? String(value ?? '');
+}
 
 /** Records by name, ignoring case, then by id (the server gives them by id). */
 export function byName(records) {
@@ -155,11 +180,15 @@ export function libraryProjects(records, user = '') {
 }
 
 /**
- * The projects anyone has shared and that have scripts to run, by name.
- * @param {{store?: SourceStore}} [options] - the store to read (tests); by default every space
+ * The projects anyone has shared and that have scripts to run, by name;
+ * given a category, only those of that category.
+ * @param {{store?: SourceStore, category?: string}} [options] - store: the
+ *   store to read (tests), by default every space; category: e.g. 'mobile-game'
  */
-export async function listSharedProjects({ store } = {}) {
-  return sharedProjects(await (store ?? allProjectStore()).list()).filter((p) => (p.scripts ?? []).length > 0);
+export async function listSharedProjects({ store, category } = {}) {
+  return sharedProjects(await (store ?? allProjectStore()).list())
+    .filter((p) => (p.scripts ?? []).length > 0)
+    .filter((p) => !category || projectCategory(p) === category);
 }
 
 const sameName = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
@@ -192,24 +221,26 @@ export async function copyProject(source, { name, projects }) {
     name: newName,
     description: source.description ?? '',
     shared: false,
+    category: projectCategory(source),
     scripts: (source.scripts ?? []).map(projectScriptCopy),
   });
   return { project };
 }
 
 /**
- * The Details page of a project, as text: its name, owner, number of scripts
- * and (if given) when it was updated, then its description.
+ * The Details page of a project, as text: its name, owner, category, number
+ * of scripts and (if given) when it was updated, then its description.
  * @param {object} project - a project record
  * @param {string} [updated] - the time to show for Updated (empty to leave the line out)
  */
 export function projectDetails(project, updated = '') {
   const lines = [
-    `Name:    ${project.name ?? ''}`,
-    `Owner:   ${project.owner || '(shared)'}`,
-    `Scripts: ${(project.scripts ?? []).length}`,
+    `Name:     ${project.name ?? ''}`,
+    `Owner:    ${project.owner || '(shared)'}`,
+    `Category: ${projectCategoryLabel(projectCategory(project))}`,
+    `Scripts:  ${(project.scripts ?? []).length}`,
   ];
-  if (updated) lines.push(`Updated: ${updated}`);
+  if (updated) lines.push(`Updated:  ${updated}`);
   const description = String(project.description ?? '').trim();
   return `${lines.join('\n')}\n\n${description || '(no description)'}`;
 }
