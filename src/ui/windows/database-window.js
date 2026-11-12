@@ -9,6 +9,10 @@
 // Select, before New, limits the list to one category (Any shows them all);
 // Category sets the selected record's category, saved with it; the title
 // shows it ("Python Database: Tutorial").
+// Several records can be selected at once (Ctrl/Cmd+click, Shift+click,
+// Ctrl/Cmd+A): the editor is then empty, and a category chosen is given to
+// all of them by Save. Refresh reloads the list and clears the selection and
+// the editor.
 // PythonDatabaseWindow chooses the table; there is one such window, opened
 // from the Views menu.
 
@@ -72,7 +76,11 @@ export class DatabaseWindow extends HSplitWindow {
     this._loadToken = 0;
     this._suppressSelect = false;
 
-    this.listPanel = new ListPanel({ emptyText: 'No records' });
+    this.listPanel = new ListPanel({ emptyText: 'No records', multiple: true });
+    this.records = new Map();   // id -> record, as last listed
+    // Several records selected: { ids, category } - category is the one
+    // chosen for all of them (null until one is), which Save stores.
+    this.batch = null;
     this.recordPanel = new RecordPanel({ language: cls.language });
     this.left = this.listPanel;
     this.right = this.recordPanel;
@@ -92,12 +100,13 @@ export class DatabaseWindow extends HSplitWindow {
     if (cls.consoleClass) {
       this.compileButton = this.buttonBar.addButton('Compile', () => this.compile());
     }
-    // Category: the record's category (default Mobile Game), saved with it.
+    // Category: the record's category (default Mobile Game), saved with it;
+    // with several records selected, the category Save gives them all.
     this.category = DEFAULT_CATEGORY;
     this.categoryMenu = this.buttonBar.add(new Menu('Category'));
     for (const { value, label } of CATEGORIES) {
-      this.categoryMenu.addItem(label, () => { this.category = value; this.updateButtons(); },
-        { checked: () => this.category === value, enabled: () => Boolean(this.current) });
+      this.categoryMenu.addItem(label, () => this.setCategory(value),
+        { checked: () => this.shownCategory === value, enabled: () => Boolean(this.current || this.batch) });
     }
     if (cls.consoleClass) {
       this.consoleButton = this.buttonBar.addButton('Open in Console', () => this.openInConsole());
@@ -105,7 +114,7 @@ export class DatabaseWindow extends HSplitWindow {
     this.buttonBar.add(new Spacer());
     this.status = this.buttonBar.add(new Label());
 
-    this.listPanel.element.addEventListener('select', (e) => this._onSelect(e.detail.item));
+    this.listPanel.element.addEventListener('select', (e) => this._onSelect(e.detail.items));
     this.recordPanel.element.addEventListener('change', () => this.updateButtons());
     // Enter and Ctrl/Cmd+S save, as the Save button does: only when it is enabled.
     const saveIfEnabled = () => { if (this.saveButton.enabled) this.save(); };
@@ -114,15 +123,17 @@ export class DatabaseWindow extends HSplitWindow {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); saveIfEnabled(); }
     });
     // Settings > Database switched server: reload from the new one.
-    this._onServerChange = () => { if (this.isOpen) this.refresh(); };
+    this._onServerChange = () => { if (this.isOpen) this.reload(); };
     document.addEventListener('cr-dbserverchange', this._onServerChange);
     // Settings > User switched user: show that user's space.
     document.addEventListener('cr-userchange', this._onServerChange);
     this.updateButtons();
   }
 
-  /** True when the record being edited has changes that are not saved. */
+  /** True when the record being edited, or the records selected, have
+   *  changes that are not saved. */
   get dirty() {
+    if (this.batch) return this.batchChanges().length > 0;
     if (!this.current) return false;
     return this.recordPanel.name !== (this.current.name ?? '')
       || this.recordPanel.content !== (this.current.content ?? '')
@@ -132,30 +143,46 @@ export class DatabaseWindow extends HSplitWindow {
   open(viewport) {
     const wasOpen = this.isOpen;
     super.open(viewport);
-    if (!wasOpen) this.refresh();
+    if (!wasOpen) this.reload();
     return this;
   }
 
   /** Closing with unsaved changes asks first; the window keeps its state. */
   close() {
-    if (this.dirty && !confirm(`Discard unsaved changes to "${this.recordPanel.name || 'new record'}"?`)) {
-      return false;
-    }
+    if (!this._confirmDiscard()) return false;
     return super.close();
   }
 
-  /** Reloads the record list from the server, keeping the selection. */
+  /**
+   * Refresh: reloads the record list from the server and starts afresh -
+   * nothing selected and nothing in the editor. Unsaved changes are asked
+   * about first. Returns false if the user kept them.
+   */
   async refresh() {
+    if (!this._confirmDiscard()) return false;
+    this.batch = null;
+    this.listPanel.selectedValues = [];
+    this._showRecord(null);
+    await this.reload();
+    return true;
+  }
+
+  /** Reloads the record list from the server, keeping the selection. */
+  async reload() {
     this.setStatus('Loading…');
     this.canWrite = canWriteDatabase(await this.sessionCall());
     try {
       // Listed by name, ignoring case (the server gives them by id).
       const all = [...(await this.store.list() ?? [])];
+      this.records = new Map(all.map((r) => [r.id, r]));
       const records = all.filter((r) => this.filter == null || categoryOf(r) === this.filter).sort((x, y) => String(x.name ?? '')
         .localeCompare(String(y.name ?? ''), undefined, { sensitivity: 'base' }) || x.id - y.id);
       this._suppressSelect = true;
       this.listPanel.items = records.map((r) => ({ value: r.id, label: rowLabel(r) }));
       this._suppressSelect = false;
+      // Records selected together that are no longer listed (deleted, or
+      // not in the category shown) drop out of the selection.
+      if (this.batch) this._syncBatch();
       // The record being edited may have been deleted elsewhere.
       if (this.current?.id != null && !all.some((r) => r.id === this.current.id) && !this.dirty) {
         this._showRecord(null);
@@ -174,12 +201,48 @@ export class DatabaseWindow extends HSplitWindow {
   /** Shows only the records of one category (null: all of them). */
   setFilter(category) {
     this.filter = category;
-    this.refresh();
+    this.reload();
+  }
+
+  /** The category the Category menu checks: the record's, or with several
+   *  selected the one chosen for them, else the one they share (if any). */
+  get shownCategory() {
+    if (!this.batch) return this.category;
+    if (this.batch.category) return this.batch.category;
+    const shared = new Set(this.batchRecords().map((r) => categoryOf(r)));
+    return shared.size === 1 ? [...shared][0] : null;
+  }
+
+  /** Chooses a category for the record, or for every record selected. Save stores it. */
+  setCategory(value) {
+    if (this.batch) {
+      this.batch.category = value;
+      const n = this.batchChanges().length;
+      const label = CATEGORIES.find((c) => c.value === value)?.label;
+      this.setStatus(n === 0 ? `All ${this.batch.ids.length} records are already ${label}`
+        : `${label} for ${n} record${n === 1 ? '' : 's'} — Save to store it`);
+    } else {
+      this.category = value;
+    }
+    this.updateButtons();
+  }
+
+  /** The records selected together, as last listed. */
+  batchRecords() {
+    return this.batch ? this.batch.ids.map((id) => this.records.get(id)).filter(Boolean) : [];
+  }
+
+  /** The records selected together whose category Save would change. */
+  batchChanges() {
+    const category = this.batch?.category;
+    if (!category) return [];
+    return this.batchRecords().filter((r) => categoryOf(r) !== category);
   }
 
   /** Starts a new, unsaved record. */
   newRecord() {
     if (!this._confirmDiscard()) return;
+    this.batch = null;
     this._selectId(null);
     // A new record starts in the category being shown, if there is one.
     this._showRecord({ id: null, name: '', content: '', category: this.filter ?? DEFAULT_CATEGORY });
@@ -187,8 +250,10 @@ export class DatabaseWindow extends HSplitWindow {
     this.setStatus('New record — Save to create it');
   }
 
-  /** Creates or updates the record being edited. */
+  /** Creates or updates the record being edited; with several records
+   *  selected, stores the category chosen for them. */
   async save() {
+    if (this.batch) return this.saveBatch();
     if (!this.current || !this.canWrite) return null;
     const name = this.recordPanel.name.trim();
     if (!name) {
@@ -204,7 +269,7 @@ export class DatabaseWindow extends HSplitWindow {
         ? await this.store.create(fields)
         : await this.store.update(this.current.id, fields);
       this._showRecord(saved);
-      await this.refresh();
+      await this.reload();
       this._selectId(saved.id);
       this.setStatus(`Saved "${saved.name}"`);
       return saved;
@@ -212,6 +277,39 @@ export class DatabaseWindow extends HSplitWindow {
       this.setStatus(e.message, 'error');
       return null;
     }
+  }
+
+  /**
+   * Gives every selected record the category chosen for them (only the
+   * category is sent), one record at a time. The selection stays; a record
+   * that fails is reported and the rest are still saved. Returns the
+   * number saved.
+   */
+  async saveBatch() {
+    if (!this.batch || !this.canWrite) return 0;
+    const category = this.batch.category;
+    const label = CATEGORIES.find((c) => c.value === category)?.label;
+    const changes = this.batchChanges();
+    let saved = 0;
+    const failed = [];
+    for (const record of changes) {
+      this.setStatus(`Saving ${saved + failed.length + 1} of ${changes.length}…`);
+      try {
+        await this.store.update(record.id, { category });
+        saved += 1;
+      } catch (e) {
+        failed.push(`"${record.name}": ${e.message}`);
+      }
+    }
+    await this.reload();
+    if (this.batch) this.batch.category = null;   // stored: nothing left to save
+    this.updateButtons();
+    if (failed.length > 0) {
+      this.setStatus(`Saved ${saved} of ${changes.length}; could not save ${failed.join('; ')}`, 'error');
+    } else {
+      this.setStatus(`Set ${saved} record${saved === 1 ? '' : 's'} to ${label}`);
+    }
+    return saved;
   }
 
   /** Deletes the record being edited, after asking. */
@@ -225,7 +323,7 @@ export class DatabaseWindow extends HSplitWindow {
       await this.store.remove(record.id);
       this._showRecord(null);
       this._selectId(null);
-      await this.refresh();
+      await this.reload();
       this.setStatus(`Deleted "${record.name}"`);
     } catch (e) {
       this.setStatus(e.message, 'error');
@@ -294,6 +392,11 @@ export class DatabaseWindow extends HSplitWindow {
   /** The window's title: the table, and the category of the record being edited. */
   updateTitle() {
     const base = `${TABLES[this.constructor.table].title} Database`;
+    if (this.batch) {
+      const label = CATEGORIES.find((c) => c.value === this.shownCategory)?.label;
+      this.title = `${base}: ${this.batch.ids.length} records${label ? ` · ${label}` : ''}`;
+      return;
+    }
     const label = this.current ? CATEGORIES.find((c) => c.value === this.category)?.label : null;
     this.title = label ? `${base}: ${label}` : base;
   }
@@ -302,12 +405,13 @@ export class DatabaseWindow extends HSplitWindow {
     this.updateTitle();
     const editing = Boolean(this.current);
     const selected = this.current?.id != null;   // a record from the list, not a new one
-    // Save: always there; enabled once the selected (or new) record's text has changed.
-    this.saveButton.enabled = this.canWrite && editing && this.dirty;
+    // Save: always there; enabled once the selected (or new) record's text has
+    // changed, or a category has been chosen for the records selected.
+    this.saveButton.enabled = this.canWrite && (editing || Boolean(this.batch)) && this.dirty;
     this.saveButton.element.title = this.canWrite ? ''
       : 'Sign in as a user who may write to the database to save';
-    // Delete: only for a record selected in the list.
-    this.deleteButton.enabled = selected;
+    // Delete: only for a record selected in the list (one at a time).
+    this.deleteButton.enabled = selected && !this.batch;
     if (this.consoleButton) this.consoleButton.enabled = editing;
     if (this.compileButton) {
       this.compileButton.visible = this.canWrite;
@@ -316,13 +420,53 @@ export class DatabaseWindow extends HSplitWindow {
     this.buttonBar.layout();
   }
 
-  async _onSelect(item) {
+  /** The list's selection changed: one record is loaded for editing;
+   *  several are selected together; none clears the editor. */
+  async _onSelect(items) {
     if (this._suppressSelect) return;
-    const previous = this.current?.id ?? null;
-    if (!item) return;
-    if (item.value === previous) return;
-    if (!this._confirmDiscard()) { this._selectId(previous); return; }
-    await this.load(item.value);
+    const ids = items.map((item) => item.value);
+    if (ids.length === 1 && !this.batch && ids[0] === (this.current?.id ?? null)) return;
+    if (!this._confirmDiscard()) { this._restoreSelection(); return; }
+    if (ids.length > 1) {
+      // A category chosen for the earlier selection carries over to the new one.
+      this.batch = { ids, category: this.batch?.category ?? null };
+      this._loadToken += 1;   // a record still loading is no longer wanted
+      this._showRecord(null);
+      this.recordPanel.caption = `${ids.length} records selected`;
+      const pending = this.batchChanges().length;
+      this.setStatus(`${ids.length} records selected — choose a Category, then Save${pending ? ` (${pending} to change)` : ''}`);
+      return;
+    }
+    this.batch = null;
+    if (ids.length === 0) {
+      this._loadToken += 1;
+      this._showRecord(null);
+      this.setStatus('');
+      return;
+    }
+    await this.load(ids[0]);
+  }
+
+  /** Puts the list's selection back as it was: the batch, the record, or none. */
+  _restoreSelection() {
+    this._suppressSelect = true;
+    try {
+      if (this.batch) this.listPanel.selectedValues = this.batch.ids;
+      else this.listPanel.selectedValues = this.current?.id != null ? [this.current.id] : [];
+    } finally { this._suppressSelect = false; }
+  }
+
+  /** After a reload: the batch is the records still selected in the list. */
+  _syncBatch() {
+    const ids = this.listPanel.selectedValues;
+    if (ids.length > 1) {
+      this.batch.ids = ids;
+      this.recordPanel.caption = `${ids.length} records selected`;
+    } else {
+      this.batch = null;
+      this._showRecord(null);
+      if (ids.length === 1) this.load(ids[0]);
+    }
   }
 
   /** Fetches a record and shows it for editing. */
@@ -352,7 +496,12 @@ export class DatabaseWindow extends HSplitWindow {
   }
 
   _confirmDiscard() {
-    return !this.dirty || confirm(`Discard unsaved changes to "${this.recordPanel.name || 'new record'}"?`);
+    if (!this.dirty) return true;
+    if (this.batch) {
+      const n = this.batchChanges().length;
+      return confirm(`Discard the category chosen for ${n} record${n === 1 ? '' : 's'}?`);
+    }
+    return confirm(`Discard unsaved changes to "${this.recordPanel.name || 'new record'}"?`);
   }
 
   _selectId(id) {

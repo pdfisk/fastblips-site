@@ -62,7 +62,7 @@ export class FakeElement extends EventTarget {
 }
 
 /** Installs the fake DOM and the browser globals the toolkit reads. Once. */
-function installDom() {
+export function installDom() {
   if (globalThis.document?.isFake) return;
   const html = new FakeElement('html');
   html.style = { setProperty() {}, removeProperty() {}, getPropertyValue() { return ''; } };

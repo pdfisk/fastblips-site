@@ -416,6 +416,16 @@ A Panel that is filled by a single List element.
     never selected and skipped by the keys), icon (a symbol before the
     label), detail (a short text at the right, such as a count), badge:
     true (shows the detail as a highlighted pill) and title (a tooltip).
+  - new ListPanel({ multiple: true }) lets several rows be selected:
+    Ctrl/Cmd+click adds or takes away a row, Shift+click selects every row
+    from the last one clicked, and Ctrl/Cmd+A selects them all. A plain
+    click or an arrow key selects one row. selectedItems, selectedIndices
+    and selectedValues (in list order) give the selection; setting
+    selectedValues selects those rows without a select event. toggle(index),
+    selectRange(index) and selectAll() do what the clicks do. selectedIndex
+    and selectedItem are the row selected last.
+  - The select event's detail is { index, item, items }: item is the row
+    acted on (null when nothing is selected), items every selected item.
 
 
 TabPanel
@@ -1478,6 +1488,16 @@ A Panel that is filled by a single List element.
     never selected and skipped by the keys), icon (a symbol before the
     label), detail (a short text at the right, such as a count), badge:
     true (shows the detail as a highlighted pill) and title (a tooltip).
+  - new ListPanel({ multiple: true }) lets several rows be selected:
+    Ctrl/Cmd+click adds or takes away a row, Shift+click selects every row
+    from the last one clicked, and Ctrl/Cmd+A selects them all. A plain
+    click or an arrow key selects one row. selectedItems, selectedIndices
+    and selectedValues (in list order) give the selection; setting
+    selectedValues selects those rows without a select event. toggle(index),
+    selectRange(index) and selectAll() do what the clicks do. selectedIndex
+    and selectedItem are the row selected last.
+  - The select event's detail is { index, item, items }: item is the row
+    acted on (null when nothing is selected), items every selected item.
 
 
 TabPanel
@@ -2143,12 +2163,25 @@ PythonDatabaseWindow.instance; closing it keeps its state.
   - Selecting a row loads that record. New starts an empty record, which
     Save creates on the server; Save on an existing record updates it.
     Enter in the name, Ctrl+Enter in the content, or Ctrl+S also saves.
+  - Several records can be selected at once (Ctrl/Cmd+click, Shift+click,
+    Ctrl/Cmd+A). The editor is then empty and its caption says how many are
+    selected. Choosing a Category marks it for all of them, and the title
+    shows it ("Python Database: 3 records · Desktop Game"); Save then stores
+    that category on each one whose category differs (only the category is
+    sent), and the selection stays. A record that cannot be saved is named
+    in red in the status line; the others are still saved. Delete, Compile
+    and Open in Console work on one record only.
+  - The Category menu shows the record's category with a check mark; with
+    several selected it checks the category chosen for them, or the one
+    they all share.
   - Delete asks for confirmation, then deletes the record.
   - Selecting another record, starting a new one or closing the window
     with unsaved changes asks before discarding them.
   - Open in Console opens a new console of the table's language holding
     the record's content, with the record's name as its scriptName.
-  - The list is reloaded each time the window opens, and by Refresh.
+  - The list is reloaded each time the window opens, keeping the
+    selection. Refresh reloads it and starts afresh: nothing selected and
+    nothing in the editor (unsaved changes are asked about first).
   - The server is the one chosen in Settings > Database: Remote by
     default, or Local when the page is opened with ?db=local.
   - Errors from the server (for example "name can't be blank") or the
