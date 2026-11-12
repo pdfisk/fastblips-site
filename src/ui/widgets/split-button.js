@@ -26,6 +26,8 @@ const STYLE = `
   background:var(--cr-button-bg);color:var(--cr-button-text);box-shadow:var(--cr-button-shadow)}
 .cr-split-arrow .cr-menu-button:hover,.cr-split-arrow.open .cr-menu-button{
   background:var(--cr-button-hover);color:var(--cr-button-text)}
+/* In a Window's ButtonBar a Menu adds its own arrow: the split arrow has one. */
+.cr-button-bar .cr-split-arrow .cr-menu-button::after{content:none}
 .cr-split-arrow .cr-menu-button:disabled{opacity:.5;cursor:default;background:var(--cr-button-bg)}
 `;
 

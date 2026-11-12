@@ -1,13 +1,17 @@
 // ConsoleWindow: the language-neutral base for consoles - an HSplitWindow
-// with source on the left, an OutputPanel on the right, and Run, Clear Output and
-// Clear Input buttons and a Priority menu. Subclasses supply the language: a title prefix, the
-// starting source, and run().
+// with source on the left, an OutputPanel on the right, and a Run button (with
+// Run, Single step, Run stepping and Stop under its arrow), a Stop at
+// breakpoints check box, Clear Output and Clear Input buttons and a Priority
+// menu. Subclasses supply the language: a title prefix, the starting source,
+// and run() (and, for a debugger, singleStep() and runStepping()).
 
 import { HSplitWindow } from './hsplit-window.js';
 import { TextPanel } from '../widgets/text-panel.js';
 import { OutputPanel } from '../widgets/output-panel.js';
 import { StatusBar } from '../widgets/status-bar.js';
 import { Menu } from '../widgets/menu.js';
+import { SplitButton } from '../widgets/split-button.js';
+import { CheckBox } from '../widgets/check-box.js';
 import { DesktopLaunchWindow, MobileLaunchWindow, addLaunchItems, launchWeb } from './launch-window.js';
 import { openFile, saveFile } from '../files.js';
 import { describeOrigin } from '../program-runner.js';
@@ -68,7 +72,7 @@ export class ConsoleWindow extends HSplitWindow {
     const offset = (opened++ % 8) * 24;   // cascade each new console
     super({
       title: n === 0 ? cls.titlePrefix : `${cls.titlePrefix} ${n + 1}`,
-      x: 440 + offset, y: 55 + offset, width: 560, height: 320,
+      x: 440 + offset, y: 55 + offset, width: 660, height: 320,
       ...options,
     });
     installStyle();
@@ -98,7 +102,15 @@ export class ConsoleWindow extends HSplitWindow {
     this.left = this.input;
     this.right = this.outputPanel;
 
-    this.buttonBar.addButton('Run', () => this.run());
+    // Run: the button runs the source; its arrow gives the ways to run it.
+    this.runButton = this.buttonBar.add(new SplitButton('Run', () => this.run()));
+    this.runButton.addItem('Run', () => this.run());
+    this.runButton.addItem('Single step', () => this.singleStep());
+    this.runButton.addItem('Run stepping', () => this.runStepping());
+    this.runButton.addSeparator();
+    this.runButton.addItem('Stop', () => this.stop(), { enabled: () => this.running });
+    // Whether a program stops at the breakpoints set in the source.
+    this.breakpointsBox = this.buttonBar.add(new CheckBox('Stop at breakpoints', true));
     this.buttonBar.addButton('Clear Output', () => { this.outputPanel.clear(); });
     this.buttonBar.addButton('Clear Input', () => { this.input.text = ''; this.input.focus(); });
     // Priority: a setting from 1 to 5 for this console's programs (default 3).
@@ -151,6 +163,29 @@ export class ConsoleWindow extends HSplitWindow {
   /** Runs the source in the left pane. The base class does nothing. */
   run() {
     return null;
+  }
+
+  /** True if programs run here stop at breakpoints (the check box). */
+  get stopAtBreakpoints() { return this.breakpointsBox.checked; }
+  set stopAtBreakpoints(value) {
+    this.breakpointsBox.checked = value;
+    this.breakpointsBox.element.dispatchEvent(new CustomEvent('change', { detail: { checked: this.breakpointsBox.checked } }));
+  }
+
+  /**
+   * Single step: runs one line of the source and stops. A console with no
+   * debugger just runs the source.
+   */
+  singleStep() {
+    return this.run();
+  }
+
+  /**
+   * Run stepping: runs the source a line at a time, showing each line as it
+   * runs. A console with no debugger just runs the source.
+   */
+  runStepping() {
+    return this.run();
   }
 
   /**

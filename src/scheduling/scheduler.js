@@ -143,6 +143,17 @@ export class Scheduler {
   }
 
   /**
+   * A process has stopped at a breakpoint or after a step (its VM's paused
+   * is set): it is suspended, as by suspend(), and its onPause is told.
+   * resume() carries it on from where it stopped.
+   */
+  pause(process) {
+    this.suspended.set(process.pid, { state: ProcessState.READY, remaining: 0 });
+    process.state = ProcessState.SUSPENDED;
+    process.onPause?.(process);
+  }
+
+  /**
    * Puts a suspended process back: ready at once, or waiting out whatever
    * remained of its delay or Sleep. Call start() again if the scheduler is
    * running in the background and had gone quiet.
@@ -225,7 +236,8 @@ export class Scheduler {
     this.turns += 1;
     if (process.step(this.quantum)) return process;
     const sleepMs = process.takeSleep();
-    if (sleepMs !== null) this.scheduleProcess(process, sleepMs, ProcessState.SLEEPING);
+    if (process.vm.paused) this.pause(process);
+    else if (sleepMs !== null) this.scheduleProcess(process, sleepMs, ProcessState.SLEEPING);
     else if (process.state === ProcessState.WAITING) { /* off the queues until notify() */ }
     else this.makeReady(process);
     return process;

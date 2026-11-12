@@ -194,6 +194,7 @@ export class Compiler {
       this.line = proc.line;
       proc.entry = this.here();
       this.statements(body);
+      this.line = 0;   // not a source line: a debugger does not stop here
       this.emit(Op.RETURN_NOTHING);
     }
 

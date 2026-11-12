@@ -361,6 +361,17 @@ language }), e.g. language 'vb' for VB.NET.
     submit events work the same with or without the editor.
   - ready is a promise that resolves once the editor is up (to the editor,
     or null if Monaco could not be loaded).
+  - new MonacoPanel({ ..., breakpoints: true }) is a debugger's source view.
+    It has a margin left of the line numbers: clicking there (or on a line
+    number), or pressing F9 on the cursor's line, sets or clears a
+    breakpoint, shown as a red dot. Breakpoints move with their lines as
+    the source is edited, and are cleared when text is set.
+      - breakpoints (get and set) is the list of lines with one, from 1, in
+        order; toggleBreakpoint(line) and clearBreakpoints() change it. Each
+        change fires a breakpointschange event with detail { breakpoints }.
+      - debugLine (get and set) is the line shown as where a program is
+        stopped: it is tinted and scrolled into view. null shows none.
+      - F10 fires a step event.
 
 
 GridPanel
@@ -731,9 +742,18 @@ language consoles below. Any number of consoles can be open at once.
   - The left side is an editable TextPanel holding the source; the right
     side is an OutputPanel (console.outputPanel) with Text, Board and
     Canvas tabs. console.output is its Text page, which programs print to.
-  - Its ButtonBar has, from the left, Run (runs the source), Clear Output
-    (empties every page of the OutputPanel) and Clear Input (empties the
-    source) buttons. Ctrl+Enter in the source also runs it.
+  - Its ButtonBar has, from the left, Run, a Stop at breakpoints check box,
+    and Clear Output (empties every page of the OutputPanel) and Clear Input
+    (empties the source) buttons. Ctrl+Enter in the source also runs it.
+  - Run (console.runButton) is a SplitButton. The button runs the source
+    (run()); its arrow gives the ways to run it: Run (run()), Single step
+    (singleStep()) and Run stepping (runStepping()), then a separator and
+    Stop (stop(), enabled while a program is running or stopped at a line).
+    In ConsoleWindow itself singleStep() and runStepping() just call run();
+    a subclass with a debugger overrides them (see PythonConsoleWindow).
+  - Stop at breakpoints (console.breakpointsBox, ticked to start with) says
+    whether programs stop at breakpoints; console.stopAtBreakpoints gets
+    and sets it.
   - After Clear Input comes a Priority menu (console.priorityMenu) with items 1 to 5; the
     chosen one is checked and kept in console.priority (default 3). The
     console's programs run at that priority on the Scheduler (1 highest,
@@ -794,6 +814,33 @@ PythonConsoleWindow
 A ConsoleWindow for Python code, titled Python Console, Python Console 2, ...
 
   - Starts with print("Hello, world") as its source.
+  - The source pane is a MonacoPanel with breakpoints: click in the margin
+    beside a line (or press F9) to set or clear a breakpoint there.
+  - While Stop at breakpoints is ticked, a program stops when it reaches a
+    line with a breakpoint, before running it. The line is highlighted and
+    the StatusBar says "stopped at line N (breakpoint)". The stopped
+    program shows as suspended in the Process window.
+  - The three ways to run (the Run button's arrow):
+      - Run: at full speed. With a program stopped at a line, or being
+        stepped, Run carries it on at full speed; otherwise it stops the
+        previous program and starts afresh.
+      - Single step (also F10 in the source): runs one line, then stops
+        with the next line highlighted. It goes into functions that are
+        called. With no program running it starts one, stopped before its
+        first line; a program running at full speed stops at its next line.
+      - Run stepping: runs a line at a time on its own, highlighting each
+        line for console.stepDelay milliseconds (400) before it runs. It
+        stops at breakpoints (if ticked); Single step stops it anywhere.
+    Choosing any of them while the program is stopped carries it on in
+    that way. Stop ends the program.
+  - console.mode is 'run', 'step' or 'stepping'; console.pausedLine is the
+    line the program is stopped at, or null.
+  - Underneath: the VM's debug option ({ breakpoints, stopAtBreakpoints,
+    stepping }; VM.checkDebug in src/vm/vm.js) ends a time slice at the
+    start of a line and sets vm.paused to { line, reason }; the Scheduler
+    then suspends the process and calls its onPause (Scheduler.pause), and
+    resume(pid) carries it on. A program that needs no debugging runs with
+    debug null, at full speed.
  
 
 LaunchWindow (abstract)

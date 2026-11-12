@@ -7,7 +7,8 @@
 // record is selected. Compile (which saves) is shown only to a user who may
 // write; others can browse and open records.
 // Select, before New, limits the list to one category (Any shows them all);
-// Category sets the selected record's category, saved with it.
+// Category sets the selected record's category, saved with it; the title
+// shows it ("Python Database: Tutorial").
 // PythonDatabaseWindow chooses the table; there is one such window, opened
 // from the Views menu.
 
@@ -285,7 +286,15 @@ export class DatabaseWindow extends HSplitWindow {
     this.buttonBar.layout();
   }
 
+  /** The window's title: the table, and the category of the record being edited. */
+  updateTitle() {
+    const base = `${TABLES[this.constructor.table].title} Database`;
+    const label = this.current ? CATEGORIES.find((c) => c.value === this.category)?.label : null;
+    this.title = label ? `${base}: ${label}` : base;
+  }
+
   updateButtons() {
+    this.updateTitle();
     const editing = Boolean(this.current);
     const selected = this.current?.id != null;   // a record from the list, not a new one
     // Save: always there; enabled once the selected (or new) record's text has changed.

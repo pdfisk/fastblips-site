@@ -93,6 +93,15 @@ test('priority and compiled_code are sent in the record body', async () => {
   assert.deepEqual(fetch.calls[0].body, { script: { name: 'p.py', priority: 5, compiled_code: '{}' } });
 });
 
+test('a script\'s category is sent in the record body', async () => {
+  const fetch = fakeFetch({ status: 201, body: { id: 4, name: 'step1', category: 'tutorial' } },
+    { status: 200, body: { id: 4, name: 'step1', category: 'widget' } });
+  await store(fetch).create({ name: 'step1', content: '', category: 'tutorial' });
+  await store(fetch).update(4, { category: 'widget' });
+  assert.equal(fetch.calls[0].body.script.category, 'tutorial');
+  assert.deepEqual(fetch.calls[1].body, { script: { category: 'widget' } });
+});
+
 test('the viewports store: find by name, content sent as a JSON object', async () => {
   const content = { format: 'fastblip-viewport', version: 1, widgets: [{ class: 'Label', text: 'hi' }], windows: [] };
   const fetch = fakeFetch(

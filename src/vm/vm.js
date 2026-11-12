@@ -67,6 +67,7 @@ export class VM {
     sleep = blockingSleep,   // (ms) => void, used by run() for Sleep / sleep()
     gui = null,              // widget host for New Label / Label() etc. (runtime/widgets.js)
     fetch = globalThis.fetch?.bind(globalThis) ?? null,   // for Fetch / fetch() (runtime/fetch.js)
+    debug = null,            // a debugger's settings: see checkDebug()
   } = {}) {
     this.chunk = chunk;
     this.language = chunk.language ?? 'crumb';
@@ -93,6 +94,13 @@ export class VM {
     this.steps = 0;
     this.halted = false;
     this.sleepMs = null;   // set by Sleep / sleep(); makes runSlice yield
+
+    // Debugging. debug is null (the usual case: no checks are made), or
+    // { breakpoints, stopAtBreakpoints, stepping } - see checkDebug(). Its
+    // owner may change the fields while the program runs. paused is
+    // { line, reason } while the program is stopped at the start of a line.
+    this.debug = debug;
+    this.paused = null;
 
     // A call waiting for a promise (Fetch / fetch()): see block().
     this.blocked = null;   // the pending request's token while waiting
@@ -173,6 +181,34 @@ export class VM {
   popN(n) { return n === 0 ? [] : this.stack.splice(this.stack.length - n, n); }
 
   line() { return this.chunk.lines[this.opIp] ?? 0; }
+
+  /**
+   * Called before each instruction while this.debug is set. When the
+   * instruction is the first of a source line (the line differs from the one
+   * its frame, or the module code, was last on), decides whether to stop
+   * there:
+   *   debug.stepping          - stop at every line (single stepping)
+   *   debug.stopAtBreakpoints - stop at the lines in debug.breakpoints (any
+   *                             object with has(line))
+   * To stop it sets this.paused to { line, reason: 'breakpoint' | 'step' }
+   * and returns true: runSlice then returns without running the line. The
+   * next runSlice carries on from there (and does not stop at that line
+   * again until it is reached again).
+   */
+  checkDebug() {
+    const line = this.chunk.lines[this.ip] ?? 0;
+    // Line 0 is code with no line of its own (a function's implicit
+    // return); the HALT that ends the module is not a line either.
+    if (line <= 0 || this.chunk.code[this.ip] === Op.HALT) return false;
+    const context = this.context();
+    if (context.debugLine === line) return false;
+    context.debugLine = line;
+    const debug = this.debug;
+    const atBreakpoint = Boolean(debug.stopAtBreakpoints && debug.breakpoints?.has(line));
+    if (!atBreakpoint && !debug.stepping) return false;
+    this.paused = { line, reason: atBreakpoint ? 'breakpoint' : 'step' };
+    return true;
+  }
 
   /** A Crumb runtime error: fatal, with a traceback. */
   fail(message) {
@@ -273,13 +309,15 @@ export class VM {
    * Executes up to `budget` instructions, then returns so another program can
    * take a turn. Calling runSlice again resumes exactly where this call
    * stopped. A sleep also ends the slice early; the caller reads it with
-   * takeSleep().
+   * takeSleep(). So does a breakpoint or a step (see checkDebug()): paused
+   * is then set, until the next runSlice.
    * @param {number} budget  instructions to run in this slice
    * @returns {boolean} true once the program has halted
    */
   runSlice(budget = 10) {
     if (this.halted) return true;
     if (this.blocked) return false;   // still waiting for a Fetch
+    this.paused = null;               // carrying on from a breakpoint or a step
     let used = 0;
     for (;;) {
       try {
@@ -299,6 +337,7 @@ export class VM {
     const { code, constants } = this.chunk;
 
     for (; used < budget; used += 1) {
+      if (this.debug !== null && this.checkDebug()) return false;
       this.sliceUsed = used + 1;
       this.steps += 1;
       if (this.steps > this.maxSteps) this.fault(Fault.BUDGET, { maxSteps: this.maxSteps });

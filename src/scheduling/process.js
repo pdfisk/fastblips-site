@@ -49,12 +49,14 @@ export class Process {
   /**
    * @param {number} pid     id assigned by the Scheduler
    * @param {object} chunk   compiled bytecode from either compiler (see src/vm/opcodes.js)
-   * @param {object} options { name, priority, onExit, ...VM options }
+   * @param {object} options { name, priority, onExit, onPause, ...VM options }
    *   priority: 1 (highest) to 5 (lowest), default 3; see Scheduler.
    *   onExit(process) is called once, when the process finishes for any reason.
+   *   onPause(process) is called each time the process stops at a breakpoint
+   *   or after a step (the VM's debug option); process.vm.paused says where.
    */
   constructor(pid, chunk, {
-    name = `process-${pid}`, priority = DEFAULT_PRIORITY, onExit = null, ...vmOptions
+    name = `process-${pid}`, priority = DEFAULT_PRIORITY, onExit = null, onPause = null, ...vmOptions
   } = {}) {
     this.pid = pid;
     this.name = name;
@@ -67,6 +69,7 @@ export class Process {
     this.startAt = null;          // ms timestamp it next becomes ready; set by the Scheduler
     this.sleepMs = null;          // pending Sleep, read by the Scheduler
     this.onExit = onExit;
+    this.onPause = onPause;
   }
 
   get finished() { return FINISHED.has(this.state); }
