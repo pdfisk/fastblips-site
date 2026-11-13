@@ -348,8 +348,8 @@ test('stop ends a transfer between files, and progress hears of each file', asyn
 
 test('one entry that cannot be read does not stop the others', async () => {
   const { a, b } = await twoFolders();
-  const read = a.read.bind(a);
-  a.read = async (path, entry) => { if (entry.name === 'one.txt') throw new Error('locked'); return read(path, entry); };
+  const readFile = a.readFile.bind(a);
+  a.readFile = async (path, entry) => { if (entry.name === 'one.txt') throw new Error('locked'); return readFile(path, entry); };
   const result = await transfer({ from: a, fromPath: [], entries: (await a.list([])).filter((e) => !e.dir), to: b, toPath: [] });
   assert.deepEqual(result.failed, [{ name: 'one.txt', message: 'locked' }]);
   assert.equal(result.copied, 1);
@@ -435,4 +435,106 @@ test('scripts copy into a project, and out of one into the scripts', async () =>
   result = await transfer({ from: projects, fromPath: ['Pong'], entries: await projects.list(['Pong']), to: scripts, toPath: [] });
   assert.equal(result.copied, 2);
   assert.deepEqual(await names(scripts), ['ball.py', 'hello.py', 'main.py']);
+});
+
+// ------------------------------------------------------------ JSON files on the computer
+
+const onDisk = async (dir, path) => {
+  let d = dir;
+  const parts = path.split('/');
+  const name = parts.pop();
+  for (const part of parts) d = await d.getDirectoryHandle(part);
+  return JSON.parse(dec.decode((await d.getFileHandle(name)).bytes));
+};
+const diskNames = (dir) => [...dir.children.keys()].sort();
+
+test('a folder keeps every file as JSON text, with .json added to its name, and lists it without', async () => {
+  const root = new MemDir();
+  const vol = new DirectoryVolume(root, { id: 'a' });
+  await vol.write([], 'notes.txt', enc.encode('héllo'));
+  await vol.write([], 'pic.bin', new Uint8Array([0, 255, 128, 0xc3]));
+  assert.deepEqual(diskNames(root), ['notes.txt.json', 'pic.bin.json']);
+  assert.deepEqual(await onDisk(root, 'notes.txt.json'),
+    { format: 'fastblips-file', version: 1, kind: 'file', name: 'notes.txt', encoding: 'utf-8', content: 'héllo' });
+  assert.equal((await onDisk(root, 'pic.bin.json')).encoding, 'base64');
+  assert.deepEqual(await names(vol), ['notes.txt', 'pic.bin']);
+  assert.equal((await vol.list([]))[0].size, 6, 'the size of what is inside');
+  assert.deepEqual([...await vol.read([], { name: 'pic.bin' })], [0, 255, 128, 0xc3]);
+  // A file made elsewhere is listed and read as it is, and replaced by its JSON when written over.
+  await put(root, 'plain.py', enc.encode('print(1)'));
+  assert.deepEqual(await names(vol), ['notes.txt', 'pic.bin', 'plain.py']);
+  assert.equal(await text(vol, [], 'plain.py'), 'print(1)');
+  await vol.write([], 'plain.py', enc.encode('print(2)'));
+  assert.deepEqual(diskNames(root), ['notes.txt.json', 'pic.bin.json', 'plain.py.json']);
+  await vol.remove([], (await vol.list([])).find((e) => e.name === 'plain.py'));
+  assert.deepEqual(diskNames(root), ['notes.txt.json', 'pic.bin.json']);
+});
+
+test('a script copied to a folder keeps its record: name, language, priority, created_at, updated_at', async () => {
+  const store = new FakeStore('peter', [{
+    name: 'hello', language: 'python', content: 'print("hi")', priority: 2,
+    created_at: '2026-11-01T10:00:00Z', updated_at: '2026-11-12T09:30:00Z', compiled: 'xx', visibility: 'public',
+  }]);
+  const db = new DatabaseVolume(store, { id: 'db' });
+  const root = new MemDir();
+  const dir = new DirectoryVolume(root, { id: 'd' });
+  assert.equal((await transfer({ from: db, fromPath: [], entries: await db.list([]), to: dir, toPath: [] })).copied, 1);
+  assert.deepEqual(diskNames(root), ['hello.py.json']);
+  assert.deepEqual(await onDisk(root, 'hello.py.json'), {
+    format: 'fastblips-file', version: 1, kind: 'script', name: 'hello', language: 'python', priority: 2,
+    created_at: '2026-11-01T10:00:00Z', updated_at: '2026-11-12T09:30:00Z', encoding: 'utf-8', content: 'print("hi")',
+  });
+  // ...and back into another database, priority and all.
+  const other = new FakeStore('peter');
+  other.create = async (fields) => { other.records.push({ id: 1, ...fields }); };
+  const back = new DatabaseVolume(other, { id: 'o' });
+  assert.equal((await transfer({ from: dir, fromPath: [], entries: await dir.list([]), to: back, toPath: [] })).copied, 1);
+  assert.deepEqual(other.records, [{ id: 1, name: 'hello', content: 'print("hi")', language: 'python', priority: 2 }]);
+});
+
+test('a project copied to a folder keeps its record in project.json, with the names of its scripts', async () => {
+  const records = projectRecords();
+  Object.assign(records[0], { description: 'bats and a ball', category: 'arcade', created_at: '2026-10-01T00:00:00Z', updated_at: '2026-11-10T00:00:00Z' });
+  records[0].scripts[0].priority = 1;
+  const projects = new ProjectsVolume(new FakeProjects(records, 'admin'), { id: 'p' });
+  const root = new MemDir();
+  const dir = new DirectoryVolume(root, { id: 'd' });
+  const result = await transfer({ from: projects, fromPath: [], entries: (await projects.list([])).filter((e) => e.name === 'Pong'), to: dir, toPath: [] });
+  assert.equal(result.copied, 2);
+  const pong = await root.getDirectoryHandle('Pong');
+  assert.deepEqual(diskNames(pong), ['ball.py.json', 'main.py.json', 'project.json']);
+  const project = await onDisk(root, 'Pong/project.json');
+  assert.deepEqual({ ...project, scripts: [...project.scripts].sort() }, {
+    format: 'fastblips-file', version: 1, kind: 'project', name: 'Pong', description: 'bats and a ball', shared: true,
+    category: 'arcade', created_at: '2026-10-01T00:00:00Z', updated_at: '2026-11-10T00:00:00Z', scripts: ['ball', 'main'],
+  });
+  assert.equal((await onDisk(root, 'Pong/main.py.json')).priority, 1);
+  assert.deepEqual(await names(dir, ['Pong']), ['ball.py', 'main.py'], 'project.json is not listed');
+
+  // The list follows scripts written into the folder and deleted from it.
+  await dir.write(['Pong'], 'paddle.py', enc.encode('p=1'));
+  await dir.remove(['Pong'], { name: 'ball.py' });
+  assert.deepEqual([...(await onDisk(root, 'Pong/project.json')).scripts].sort(), ['main', 'paddle']);
+
+  // ...and back into another database: the project comes back shared, in its category.
+  const toStore = new FakeProjects([], 'admin');
+  const to = new ProjectsVolume(toStore, { id: 'q' });
+  const back = await transfer({ from: dir, fromPath: [], entries: await dir.list([]), to, toPath: [] });
+  assert.equal(back.copied, 2);
+  assert.deepEqual(back.failed, []);
+  const [copy] = toStore.records;
+  assert.deepEqual([copy.name, copy.description, copy.shared, copy.category], ['Pong', 'bats and a ball', true, 'arcade']);
+  assert.deepEqual(copy.scripts.map((sc) => [sc.name, sc.priority]).sort(), [['main', 1], ['paddle', undefined]]);
+});
+
+test('a folder copied to a folder keeps its project.json', async () => {
+  const root = new MemDir();
+  const a = new DirectoryVolume(root, { id: 'a' });
+  await a.mkdir([], 'Game', { kind: 'project', shared: true, category: 'arcade' });
+  await a.write(['Game'], 'main.py', enc.encode('x'));
+  const target = new MemDir();
+  const b = new DirectoryVolume(target, { id: 'b' });
+  await transfer({ from: a, fromPath: [], entries: await a.list([]), to: b, toPath: [] });
+  const project = await onDisk(target, 'Game/project.json');
+  assert.deepEqual([project.name, project.shared, project.category, project.scripts], ['Game', true, 'arcade', ['main']]);
 });

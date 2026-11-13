@@ -7,6 +7,11 @@
 //                    directory handle: picked with showDirectoryPicker in
 //                    Chrome or Edge, or the browser's private file system,
 //                    which every modern browser has). It has folders.
+//                    Every file it writes holds JSON text and has .json
+//                    added to its name: a script (hello.py.json) holds the
+//                    script record, any other file (notes.txt.json) its
+//                    bytes. A folder that holds a project has the project
+//                    record in project.json. See "JSON files" below.
 //   DatabaseVolume   the scripts in one space (the signed-in user's) of
 //                    the database in use. A Python script is listed as
 //                    name.py (scripts in any other language are not
@@ -20,11 +25,16 @@
 // folder names ([] is the top); an entry is { name, dir, size, modified }
 // (modified in milliseconds, or null), and a volume may add its own fields:
 //
-//   list(path)                 the entries in a folder
-//   read(path, entry)          the entry's bytes, as a Uint8Array
-//   write(path, name, bytes)   makes or replaces a file
-//   mkdir(path, name)          makes a folder
-//   remove(path, entry)        deletes a file, or a folder with all it holds
+//   list(path)                    the entries in a folder
+//   read(path, entry)             the entry's bytes, as a Uint8Array
+//   readFile(path, entry)         { name, bytes, meta }: the bytes with the
+//                                 record they came from (meta, or null)
+//   write(path, name, bytes)      makes or replaces a file
+//   writeFile(path, file)         the same, given { name, bytes, meta }, so
+//                                 the record goes along
+//   folderMeta(path, entry)       the record of a folder (a project), or null
+//   mkdir(path, name, meta)       makes a folder (meta: its record, if any)
+//   remove(path, entry)           deletes a file, or a folder with all it holds
 //
 // transfer() copies (or moves) entries from one volume to another.
 
@@ -78,9 +88,123 @@ export function formatSize(bytes) {
   return `${n < 100 ? n.toFixed(1) : Math.round(n)}${units[i]}`;
 }
 
+// ---------------------------------------------------------------- text
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder('utf-8', { fatal: true });
+
+// ---------------------------------------------------------------- records
+
+/** The fields of a script record a copy keeps (besides its content). */
+export const SCRIPT_FIELDS = ['name', 'language', 'priority', 'created_at', 'updated_at'];
+/** The fields of a project record a copy keeps (besides the names of its scripts). */
+export const PROJECT_FIELDS = ['name', 'description', 'shared', 'category', 'created_at', 'updated_at'];
+
+/** The fields of o that are named in keys and have a value. */
+function pick(o, keys) {
+  return Object.fromEntries(keys.filter((k) => o?.[k] !== undefined && o[k] !== null).map((k) => [k, o[k]]));
+}
+
+/** The record of a script (one of the scripts table, or one in a project), without its content. */
+export function scriptMeta(script) {
+  return { kind: 'script', ...pick({ language: 'python', ...script }, SCRIPT_FIELDS) };
+}
+
+/** The record of a project, with the names of its scripts in place of the scripts. */
+export function projectMeta(project) {
+  return {
+    kind: 'project',
+    ...pick(project, PROJECT_FIELDS),
+    scripts: (project?.scripts ?? []).map((sc) => String(sc.name ?? '')),
+  };
+}
+
+// ---------------------------------------------------------------- JSON files
+
+/** What the format field of a local file in JSON text says. */
+export const FILE_JSON_FORMAT = 'fastblips-file';
+/** What is added to the name of every file written to a local folder. */
+export const JSON_SUFFIX = '.json';
+/** The file in a local folder that holds the record of the project the folder is. */
+export const PROJECT_FILE = 'project.json';
+
+function toBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+function fromBase64(text) {
+  const binary = atob(text);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+const stringify = (data) => `${JSON.stringify(data, null, 2)}\n`;
+
+/**
+ * The JSON text a local file holds for a file. A script (meta.kind 'script'):
+ *   { "format": "fastblips-file", "version": 1, "kind": "script",
+ *     "name": "hello", "language": "python", "priority": 3,
+ *     "created_at": "...", "updated_at": "...",
+ *     "encoding": "utf-8", "content": "print('hi')\n" }
+ * Any other file: { "format", "version", "kind": "file", "name": "notes.txt", "encoding", "content" }.
+ * UTF-8 text is kept as text; any other bytes are kept in base64 ("encoding": "base64").
+ */
+export function toFileJson(name, bytes, meta = null) {
+  let encoding = 'utf-8';
+  let content;
+  try { content = decoder.decode(bytes); } catch { encoding = 'base64'; content = toBase64(bytes); }
+  const head = meta?.kind === 'script'
+    ? { kind: 'script', ...pick({ name: stripExtension(name), ...meta }, SCRIPT_FIELDS) }
+    : { kind: 'file', name: String(name) };
+  return stringify({ format: FILE_JSON_FORMAT, version: 1, ...head, encoding, content });
+}
+
+/** The JSON text of project.json for a project record (projectMeta). */
+export function toProjectJson(meta) {
+  return stringify({ format: FILE_JSON_FORMAT, version: 1, ...projectMeta({ ...meta, scripts: [] }), scripts: [...(meta?.scripts ?? [])] });
+}
+
+/** The parsed JSON of a local file, or null if the text is not a file of this format. */
+export function parseFileJson(text) {
+  let data;
+  try { data = JSON.parse(text); } catch { return null; }
+  if (!data || typeof data !== 'object' || data.format !== FILE_JSON_FORMAT) return null;
+  if (data.kind === 'project') return data;
+  return typeof data.content === 'string' ? data : null;
+}
+
+function contentBytes(data) {
+  if (data.encoding === 'base64') return fromBase64(data.content);
+  if (data.encoding === 'utf-8' || data.encoding === undefined) return encoder.encode(data.content);
+  throw new Error(`the file is in an unknown encoding: ${data.encoding}`);
+}
+
+/** { bytes, meta } inside the JSON text of a local file (meta for a script, else null), or null if it is no such file. */
+export function fromFileJson(text) {
+  const data = parseFileJson(text);
+  if (!data || data.kind === 'project') return null;
+  return { bytes: contentBytes(data), meta: data.kind === 'script' ? scriptMeta(data) : null };
+}
+
 // ---------------------------------------------------------------- directories
 
-/** A folder on this computer, or in the browser's private file system, given a FileSystemDirectoryHandle. */
+const isJsonName = (fileName) => fileName.toLowerCase().endsWith(JSON_SUFFIX) && fileName.length > JSON_SUFFIX.length;
+
+async function fileText(handle) {
+  try { return decoder.decode(new Uint8Array(await (await handle.getFile()).arrayBuffer())); } catch { return null; }
+}
+
+/**
+ * A folder on this computer, or in the browser's private file system, given a FileSystemDirectoryHandle.
+ * A file is written as JSON text to its name with .json added, and listed by its name without it
+ * (hello.py.json is listed as hello.py). A file that does not hold such JSON is listed and read as
+ * it is, so files made elsewhere can still be copied. A folder's project.json is not listed.
+ */
 export class DirectoryVolume {
   /** @param {object} handle - the root folder; @param {{id?: string, label?: string}} [options] */
   constructor(handle, { id, label } = {}) {
@@ -102,41 +226,117 @@ export class DirectoryVolume {
     for await (const handle of dir.values()) {
       if (handle.kind === 'directory') {
         entries.push({ name: handle.name, dir: true, size: null, modified: null });
-      } else {
-        let file = null;
-        try { file = await handle.getFile(); } catch { /* listed without a size */ }
-        entries.push({ name: handle.name, dir: false, size: file?.size ?? null, modified: file?.lastModified ?? null });
+        continue;
       }
+      let file = null;
+      try { file = await handle.getFile(); } catch { /* listed without a size */ }
+      const modified = file?.lastModified ?? null;
+      const data = file && isJsonName(handle.name) ? parseFileJson(await fileText(handle)) : null;
+      if (data?.kind === 'project') {
+        if (same(handle.name, PROJECT_FILE)) continue;   // the folder's own record
+      } else if (data) {
+        let size = null;
+        try { size = contentBytes(data).length; } catch { /* an unknown encoding */ }
+        entries.push({
+          name: handle.name.slice(0, -JSON_SUFFIX.length), fileName: handle.name, dir: false, size, modified,
+          meta: data.kind === 'script' ? scriptMeta(data) : null,
+        });
+        continue;
+      }
+      entries.push({ name: handle.name, dir: false, size: file?.size ?? null, modified });
     }
     return sortEntries(entries);
   }
 
-  async read(path, entry) {
-    const dir = await this._folder(path);
-    const file = await (await dir.getFileHandle(entry.name)).getFile();
-    return new Uint8Array(await file.arrayBuffer());
+  /** The handle of the file of an entry: its fileName, else its name with .json, else its name. */
+  async _fileHandle(dir, entry) {
+    const names = [entry.fileName, `${entry.name}${JSON_SUFFIX}`, entry.name].filter(Boolean);
+    for (const name of names.slice(0, -1)) {
+      try { return await dir.getFileHandle(name); } catch { /* try the next */ }
+    }
+    return dir.getFileHandle(names.at(-1));
   }
 
-  async write(path, name, bytes) {
+  async readFile(path, entry) {
+    const handle = await this._fileHandle(await this._folder(path), entry);
+    const bytes = new Uint8Array(await (await handle.getFile()).arrayBuffer());
+    if (isJsonName(handle.name)) {
+      let text = null;
+      try { text = decoder.decode(bytes); } catch { /* not text, so not JSON */ }
+      const inside = text === null ? null : fromFileJson(text);
+      if (inside) return { name: handle.name.slice(0, -JSON_SUFFIX.length), ...inside };
+    }
+    return { name: handle.name, bytes, meta: null };
+  }
+
+  async read(path, entry) { return (await this.readFile(path, entry)).bytes; }
+
+  async writeFile(path, { name, bytes, meta = null }) {
     const dir = await this._folder(path);
-    const writable = await (await dir.getFileHandle(name, { create: true })).createWritable();
-    await writable.write(bytes);
+    const fileName = `${name}${JSON_SUFFIX}`;
+    const writable = await (await dir.getFileHandle(fileName, { create: true })).createWritable();
+    await writable.write(toFileJson(name, bytes, meta));
+    await writable.close();
+    // A file of the same name that is not JSON is what this one replaces.
+    if (await dir.getFileHandle(name).then(() => true, () => false)) await dir.removeEntry(name);
+    if (languageOf(name)) {
+      const scriptName = meta?.name ?? stripExtension(name);
+      await this._updateProject(dir, (names) => (names.some((n) => same(n, scriptName)) ? names : [...names, scriptName]));
+    }
+  }
+
+  async write(path, name, bytes) { await this.writeFile(path, { name, bytes, meta: null }); }
+
+  async _readProject(dir) {
+    let handle;
+    try { handle = await dir.getFileHandle(PROJECT_FILE); } catch { return null; }
+    const data = parseFileJson(await fileText(handle));
+    return data?.kind === 'project' ? data : null;
+  }
+
+  async _writeProject(dir, meta) {
+    const writable = await (await dir.getFileHandle(PROJECT_FILE, { create: true })).createWritable();
+    await writable.write(toProjectJson(meta));
     await writable.close();
   }
 
-  async mkdir(path, name) {
-    await (await this._folder(path)).getDirectoryHandle(name, { create: true });
+  /** Changes the list of script names in the folder's project.json, if it has one. */
+  async _updateProject(dir, change) {
+    const project = await this._readProject(dir);
+    if (project) await this._writeProject(dir, { ...project, scripts: change(project.scripts ?? []) });
+  }
+
+  async folderMeta(path, entry) {
+    try { return await this._readProject(await this._folder([...path, entry.name])); } catch { return null; }
+  }
+
+  /** Makes a folder; with the record of a project, the folder gets a project.json (no scripts yet: each is added as it is written). */
+  async mkdir(path, name, meta = null) {
+    const dir = await (await this._folder(path)).getDirectoryHandle(name, { create: true });
+    if (meta?.kind === 'project') await this._writeProject(dir, { ...meta, name, scripts: [] });
   }
 
   async remove(path, entry) {
-    await (await this._folder(path)).removeEntry(entry.name, { recursive: entry.dir });
+    const dir = await this._folder(path);
+    if (entry.dir) {
+      await dir.removeEntry(entry.name, { recursive: true });
+      return;
+    }
+    await dir.removeEntry((await this._fileHandle(dir, entry)).name);
+    if (languageOf(entry.name)) {
+      const scriptName = entry.meta?.name ?? stripExtension(entry.name);
+      await this._updateProject(dir, (names) => names.filter((n) => !same(n, scriptName)));
+    }
   }
 }
 
 // ---------------------------------------------------------------- databases
 
-const encoder = new TextEncoder();
-const decoder = new TextDecoder('utf-8', { fatal: true });
+/** The priority in a record, if it is one a script can have (1 to 5). */
+function priorityOf(meta) {
+  const p = Number(meta?.priority);
+  return Number.isInteger(p) && p >= 1 && p <= 5 ? p : undefined;
+}
 
 /** The scripts in one space of a database server, as files. */
 export class DatabaseVolume {
@@ -167,33 +367,40 @@ export class DatabaseVolume {
     })));
   }
 
-  async read(path, entry) {
+  async readFile(path, entry) {
     let record = entry.record;
     if (record?.content === undefined) {
       const id = entry.id ?? (await this.store.list()).find((r) => same(scriptFileName(r), entry.name))?.id;
       if (id === undefined) throw new Error(`there is no script ${entry.name}`);
       record = await this.store.get(id);
     }
-    return encoder.encode(record.content ?? '');
+    return { name: scriptFileName(record), bytes: encoder.encode(record.content ?? ''), meta: scriptMeta(record) };
   }
 
-  async write(path, name, bytes) {
+  async read(path, entry) { return (await this.readFile(path, entry)).bytes; }
+
+  async writeFile(path, { name, bytes, meta = null }) {
     const language = languageOf(name);
     if (!language) throw new Error('a database keeps only scripts: .py files');
     let content;
     try { content = decoder.decode(bytes); } catch { throw new Error('it is not a text file, so a database cannot keep it'); }
+    const priority = priorityOf(meta);
     const records = await this.store.list();
     const stored = stripExtension(name);
     const existing = records.find((r) => same(scriptFileName(r), name));
     if (existing) {
-      await this.store.update(existing.id, { content });
+      await this.store.update(existing.id, { content, ...(priority ? { priority } : {}) });
       return;
     }
     // A user's space allows one script to a name, whatever the language.
     const clash = this.store.space ? records.find((r) => same(r.name, stored)) : null;
     if (clash) throw new Error(`there is already a ${clash.language === 'python' ? 'Python' : clash.language} script called ${clash.name}`);
-    await this.store.create({ name: stored, content, language });
+    await this.store.create({ name: stored, content, language, ...(priority ? { priority } : {}) });
   }
+
+  async write(path, name, bytes) { await this.writeFile(path, { name, bytes, meta: null }); }
+
+  async folderMeta() { return null; }
 
   async mkdir() { throw new Error('a database has no folders'); }
 
@@ -256,30 +463,54 @@ export class ProjectsVolume {
       .map((sc) => ({ name: scriptFileName(sc), dir: false, size: encoder.encode(sc.content ?? '').length, modified, script: sc })));
   }
 
-  async read(path, entry) {
+  async readFile(path, entry) {
     const project = await this._project(this._inProject(path));
     const script = (project.scripts ?? []).find((sc) => same(scriptFileName(sc), entry.name));
     if (!script) throw new Error(`there is no script ${entry.name} in ${project.name}`);
-    return encoder.encode(script.content ?? '');
+    return { name: scriptFileName(script), bytes: encoder.encode(script.content ?? ''), meta: scriptMeta(script) };
   }
 
-  async write(path, name, bytes) {
+  async read(path, entry) { return (await this.readFile(path, entry)).bytes; }
+
+  async writeFile(path, { name, bytes, meta = null }) {
     const project = await this._project(this._inProject(path));
     const language = languageOf(name);
     if (!language) throw new Error('a project keeps only scripts: .py files');
     let content;
     try { content = decoder.decode(bytes); } catch { throw new Error('it is not a text file, so a project cannot keep it'); }
+    const priority = priorityOf(meta);
     const scripts = (project.scripts ?? []).map(projectScriptCopy);
     const existing = scripts.find((sc) => same(scriptFileName(sc), name));
-    if (existing) existing.content = content;
-    else scripts.push({ name: stripExtension(name), language, content });
+    if (existing) {
+      existing.content = content;
+      if (priority) existing.priority = priority;
+    } else {
+      scripts.push({ name: stripExtension(name), language, content, ...(priority ? { priority } : {}) });
+    }
     await this.store.update(project.id, { scripts });
   }
 
-  /** At the top, makes a new, empty, unshared project; there are no folders in a project. */
-  async mkdir(path, name) {
+  async write(path, name, bytes) { await this.writeFile(path, { name, bytes, meta: null }); }
+
+  /** At the top, the record of a project (projectMeta); there are no folders in a project. */
+  async folderMeta(path, entry) {
+    if (path.length) return null;
+    return projectMeta(entry.project ?? await this._project(entry.name));
+  }
+
+  /**
+   * At the top, makes a new, empty project: unshared, unless the record of the
+   * project it is a copy of (meta) says otherwise. There are no folders in a project.
+   */
+  async mkdir(path, name, meta = null) {
     if (path.length) throw new Error('a project has no folders');
-    await this.store.create({ name, description: '', shared: false, scripts: [] });
+    await this.store.create({
+      name,
+      description: meta?.description ?? '',
+      shared: meta?.shared === true,
+      ...(meta?.category ? { category: meta.category } : {}),
+      scripts: [],
+    });
   }
 
   /** At the top, deletes a project with its scripts; in a project, takes the script out. */
@@ -321,10 +552,17 @@ export const canUseBrowserFiles = () => typeof globalThis.navigator?.storage?.ge
 
 // ---------------------------------------------------------------- transfer
 
+/** An entry's bytes with its record: by readFile where the volume has it, else by read. */
+async function readEntry(volume, path, entry) {
+  if (volume.readFile) return volume.readFile(path, entry);
+  return { name: entry.name, bytes: await volume.read(path, entry), meta: null };
+}
+
 /**
  * Copies (or, with move, moves) entries of one folder to another folder, folders with all
  * they hold. A name that already exists in the target is replaced only if ask(name) says so.
- * Mistakes with one entry are collected and the rest go on.
+ * Mistakes with one entry are collected and the rest go on. The record of each script and
+ * project goes along where the target can keep it.
  *
  * @param {object} job
  * @param {object} job.from - the source volume
@@ -362,7 +600,7 @@ export async function transfer({ from, fromPath, entries, to, toPath, move = fal
           throw new Error('a folder cannot be copied into itself');
         }
         if (clash && !clash.dir) throw new Error('there is already a file with this name');
-        if (!clash) await to.mkdir(dstFolder, entry.name);
+        if (!clash) await to.mkdir(dstFolder, entry.name, (await from.folderMeta?.(srcFolder, entry)) ?? null);
         const inner = [...dstFolder, clash?.name ?? entry.name];
         const innerExisting = clash ? await to.list(inner) : [];
         let whole = true;
@@ -381,8 +619,10 @@ export async function transfer({ from, fromPath, entries, to, toPath, move = fal
         if (answer !== 'overwrite') { result.skipped += 1; return false; }
       }
       progress?.(shown);
-      const bytes = await from.read(srcFolder, entry);
-      await to.write(dstFolder, clash?.name ?? entry.name, bytes);
+      const file = await readEntry(from, srcFolder, entry);
+      const target = { ...file, name: clash?.name ?? entry.name };
+      if (to.writeFile) await to.writeFile(dstFolder, target);
+      else await to.write(dstFolder, target.name, target.bytes);
       if (move) await from.remove(srcFolder, entry);
       result.copied += 1;
       return true;
