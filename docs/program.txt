@@ -1,0 +1,54 @@
+FastBlips is a browser-based studio where learners write, debug and
+share programs in Python. A program is a BLIP (Bytecode Loadable
+Interpreted Program): it runs in any browser, on desktop or mobile,
+with nothing to install.
+
+Audience
+-- learners first: people writing their first programs and games
+-- highly influenced by the MIT Scratch project: see a project,
+   open it, change it, share it
+
+Language
+-- one language: BlipPy, a subset of Python
+-- one bytecode interpreter and multitasking scheduler underneath
+
+Goals, in order of priority
+
+1. Debugging you can see
+   -- breakpoints, code stepping, and a live view of variables
+   -- works the same for every program, because we own the interpreter
+
+2. Visual UI design tools
+   -- lay out widgets by dragging; the designer writes the BlipPy code
+   -- the generated code is ordinary code the learner can read and edit
+
+3. Sharing and remixing
+   -- any shared project can be copied and changed (remixed)
+   -- a remix records which project it came from
+   -- shared libraries can be used by other projects
+   -- needs: report, hide and suspend tools; limits on what a shared
+      program can do in a visitor's browser
+
+4. Development on mobile phones
+   -- on a phone: run, change values, remix and publish
+   -- writing a program from scratch is a desktop task
+
+5. Forum
+   -- inside the studio, for questions and showing work
+   -- uses the same report, hide and suspend tools as sharing
+
+6. Instant deployment
+   -- one click from the editor to a link that runs on a phone
+   -- link format: https://fastblips.com?app=<owner>/<name>
+   -- integrated with the forum, so people can discuss changes and
+      then share the code:
+      -- a forum post can carry a deployed program; readers run it
+         and open its code from the post
+      -- every deployed program has a discussion thread
+      -- a reader can remix the code and deploy the changed version
+         back into the same thread as a reply
+
+Not goals for now
+-- a second scripting language (Basic was removed)
+-- the browser is the primary target; the desktop app, itch.io and
+   Steam are ways to distribute the same thing, and come after it
