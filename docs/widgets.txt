@@ -2921,7 +2921,7 @@ Designer button opens one.
     to the selection when it can hold one - at the end of a list, as a new
     tab, in a split panel's empty side, as a Window's content and then to
     its button bar - or else next to the selection. Delete removes the
-    selection (not the root), Up and Down reorder it among its siblings
+    selection (not the root), Move up and Move down (Arrange) reorder it among its siblings
     (in a split panel, they swap the sides).
   - Properties are grouped: Widget (id and what the class shows: text,
     title, items, tab labels, ...), Place, Box (margin, border width and
@@ -2933,11 +2933,59 @@ Designer button opens one.
     in Crumb, a module-level function in BlipPy - which is looked up in
     the program that loads the composite. Menu items are written one to a
     line as "Label = Handler", with "-" for a separator.
-  - The ButtonBar: New (a menu of classes: the new composite's root),
-    Open (the saved composites; Refresh list reads them again), Edit
-    (Cut, Copy, Paste), the
-    composite's name, Save, Add, Delete, Up, Down, Test, which
-    switches the Preview between designing and using it, and Code (below).
+  - The ButtonBar: New (starter designs - Form, List and detail, Tabs,
+    Phone app, Slides, Game menu - then a menu of classes: the new
+    composite's root), Open (the saved composites; Refresh list reads them
+    again), Edit, Arrange and Script (below), the composite's name, Save,
+    Add, Delete, Test, which switches the Preview between designing and
+    using it, Run (below), Code (below) and Size.
+  - Undo and Redo (Edit; Ctrl+Z, and Ctrl+Y or Ctrl+Shift+Z) step back and
+    forward through every edit since the composite was started or opened.
+    Edit also has Duplicate (Ctrl+D: a copy right after the selection) and
+    Edit the text.
+  - Several widgets: Shift+click (or Ctrl+click) in the Preview adds a
+    widget to the selection or takes it out; the first has the solid
+    outline and shows its Properties, the others a dashed one. Delete and
+    the arrow keys act on all of them. Arrange lines up widgets placed
+    freely in the same Panel - left, right, top and bottom edges, centres
+    across and down, all to the first selected - or spaces three or more
+    evenly. Arrange also has Move up, Move down (which reorder the
+    selection among its siblings; in a split panel they swap the sides),
+    and Wrap in a row / column, which puts the selection inside a new
+    HPanel or VPanel that takes its place.
+  - Keys, with the focus on the Preview (a press there gives it): the
+    arrows nudge freely placed widgets one pixel, ten with Shift; Delete
+    removes the selection; Enter (or a double click on the widget) opens a
+    box over it to change its text or title - Enter keeps it, Escape does
+    not. A widget dragged in a Panel snaps to the edges and centres of
+    the widgets beside it and of the Panel, with a line where it snapped;
+    hold Alt to move it freely. A right click (a long press on a touch
+    screen) opens a menu of the Edit and Arrange commands.
+  - The Palette is in groups (Layout, Text and buttons, Input, Display,
+    Phone, Windows) with a box above it that searches the class names.
+  - Size, besides the screens the Preview can be limited to, has "A phone
+    beside it" - a second copy of the design on a 360 x 640 screen, to
+    look at, next to the one being edited - and "Sample rows in empty
+    lists": a ListPanel or SelectBox with no items (and no empty text)
+    shows sample rows in the Preview, which are never saved or generated.
+  - Run runs the design's program with the Preview as its screen: the
+    program builds the widgets, its handlers answer them, and what they
+    change or animate (a Carousel's pages, a Stack, a Drawer) can be
+    tried. What it prints, and its errors, show at the foot of the
+    Preview. Stop (the same button) shows the design again; edits made
+    while it runs show then. Without a linked script the program is the
+    generated one, whose handlers are empty stubs.
+  - Script links the design to one of the signed-in user's Python
+    scripts. The Events fields then offer that script's functions (and
+    the handlers the design already names); a name the script does not
+    define is marked "(new)". Run runs the script with the design's
+    layout in it, and the Code window shows that program. "Update the
+    script from the design" saves it: the layout section is rebuilt (a
+    script written by hand, with no layout section, gets one at its end,
+    after its functions) and a stub is added for each handler it lacks;
+    the rest of the script is kept. The link is remembered in this browser
+    for the composite's name. (designer-codegen.js: functionsIn,
+    handlersOf, missingHandlers, linkCode.)
     The title shows the name and a * while there are unsaved changes;
     New, Open and closing ask before discarding them.
   - Code opens the DesignerCodeWindow

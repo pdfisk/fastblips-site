@@ -545,6 +545,56 @@ export function updateCode(existing, root, options = {}) {
   return { text: text.endsWith('\n') ? text : `${text}\n`, merged: true, added: missing.map((s) => s.name) };
 }
 
+// ---- linking a design to a script ----------------------------------------------
+
+/** The names of the functions a program defines at its top level, in the order they come. */
+export function functionsIn(source) {
+  const names = [];
+  for (const m of String(source ?? '').matchAll(/^def[ \t]+([A-Za-z_][A-Za-z0-9_]*)[ \t]*\(/gm)) {
+    if (!names.includes(m[1])) names.push(m[1]);
+  }
+  return names;
+}
+
+/** The handlers a design names, as its program spells them: [{ name, who }] (who: where each is wired). */
+export function handlersOf(root, options = {}) {
+  const g = new Generator(language(options.language ?? 'python'));
+  g.reserveHandlers(root);
+  g.build(root, null, { root: true });
+  return [...g.handlers.values()].map((h) => ({ name: h.name, who: [...h.who] }));
+}
+
+/** The handlers a design names that a program (a linked script) does not define. */
+export function missingHandlers(root, source, options = {}) {
+  const lang = language(options.language ?? 'python');
+  return handlersOf(root, options).map((h) => h.name).filter((name) => !defines(String(source ?? ''), lang, name));
+}
+
+/**
+ * The program for a design linked to a script: the script as it is, with its
+ * layout section rebuilt from the design (updateCode). A script that has no
+ * layout section yet - one written by hand - gets one at its end, after the
+ * functions it defines, with a stub for each handler it lacks: the design's
+ * events can then name the functions already written.
+ * @returns {{text: string, merged: boolean, added: string[]}} merged: the script had a layout section
+ */
+export function linkCode(existing, root, options = {}) {
+  const source = String(existing ?? '').replace(/\r\n?/g, '\n');
+  const lines = source.split('\n');
+  const begin = lines.findIndex((l) => BEGIN_PATTERN.test(l));
+  if (begin >= 0 && lines.some((l, i) => i > begin && END_PATTERN.test(l))) return updateCode(source, root, options);
+  if (source.trim() === '') return { text: generateCode(root, options), merged: false, added: handlersOf(root, options).map((h) => h.name) };
+  const { lang, layout, stubs } = parts(root, options);
+  const missing = stubs.filter((s) => !defines(source, lang, s.name));
+  while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
+  const text = [
+    ...lines,
+    ...(missing.length ? ['', ...stubText(missing)] : []),
+    '', BEGIN(lang), ...layout, END(lang),
+  ].join('\n');
+  return { text: `${text}\n`, merged: false, added: missing.map((s) => s.name) };
+}
+
 // ---- saving ---------------------------------------------------------------------
 
 /**

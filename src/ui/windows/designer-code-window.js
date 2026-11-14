@@ -73,6 +73,8 @@ export class DesignerCodeWindow extends Window {
 
   /** The program for the design as it is now. */
   get code() {
+    // A design linked to a script shows that script with the design's layout in it.
+    if (this.designer.script && this.language === 'python') return this.designer.program();
     return generateCode(this.designer.root, { language: this.language, name: this.designer.name });
   }
 
@@ -81,7 +83,8 @@ export class DesignerCodeWindow extends Window {
     for (const [id, button] of Object.entries(this.buttons)) {
       button.label = `${id === this.language ? '✓ ' : ''}${LANGUAGES[id].title}`;
     }
-    this.title = `Code - ${this.designer.name || 'untitled'} (${LANGUAGES[this.language].title})`;
+    const linked = this.designer.script ? `, with ${this.designer.script.name}` : '';
+    this.title = `Code - ${this.designer.name || 'untitled'} (${LANGUAGES[this.language].title}${linked})`;
     let text;
     try {
       text = this.code;

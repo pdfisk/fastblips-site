@@ -328,3 +328,181 @@ test('a Composite\'s and a Stack\'s fields: the layout group, the box, and Selec
   assert.deepEqual(labels, ['Layout', 'Spacing across', 'Spacing down',
     'Columns: index flex= size= min= max= (one a line)', 'Rows: index flex= size= min= max= (one a line)']);
 });
+
+// ---- the designer's later additions: palette groups, undo, aligning, snapping, wrapping, templates
+
+import {
+  PALETTE_GROUPS, paletteRows, History, rectOf, sharedFreeParent, ALIGNMENTS, alignNodes, snapBox, wrapNode,
+  textFieldOf, sampleItems, TEMPLATES,
+} from '../src/ui/designer-model.js';
+
+test('the palette\'s groups hold every class once; a search keeps the groups that match', () => {
+  const grouped = PALETTE_GROUPS.flatMap(([, classes]) => classes);
+  assert.deepEqual([...grouped].sort((a, b) => a.localeCompare(b)), PALETTE);
+  assert.equal(new Set(grouped).size, grouped.length);
+  const rows = paletteRows();
+  assert.equal(rows.filter((r) => r.value).length, PALETTE.length);
+  assert.deepEqual(rows[0], { label: 'LAYOUT', value: null });
+  const found = paletteRows('split');
+  assert.deepEqual(found.filter((r) => r.value).map((r) => r.value), ['HSplitPanel', 'VSplitPanel', 'SplitButton']);
+  assert.deepEqual(found.filter((r) => !r.value).map((r) => r.label), ['LAYOUT', 'TEXT AND BUTTONS']);
+  assert.deepEqual(paletteRows('no such class'), []);
+});
+
+test('History: undo and redo step through the states; a new edit forgets what could be redone', () => {
+  const h = new History();
+  const state = { root: newNode('VPanel'), selected: [0] };
+  h.reset(state);
+  assert.equal(h.canUndo, false);
+  assert.equal(h.undo(), null);
+  addChild(state.root, newNode('Label'));
+  assert.equal(h.record(state), true);
+  assert.equal(h.record(state), false, 'the same state is not kept twice');
+  addChild(state.root, newNode('Button'));
+  h.record(state);
+  assert.equal(h.undo().root.children.length, 1);
+  assert.equal(h.undo().root.children.length, 0);
+  assert.equal(h.undo(), null);
+  const again = h.redo();
+  assert.equal(again.root.children.length, 1);
+  assert.notEqual(again.root, state.root, 'a state handed back is a copy');
+  addChild(again.root, newNode('Image'));
+  h.record(again);
+  assert.equal(h.canRedo, false);
+  assert.equal(h.redo(), null);
+  assert.deepEqual(h.undo().root.children.map((c) => c.class), ['Label']);
+});
+
+test('History keeps no more than its limit of states', () => {
+  const h = new History(3);
+  h.reset({ n: 0 });
+  for (let n = 1; n <= 5; n += 1) h.record({ n });
+  assert.deepEqual([h.undo().n, h.undo().n, h.undo()], [4, 3, null]);
+});
+
+test('aligning and spacing freely placed widgets', () => {
+  const panel = newNode('Panel');
+  const at = (box) => { const n = newNode('Button'); n.box = box; addChild(panel, n); return n; };
+  const a = at([10, 10, 100, 30]);
+  const b = at([50, 60, 60, 20]);
+  const c = at([200, 100, 40, 40]);
+  assert.equal(sharedFreeParent(panel, [a, b, c]), panel);
+  assert.equal(alignNodes([a, b, c], 'left'), null);
+  assert.deepEqual([a.box[0], b.box[0], c.box[0]], [10, 10, 10]);
+  alignNodes([a, b, c], 'right');
+  assert.deepEqual([b.box[0], c.box[0]], [50, 70]);
+  alignNodes([a, b, c], 'center');
+  assert.deepEqual([b.box[0], c.box[0]], [30, 40]);
+  alignNodes([a, b], 'top');
+  assert.equal(b.box[1], 10);
+  alignNodes([a, b], 'middle');
+  assert.equal(b.box[1], 15);
+  alignNodes([a, b], 'bottom');
+  assert.equal(b.box[1], 20);
+  // Even spacing keeps the outer two and puts equal gaps between.
+  a.box = [0, 0, 20, 20]; b.box = [25, 0, 20, 20]; c.box = [100, 0, 20, 20];
+  assert.equal(alignNodes([c, a, b], 'across'), null);
+  assert.deepEqual([a.box[0], b.box[0], c.box[0]], [0, 50, 100]);
+  a.box = [0, 0, 20, 10]; b.box = [0, 80, 20, 10]; c.box = [0, 20, 20, 30];
+  alignNodes([a, b, c], 'down');
+  assert.deepEqual([a.box[1], c.box[1], b.box[1]], [0, 30, 80]);
+  assert.match(alignNodes([a], 'left'), /two or more/);
+  assert.match(alignNodes([a, b], 'across'), /three or more/);
+  assert.match(alignNodes([a, b], 'diagonal'), /no alignment/);
+  assert.equal(Object.keys(ALIGNMENTS).length, 8);
+  // Widgets in a row have no left or top to align; nor have widgets of two parents.
+  const row = newNode('HPanel');
+  const x = newNode('Button');
+  const y = newNode('Button');
+  addChild(row, x); addChild(row, y); addChild(panel, row);
+  assert.equal(sharedFreeParent(panel, [x, y]), null);
+  assert.equal(sharedFreeParent(panel, [a, x]), null);
+  assert.equal(sharedFreeParent(panel, []), null);
+  // A width set as a field counts as the widget's width.
+  a.box = [0, 0, 20, 10]; a.width = 80;
+  assert.deepEqual(rectOf(a), { x: 0, y: 0, width: 80, height: 10 });
+});
+
+test('snapBox: a dragged box takes the nearest edge or centre within the tolerance', () => {
+  const others = [{ x: 0, y: 0, width: 300, height: 200 }, { x: 100, y: 50, width: 80, height: 30 }];
+  const near = snapBox({ x: 97, y: 120, width: 40, height: 20 }, others);
+  assert.equal(near.x, 100);
+  assert.equal(near.y, 120);
+  assert.deepEqual(near.guides, [{ axis: 'x', at: 100 }]);
+  // Its centre to the container's centre, its bottom to the container's bottom.
+  const mid = snapBox({ x: 128, y: 183, width: 40, height: 20 }, others);
+  assert.deepEqual([mid.x, mid.y], [130, 180]);
+  assert.deepEqual(mid.guides, [{ axis: 'x', at: 150 }, { axis: 'y', at: 200 }]);
+  const far = snapBox({ x: 33, y: 133, width: 10, height: 10 }, others);
+  assert.deepEqual(far, { x: 33, y: 133, guides: [] });
+});
+
+test('wrapNode puts a widget in a new row or column that takes its place', () => {
+  const root = newNode('VPanel');
+  const label = newNode('Label');
+  const button = Object.assign(newNode('Button'), { flex: 2 });
+  addChild(root, label); addChild(root, button);
+  const { node: row } = wrapNode(root, button, 'HPanel');
+  assert.deepEqual(root.children, [label, row]);
+  assert.deepEqual(row.children, [button]);
+  assert.equal(row.flex, 2);
+  assert.equal(button.flex, undefined);
+  // In a Panel the container sits where the widget sat.
+  const panel = newNode('Panel');
+  const field = newNode('TextField');
+  field.box = [40, 50, 160, 28];
+  addChild(panel, field);
+  const { node: column } = wrapNode(panel, field, 'VPanel');
+  assert.deepEqual(column.box, [40, 50, 160, 28]);
+  assert.equal(parentOf(panel, field), column);
+  // A tab's page, a split's side.
+  const tabs = newNode('TabPanel');
+  const page = newNode('Label');
+  addChild(tabs, page);
+  const wrapped = wrapNode(tabs, page, 'VPanel').node;
+  assert.equal(tabs.tabs[0].widget, wrapped);
+  assert.equal(tabs.tabs[0].label, 'Tab 1');
+  const split = newNode('HSplitPanel');
+  const side = newNode('Label');
+  addChild(split, newNode('Label')); addChild(split, side);
+  assert.equal(wrapNode(split, side, 'HPanel').node, split.second);
+  assert.match(wrapNode(root, root, 'HPanel').problem, /root cannot be wrapped/);
+  assert.match(wrapNode(root, label, 'Label').problem, /cannot wrap/);
+  assert.deepEqual(root.children, [label, row], 'nothing changes with a problem');
+});
+
+test('textFieldOf: the text edited in place; sampleItems: rows for an empty list only', () => {
+  assert.equal(textFieldOf(newNode('Button')).key, 'text');
+  assert.equal(textFieldOf(newNode('Window'), { isRoot: true }).key, 'title');
+  assert.equal(textFieldOf(newNode('NavigationBar')).key, 'title');
+  assert.equal(textFieldOf(newNode('TextArea')), null, 'several lines are edited in Properties');
+  assert.equal(textFieldOf(newNode('Image')), null);
+  const list = newNode('ListPanel');
+  assert.equal(sampleItems(list).length, 3);
+  assert.deepEqual(list.items, [], 'the design itself is not touched');
+  list.emptyText = 'Nothing yet';
+  assert.equal(sampleItems(list), null);
+  delete list.emptyText;
+  list.items = ['one'];
+  assert.equal(sampleItems(list), null);
+  assert.equal(sampleItems(newNode('SelectBox')).length, 2);
+  assert.equal(sampleItems(newNode('Button')), null);
+});
+
+test('every template builds a new design each time, of palette classes, with handlers named', () => {
+  assert.ok(TEMPLATES.length >= 5);
+  assert.equal(new Set(TEMPLATES.map((t) => t.name)).size, TEMPLATES.length);
+  for (const template of TEMPLATES) {
+    const root = template.build();
+    assert.notEqual(template.build(), root);
+    assert.deepEqual(template.build(), root);
+    const rows = outline(root);
+    assert.ok(rows.length > 2, template.name);
+    for (const { node } of rows) {
+      assert.ok(PALETTE.includes(node.class), `${template.name}: ${node.class}`);
+      for (const event of node.events ?? []) assert.ok(eventsOf(node.class).includes(event.method), `${template.name}: ${node.class}.${event.method}`);
+    }
+    assert.ok(rows.some(({ node }) => (node.events ?? []).length), `${template.name} names a handler`);
+    assert.ok(template.description);
+  }
+});

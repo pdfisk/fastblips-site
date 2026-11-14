@@ -705,3 +705,332 @@ export function pasteNode(root, selected, copied) {
   if (isFreeParent(parent) && node.box) { node.box[0] += 12; node.box[1] += 12; }
   return { node };
 }
+
+// ---- the palette, in groups ------------------------------------------------
+
+const GROUPS = [
+  ['Layout', ['VPanel', 'HPanel', 'Panel', 'Composite', 'Stack', 'TabPanel', 'HSplitPanel', 'VSplitPanel', 'Spacer']],
+  ['Text and buttons', ['Label', 'Button', 'SplitButton', 'Menu', 'ButtonBar']],
+  ['Input', ['TextField', 'PasswordField', 'TextArea', 'SelectBox', 'CheckGroupBox', 'RadioGroupBox', 'ListPanel']],
+  ['Display', ['Image', 'TextPanel', 'MonacoPanel', 'Ellipse', 'RoundedRect']],
+  ['Phone', ['NavigationBar', 'Carousel', 'Drawer']],
+  ['Windows', ['Window']],
+];
+
+/**
+ * The Palette's classes by what they are for: [[title, [class, ...]], ...].
+ * A class no group names (one added to the toolkit since) is in a last
+ * group, Other, so that it is never left out.
+ */
+export const PALETTE_GROUPS = (() => {
+  const named = new Set(GROUPS.flatMap(([, classes]) => classes));
+  const groups = GROUPS.map(([title, classes]) => [title, classes.filter((c) => PALETTE.includes(c))]);
+  const other = PALETTE.filter((c) => !named.has(c));
+  if (other.length) groups.push(['Other', other]);
+  return groups.filter(([, classes]) => classes.length);
+})();
+
+/**
+ * The Palette's rows for a search: [{ label, value }] where value is a
+ * class, or null for a group's heading. With text, only the classes whose
+ * name contains it (any case) are left, and the groups that still have one.
+ */
+export function paletteRows(search = '') {
+  const want = String(search).trim().toLowerCase();
+  const rows = [];
+  for (const [title, classes] of PALETTE_GROUPS) {
+    const found = classes.filter((c) => c.toLowerCase().includes(want));
+    if (!found.length) continue;
+    rows.push({ label: title.toUpperCase(), value: null });
+    for (const c of found) rows.push({ label: `    ${c}`, value: c });
+  }
+  return rows;
+}
+
+// ---- undo and redo ---------------------------------------------------------
+
+/**
+ * The designs the designer has been through, for Undo and Redo. A state is
+ * any JSON-ready value (the designer keeps { root, selected }); the History
+ * keeps its own copies. reset(state) starts again from a state; record(state)
+ * adds the state after an edit (and forgets what could be redone); undo()
+ * and redo() return the state to show, or null when there is none.
+ */
+export class History {
+  constructor(limit = 200) {
+    this.limit = limit;
+    this.states = [];
+    this.at = -1;
+  }
+
+  reset(state) {
+    this.states = [JSON.stringify(state)];
+    this.at = 0;
+  }
+
+  record(state) {
+    const text = JSON.stringify(state);
+    if (this.at >= 0 && this.states[this.at] === text) return false;
+    this.states.length = this.at + 1;
+    this.states.push(text);
+    if (this.states.length > this.limit) this.states.shift();
+    this.at = this.states.length - 1;
+    return true;
+  }
+
+  get canUndo() { return this.at > 0; }
+  get canRedo() { return this.at < this.states.length - 1; }
+
+  undo() {
+    if (!this.canUndo) return null;
+    this.at -= 1;
+    return JSON.parse(this.states[this.at]);
+  }
+
+  redo() {
+    if (!this.canRedo) return null;
+    this.at += 1;
+    return JSON.parse(this.states[this.at]);
+  }
+}
+
+// ---- several widgets at once: aligning, spacing, snapping --------------------
+
+/** A freely placed node's box as { x, y, width, height }. */
+export function rectOf(node) {
+  const box = node.box ?? DEFAULT_BOXES[node.class] ?? [0, 0, 0, 0];
+  return { x: box[0], y: box[1], width: node.width ?? box[2], height: node.height ?? box[3] };
+}
+
+function moveTo(node, x, y) {
+  node.box ??= [...(DEFAULT_BOXES[node.class] ?? [0, 0, 0, 0])];
+  node.box[0] = Math.round(x);
+  node.box[1] = Math.round(y);
+}
+
+/**
+ * The parent the nodes share when every one of them is placed freely in it
+ * (a Panel, or a Composite with a basic or canvas layout), else null: only
+ * such widgets have a left and a top to align.
+ */
+export function sharedFreeParent(root, nodes) {
+  if (!nodes.length) return null;
+  const parent = parentOf(root, nodes[0]);
+  if (!parent || !isFreeParent(parent)) return null;
+  return nodes.every((n) => parentOf(root, n) === parent) ? parent : null;
+}
+
+export const ALIGNMENTS = Object.freeze({
+  left: 'Align left edges', center: 'Align centres across', right: 'Align right edges',
+  top: 'Align top edges', middle: 'Align centres down', bottom: 'Align bottom edges',
+  across: 'Space evenly across', down: 'Space evenly down',
+});
+
+/**
+ * Lines up freely placed nodes (how: a key of ALIGNMENTS). The edges and
+ * centres are those of the first node; spacing evenly keeps the outermost
+ * two where they are and puts equal gaps between the rest. Returns a
+ * message saying why not, or null.
+ */
+export function alignNodes(nodes, how) {
+  if (!(how in ALIGNMENTS)) return `there is no alignment '${how}'`;
+  const spacing = how === 'across' || how === 'down';
+  if (nodes.length < (spacing ? 3 : 2)) return spacing ? 'select three or more widgets to space them evenly' : 'select two or more widgets to align them';
+  const first = rectOf(nodes[0]);
+  if (!spacing) {
+    for (const node of nodes.slice(1)) {
+      const r = rectOf(node);
+      switch (how) {
+        case 'left': moveTo(node, first.x, r.y); break;
+        case 'center': moveTo(node, first.x + (first.width - r.width) / 2, r.y); break;
+        case 'right': moveTo(node, first.x + first.width - r.width, r.y); break;
+        case 'top': moveTo(node, r.x, first.y); break;
+        case 'middle': moveTo(node, r.x, first.y + (first.height - r.height) / 2); break;
+        default: moveTo(node, r.x, first.y + first.height - r.height); break;
+      }
+    }
+    return null;
+  }
+  const [at, size] = how === 'across' ? ['x', 'width'] : ['y', 'height'];
+  const sorted = [...nodes].sort((a, b) => rectOf(a)[at] - rectOf(b)[at]);
+  const rects = sorted.map(rectOf);
+  const last = rects[rects.length - 1];
+  const span = last[at] + last[size] - rects[0][at];
+  const gap = (span - rects.reduce((sum, r) => sum + r[size], 0)) / (rects.length - 1);
+  let next = rects[0][at];
+  sorted.forEach((node, i) => {
+    const r = rects[i];
+    if (how === 'across') moveTo(node, next, r.y); else moveTo(node, r.x, next);
+    next += r[size] + gap;
+  });
+  return null;
+}
+
+/**
+ * Where a box being dragged should sit so that its edges or its centre line
+ * up with those of the boxes near it: { x, y, guides } where guides are the
+ * lines it now lies on ([{ axis: 'x' | 'y', at }]). An edge closer than
+ * tolerance to a line snaps to it; with none that close, x and y are as given.
+ */
+export function snapBox(box, others, tolerance = 5) {
+  const lines = (r, at, size) => [r[at], r[at] + r[size] / 2, r[at] + r[size]];
+  const result = { x: box.x, y: box.y, guides: [] };
+  for (const [axis, size] of [['x', 'width'], ['y', 'height']]) {
+    let best = null;
+    for (const mine of lines(box, axis, size)) {
+      for (const other of others) {
+        for (const line of lines(other, axis, size)) {
+          const d = line - mine;
+          if (Math.abs(d) <= tolerance && (!best || Math.abs(d) < Math.abs(best.d))) best = { d, line };
+        }
+      }
+    }
+    if (best) {
+      result[axis] = Math.round(box[axis] + best.d);
+      result.guides.push({ axis, at: best.line });
+    }
+  }
+  return result;
+}
+
+/**
+ * Puts node inside a new container of class cls (an HPanel, a VPanel...),
+ * which takes node's place in the design: its position, its place in its
+ * parent's layout and its flex. Returns { node } (the new container), or
+ * { problem } saying why not; nothing changes with a problem.
+ */
+export function wrapNode(root, node, cls) {
+  const parent = parentOf(root, node);
+  if (!parent) return { problem: 'the root cannot be wrapped: add it to a New composite instead' };
+  if (!LIST_CONTAINERS.has(cls)) return { problem: `a ${cls} cannot wrap a widget` };
+  const wrapper = newNode(cls);
+  const place = placeOf(parent, node);
+  if (isFreeParent(parent)) {
+    const r = rectOf(node);
+    wrapper.box = [r.x, r.y, Math.max(r.width, 8), Math.max(r.height, 8)];
+  }
+  for (const key of ['layoutProps', 'flex']) {
+    if (node[key] !== undefined) { wrapper[key] = node[key]; delete node[key]; }
+  }
+  if (place.tabs) place.list[place.index].widget = wrapper;
+  else if (place.list) place.list[place.index] = wrapper;
+  else parent[place.slot] = wrapper;
+  wrapper.children = [node];
+  return { node: wrapper };
+}
+
+/** The node's field that holds the text shown on it (its text, or a Window's or a bar's title), or null. */
+export function textFieldOf(node, options) {
+  const fields = fieldsFor(node, options).flatMap(([, fs]) => fs);
+  return fields.find((f) => f.type === 'text' && (f.key === 'text' || f.key === 'title')) ?? null;
+}
+
+/**
+ * What an empty list shows in the Preview while it is designed, so that its
+ * size and look can be judged: sample rows for a ListPanel or a SelectBox
+ * with no items of its own, else null. They are never saved or generated.
+ */
+export function sampleItems(node) {
+  if ((node.items ?? []).length) return null;
+  if (node.class === 'ListPanel' && node.emptyText) return null;   // what it says when empty is part of the design
+  if (node.class === 'ListPanel') return ['Sample item 1', 'Sample item 2', 'Sample item 3'];
+  if (node.class === 'SelectBox') return ['Sample choice 1', 'Sample choice 2'];
+  return null;
+}
+
+// ---- starter designs --------------------------------------------------------
+
+const withProps = (cls, props = {}, children = []) => {
+  const node = Object.assign(newNode(cls), props);
+  for (const child of children) addChild(node, child);
+  return node;
+};
+const on = (method, handler) => ({ events: [{ method, handler }] });
+
+/**
+ * Designs to start from: [{ name, description, build() }] where build()
+ * returns a new root. Each names its handlers, so its program has a function
+ * to fill in for every button.
+ */
+export const TEMPLATES = Object.freeze([
+  {
+    name: 'Form',
+    description: 'Labels and fields in a column, with OK and Cancel',
+    build: () => withProps('VPanel', { spacing: 6, padding: 12 }, [
+      withProps('Label', { text: 'Sign up' }),
+      withProps('Label', { text: 'Name' }),
+      withProps('TextField', { id: 'name', placeholder: 'Your name' }),
+      withProps('Label', { text: 'Email' }),
+      withProps('TextField', { id: 'email', placeholder: 'you@example.com' }),
+      withProps('Spacer', { flex: 1 }),
+      withProps('HPanel', { spacing: 6 }, [
+        withProps('Spacer', { flex: 1 }),
+        withProps('Button', { id: 'cancel', text: 'Cancel', ...on('onClick', 'cancel_clicked') }),
+        withProps('Button', { id: 'ok', text: 'OK', ...on('onClick', 'ok_clicked') }),
+      ]),
+    ]),
+  },
+  {
+    name: 'List and detail',
+    description: 'A list on the left; what is picked shows on the right',
+    build: () => {
+      const split = withProps('HSplitPanel', { position: 0.35 });
+      addChild(split, withProps('ListPanel', { id: 'items', items: ['First', 'Second', 'Third'], ...on('onSelect', 'item_selected') }));
+      addChild(split, withProps('VPanel', { spacing: 6, padding: 8 }, [
+        withProps('Label', { id: 'title', text: 'Pick an item' }),
+        withProps('TextPanel', { id: 'detail', text: '', readOnly: true, flex: 1 }),
+      ]));
+      return split;
+    },
+  },
+  {
+    name: 'Tabs',
+    description: 'Two pages, one behind each tab',
+    build: () => {
+      const tabs = withProps('TabPanel', { id: 'tabs', ...on('onSelect', 'tab_selected') });
+      addChild(tabs, withProps('VPanel', { padding: 8 }, [withProps('Label', { text: 'The home page' })]));
+      addChild(tabs, withProps('VPanel', { padding: 8 }, [withProps('Label', { text: 'The settings page' })]));
+      tabs.tabs[0].label = 'Home';
+      tabs.tabs[1].label = 'Settings';
+      return tabs;
+    },
+  },
+  {
+    name: 'Phone app',
+    description: 'A title bar, a list that fills the screen and a row of buttons',
+    build: () => withProps('VPanel', {}, [
+      withProps('NavigationBar', { id: 'bar', title: 'My app', actionText: 'Add', ...on('onAction', 'add_tapped') }),
+      withProps('ListPanel', { id: 'list', flex: 1, emptyText: 'Nothing here yet', ...on('onSelect', 'row_selected') }),
+      withProps('HPanel', { spacing: 6, padding: 6 }, [
+        withProps('Button', { id: 'home', text: 'Home', flex: 1, ...on('onClick', 'home_tapped') }),
+        withProps('Button', { id: 'more', text: 'More', flex: 1, ...on('onClick', 'more_tapped') }),
+      ]),
+    ]),
+  },
+  {
+    name: 'Slides',
+    description: 'A Carousel of three pages with Back and Next: its pages slide when it runs',
+    build: () => withProps('VPanel', { spacing: 6 }, [
+      withProps('Carousel', { id: 'slides', flex: 1, ...on('onSelect', 'slide_changed') }, [
+        withProps('Panel', { background: '#2d6cdf' }, [withProps('Label', { text: 'One', box: [20, 20, 100, 24], color: '#ffffff', background: '#2d6cdf' })]),
+        withProps('Panel', { background: '#1f9d55' }, [withProps('Label', { text: 'Two', box: [20, 20, 100, 24], color: '#ffffff', background: '#1f9d55' })]),
+        withProps('Panel', { background: '#c2410c' }, [withProps('Label', { text: 'Three', box: [20, 20, 100, 24], color: '#ffffff', background: '#c2410c' })]),
+      ]),
+      withProps('HPanel', { spacing: 6, padding: 6 }, [
+        withProps('Button', { id: 'back', text: 'Back', ...on('onClick', 'back_clicked') }),
+        withProps('Spacer', { flex: 1 }),
+        withProps('Button', { id: 'next', text: 'Next', ...on('onClick', 'next_clicked') }),
+      ]),
+    ]),
+  },
+  {
+    name: 'Game menu',
+    description: 'A title and the buttons of a start screen',
+    build: () => withProps('Panel', { background: '#1b1f2a' }, [
+      withProps('Label', { id: 'title', text: 'My game', box: [110, 40, 100, 24], color: '#ffffff', background: '#1b1f2a' }),
+      withProps('Button', { id: 'play', text: 'Play', box: [110, 90, 100, 32], ...on('onClick', 'play_clicked') }),
+      withProps('Button', { id: 'options', text: 'Options', box: [110, 130, 100, 32], ...on('onClick', 'options_clicked') }),
+      withProps('Button', { id: 'quit', text: 'Quit', box: [110, 170, 100, 32], ...on('onClick', 'quit_clicked') }),
+    ]),
+  },
+]);

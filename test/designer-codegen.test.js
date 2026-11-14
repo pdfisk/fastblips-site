@@ -515,3 +515,60 @@ test('Composite and Stack: the program sets the layout, its settings and each wi
   // a Stack's pages are not hidden by the program: the Stack shows its own
   assert.deepEqual(calls('setVisible'), []);
 });
+
+// ---- linking a design to a script, and the starter designs ------------------------------
+
+import { functionsIn, handlersOf, missingHandlers, linkCode } from '../src/ui/designer-codegen.js';
+import { TEMPLATES } from '../src/ui/designer-model.js';
+
+test('functionsIn lists a program\'s top-level functions; missingHandlers those a design names beyond them', () => {
+  const source = 'def save(sender):\n    pass\n\nx = 1\ndef  load (sender):\n    def inner():\n        pass\n\ndef save(sender):\n    pass\n';
+  assert.deepEqual(functionsIn(source), ['save', 'load']);
+  assert.deepEqual(functionsIn(''), []);
+  const root = newNode('VPanel');
+  const button = Object.assign(newNode('Button'), { events: [{ method: 'onClick', handler: 'save' }] });
+  const other = Object.assign(newNode('Button'), { events: [{ method: 'onClick', handler: 'close_it' }] });
+  addChild(root, button); addChild(root, other);
+  assert.deepEqual(handlersOf(root).map((h) => h.name), ['save', 'close_it']);
+  assert.deepEqual(handlersOf(root)[0].who, ['button1.on_click']);
+  assert.deepEqual(missingHandlers(root, source), ['close_it']);
+  assert.deepEqual(missingHandlers(root, ''), ['save', 'close_it']);
+});
+
+test('linkCode: a hand-written script gets the layout at its end and keeps its own functions', () => {
+  const root = newNode('VPanel');
+  addChild(root, Object.assign(newNode('Button'), { id: 'go', events: [{ method: 'onClick', handler: 'greet' }] }));
+  addChild(root, Object.assign(newNode('Button'), { events: [{ method: 'onClick', handler: 'leave' }] }));
+  const script = 'def greet(sender):\n    print("hello")\n\n\n';
+  const first = linkCode(script, root);
+  assert.equal(first.merged, false);
+  assert.deepEqual(first.added, ['leave']);
+  assert.ok(first.text.startsWith('def greet(sender):\n    print("hello")\n'));
+  assert.deepEqual(functionsIn(first.text), ['greet', 'leave']);
+  assert.ok(first.text.indexOf('def leave') < first.text.indexOf('DESIGNER LAYOUT'), 'functions come before the layout that names them');
+  // The program runs, and the script's own function answers the button.
+  const { host, out } = runProgram(first.text, 'python');
+  const go = [...host.widgets.values()].find((w) => w.props.id === 'go');
+  assert.ok(go, 'the design was built');
+  // Linking again changes only the layout section.
+  addChild(root, newNode('Label'));
+  const second = linkCode(first.text, root);
+  assert.equal(second.merged, true);
+  assert.deepEqual(second.added, []);
+  assert.ok(second.text.includes('print("hello")'));
+  assert.ok(second.text.includes('label1 = Label('));
+  assert.equal(second.text.match(/DESIGNER LAYOUT/g).length, 2);
+  assert.deepEqual(out, []);
+  // An empty script becomes the generated program.
+  assert.equal(linkCode('', root).text, generateCode(root));
+  assert.equal(linkCode('  \n', root).text, generateCode(root));
+});
+
+test('every template\'s program compiles, runs and builds its widgets', () => {
+  for (const template of TEMPLATES) {
+    const root = template.build();
+    const { host } = runProgram(generateCode(root, { name: template.name }), 'python');
+    assert.ok(host.widgets.size > 3, template.name);
+    assert.deepEqual(missingHandlers(root, generateCode(root)), [], template.name);
+  }
+});
