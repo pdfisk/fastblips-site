@@ -8,16 +8,20 @@
 //
 //   setTheme('classic')    the default: a Windows 2000-style desktop
 //   setTheme('apple')      a present-day Mac desktop
-//   setTheme('steampunk')  dark walnut and brass (fastblips-themes.js)
+//   setTheme('graphite')   a game engine's editor: charcoal and blue
+//   setTheme('midnight')   ... navy and cyan
+//   setTheme('ember')      ... warm black and orange
+//   setTheme('circuit')    ... green-black and signal green
+//   setTheme('daylight')   ... light grey and blue (all in fastblips-themes.js)
 //   setTheme('light')      the original flat look
 //   setTheme('dark')
 //   setTheme('auto')       light or dark, following the operating system
 //
-// Settings > Theme offers Classic, Apple and Steampunk; the
+// Settings > Theme offers Classic, Apple and the five editor themes; the
 // choice is remembered in localStorage. A saved choice that is no longer a
 // theme (one that was removed) is ignored: the default is used.
 //
-// Steampunk is a FastBlips theme: a small set of tokens defined in
+// The editor themes are FastBlips themes: each a small set of tokens defined in
 // fastblips-themes.js. Choosing one calls its applyTheme(), which writes the
 // tokens on <html> as --fb-* variables, and the --cr-* variables the widgets
 // use are then defined in terms of those (fbBridge below).
@@ -408,11 +412,12 @@ function fbBridge(theme) {
     'title-hover': mix('currentColor', 22, 'transparent'),
     'close-hover': fb('danger'),
     'close-hover-text': fb('accent-text'),
-    'button-bg': fb('accent'),
-    'button-text': fb('accent-text'),
+    // Buttons are neutral where the theme has button tokens; else they take the accent.
+    'button-bg': fb(theme.ui.button ? 'button' : 'accent'),
+    'button-text': fb(theme.ui.buttonText ? 'button-text' : 'accent-text'),
     'button-shadow': `${FB_OUTLINE} ${fb('border')}`,
     'button-active-shadow': `${FB_OUTLINE} ${fb('border-strong')}`,
-    'button-hover': fb('accent-hover'),
+    'button-hover': fb(theme.ui.buttonHover ? 'button-hover' : 'accent-hover'),
     'tab-hover-text': fb('accent-text'),
     'buttonbar-bg': fb('panel'),
     'buttonbar-border': fb('border'),
