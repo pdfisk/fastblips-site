@@ -32,7 +32,9 @@ import { FileCopyWindow, canUseFileCopy } from './windows/file-copy-window.js';
 import { canBackUpDatabase, backUpDesktopDatabase, restoreDesktopDatabase } from './desktop-database.js';
 import { WidgetHelpWindow } from './windows/widget-help-window.js';
 import { PythonHelpWindow } from './windows/python-help-window.js';
-import { WelcomeWindow, showWelcomeAtStartup } from './windows/welcome-window.js';
+import { WelcomeWindow } from './windows/welcome-window.js';
+import { StartMenuWindow } from './windows/start-menu-window.js';
+import { showStartMenuAtStartup } from './start-menu.js';
 import { ForumWindow } from './windows/forum-window.js';
 
 /**
@@ -81,7 +83,7 @@ export function startDesktop() {
   });
 
   transcript.open(viewport);
-  if (showWelcomeAtStartup()) WelcomeWindow.instance.open(viewport);
+  if (showStartMenuAtStartup()) StartMenuWindow.instance.open(viewport);
   return viewport;
 }
 
@@ -105,10 +107,14 @@ function schedulerSummary() {
   return `${total} process${total === 1 ? '' : 'es'}: ${parts.join(', ')}`;
 }
 
+/** Whether File > Register... can be chosen: new users cannot register for now. */
+export const REGISTRATION_ENABLED = false;
+
 // The File menu:
 //   Sign In      the Sign In window: the user this browser works as
 //                (Sign Out, the Sign Out window, while a user is signed in)
 //   Register...  the Register window: a new user on the database server
+//                (greyed out while REGISTRATION_ENABLED is false)
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
 //                (.py)
@@ -141,7 +147,7 @@ function fileMenu(viewport) {
     () => (userName() ? 'Sign Out' : 'Sign In'),
     () => (userName() ? SignOutWindow : SignInWindow).instance.open(viewport),
   );
-  menu.addItem('Register...', () => RegisterWindow.instance.open(viewport));
+  menu.addItem('Register...', () => RegisterWindow.instance.open(viewport), { enabled: () => REGISTRATION_ENABLED });
   menu.addItem('FastBlips Account...', () => SignInWindow.instance.openRemote(viewport), { visible: isDesktopServer });
   menu.addSeparator();
   menu.addItem('New Python', newConsole(PythonConsoleWindow));
@@ -338,9 +344,11 @@ function forumButton(viewport) {
 }
 
 // The Help menu, after Forum, is where the documentation is:
+//   Apps and Games         the Apps and Games window: the shared games and
+//                          apps, desktop ones first (also shown at startup
+//                          unless its "Show at startup" box is cleared)
 //   Welcome                the Welcome window: what FastBlips is, with links
-//                          into the documentation (also shown at startup
-//                          unless its "Show this window" box is cleared)
+//                          into the documentation
 //   Python Documentation   the Python Documentation window: the language a
 //                          program is written in, with examples
 //   Widget Documentation   the Widget Documentation window: every widget a
@@ -349,6 +357,7 @@ function forumButton(viewport) {
 // front.
 function helpMenu(viewport) {
   const menu = new Menu('Help');
+  menu.addItem('Apps and Games', () => StartMenuWindow.instance.open(viewport));
   menu.addItem('Welcome', () => WelcomeWindow.instance.open(viewport));
   menu.addSeparator();
   menu.addItem('Python Documentation', () => PythonHelpWindow.instance.open(viewport));

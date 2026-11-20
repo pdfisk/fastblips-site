@@ -1,12 +1,14 @@
 // The mobile UI, shown on a phone when the address names no app (no ?app=):
-// the list of shared projects that are mobile games (category mobile-game),
-// each a link that runs it full-page, and a link to the full playground. It uses plain DOM rather than the desktop widgets
+// the start menu of shared apps and games (see start-menu.js), mobile games
+// first, then mobile apps, desktop games and desktop apps, each a link that
+// runs it full-page; a "Show at startup" box (when cleared, the list waits
+// behind a "Show apps and games" button); and a link to the full playground. It uses plain DOM rather than the desktop widgets
 // (Viewport, Window, ...), which are built for a mouse and a large screen.
 
 import { installTheme } from '../theme.js';
 import { BUILD_STAMP } from '../build-info.js';
 import { projectUrl } from '../app-list.js';
-import { listSharedProjects } from '../projects.js';
+import { loadStartMenu, showStartMenuAtStartup, setShowStartMenuAtStartup } from '../start-menu.js';
 
 const STYLE = `
 .cr-mobile{box-sizing:border-box;min-height:100vh;min-height:100dvh;margin:0;
@@ -29,6 +31,11 @@ const STYLE = `
 .cr-mobile-app:active{background:var(--cr-button-hover);box-shadow:var(--cr-button-active-shadow)}
 .cr-mobile-app small{font-weight:400;color:var(--cr-text-muted)}
 .cr-mobile-status{color:var(--cr-text-muted);text-align:center}
+.cr-mobile-startup{display:flex;align-items:center;gap:8px;margin-top:14px;color:var(--cr-text-muted);font-size:15px}
+.cr-mobile-startup input{width:20px;height:20px}
+.cr-mobile-show{width:100%;min-height:48px;margin:4px 0;border:0;border-radius:var(--cr-radius-button);
+  background:var(--cr-button-bg);color:var(--cr-button-text);box-shadow:var(--cr-button-shadow);font:inherit;font-weight:600}
+.cr-mobile-sections h2{margin-top:14px}
 .cr-mobile-full{display:block;margin-top:16px;text-align:center;color:var(--cr-text-muted);font-size:14px}
 .cr-mobile-footer{font-size:13px;color:var(--cr-window-bg);opacity:.85}
 `;
@@ -52,9 +59,12 @@ export function startMobile() {
     <section class="cr-mobile-card">
       <h1>FastBlips</h1>
       <p class="cr-mobile-tagline">Apps made with Python</p>
-      <h2 class="cr-mobile-heading">Mobile games</h2>
-      <p class="cr-mobile-status">Loading games...</p>
-      <ul class="cr-mobile-apps cr-mobile-projects" aria-label="Mobile games"></ul>
+      <button type="button" class="cr-mobile-show" hidden>Show apps and games</button>
+      <div class="cr-mobile-menu">
+        <p class="cr-mobile-status">Loading apps and games...</p>
+        <div class="cr-mobile-sections"></div>
+      </div>
+      <label class="cr-mobile-startup"><input type="checkbox" class="cr-mobile-startup-box"> Show at startup</label>
       <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>
     </section>
     <footer class="cr-mobile-footer"></footer>`;
@@ -63,24 +73,45 @@ export function startMobile() {
   document.body.appendChild(root);
 
   const status = root.querySelector('.cr-mobile-status');
-  const projectList = root.querySelector('.cr-mobile-projects');
-  // The mobile games anyone has shared, each a link that runs the project full-page.
-  const ready = listSharedProjects({ category: 'mobile-game' }).then((projects) => {
-    status.textContent = projects.length ? 'Tap a game to play it.' : 'There are no shared mobile games yet.';
-    projectList.replaceChildren(...projects.map((project) => {
-      const li = document.createElement('li');
-      const a = document.createElement('a');
-      a.className = 'cr-mobile-app';
-      a.href = projectUrl(project.name, undefined, project.owner);
-      a.append(project.name);
-      const owner = document.createElement('small');
-      owner.textContent = project.owner || '(shared)';
-      a.append(owner);
-      li.append(a);
-      return li;
+  const sectionsEl = root.querySelector('.cr-mobile-sections');
+  const menu = root.querySelector('.cr-mobile-menu');
+  const showButton = root.querySelector('.cr-mobile-show');
+  const startupBox = root.querySelector('.cr-mobile-startup-box');
+  startupBox.checked = showStartMenuAtStartup();
+  startupBox.addEventListener('change', () => setShowStartMenuAtStartup(startupBox.checked));
+  // With "Show at startup" cleared, the list waits behind a button.
+  if (!startupBox.checked) {
+    menu.hidden = true;
+    showButton.hidden = false;
+  }
+  showButton.addEventListener('click', () => { menu.hidden = false; showButton.hidden = true; });
+
+  // The games and apps anyone has shared, mobile games first, each a link
+  // that runs the project full-page.
+  const ready = loadStartMenu({ mobile: true }).then((sections) => {
+    status.textContent = sections.length ? 'Tap one to run it.' : 'There are no shared apps or games yet.';
+    sectionsEl.replaceChildren(...sections.flatMap(({ label, projects }) => {
+      const heading = document.createElement('h2');
+      heading.textContent = label;
+      const list = document.createElement('ul');
+      list.className = 'cr-mobile-apps cr-mobile-projects';
+      list.setAttribute('aria-label', label);
+      list.append(...projects.map((project) => {
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.className = 'cr-mobile-app';
+        a.href = projectUrl(project.name, undefined, project.owner);
+        a.append(project.name);
+        const owner = document.createElement('small');
+        owner.textContent = project.owner || '(shared)';
+        a.append(owner);
+        li.append(a);
+        return li;
+      }));
+      return [heading, list];
     }));
   }, (err) => {
-    status.textContent = `Could not read the shared games: ${err?.message ?? err}`;
+    status.textContent = `Could not read the shared apps and games: ${err?.message ?? err}`;
   });
   return { root, ready };
 }

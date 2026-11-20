@@ -30,16 +30,3 @@ test('every Welcome link names a section of its documentation window', () => {
   }
   assert.ok(count > 0);
 });
-
-test('Show at startup is on unless turned off, and is remembered', () => {
-  const store = new Map();
-  globalThis.localStorage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v) };
-  assert.equal(welcome.showWelcomeAtStartup(), true);
-  welcome.setShowWelcomeAtStartup(false);
-  assert.equal(welcome.showWelcomeAtStartup(), false);
-  welcome.setShowWelcomeAtStartup(true);
-  assert.equal(welcome.showWelcomeAtStartup(), true);
-  globalThis.localStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
-  assert.equal(welcome.showWelcomeAtStartup(), true);
-  assert.doesNotThrow(() => welcome.setShowWelcomeAtStartup(false));
-});

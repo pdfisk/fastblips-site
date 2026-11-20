@@ -1,7 +1,7 @@
-// WelcomeWindow: the singleton window shown when the desktop UI starts, and
-// again from Help > Welcome. It says what FastBlips is and links to the
-// documentation: each link opens the Python or Widget Documentation window
-// at a section. "Show at startup" is remembered in localStorage.
+// WelcomeWindow: the singleton window opened from Help > Welcome (it is not
+// shown at startup; the Apps and Games window is). It says what FastBlips is
+// and links to the documentation: each link opens the Python or Widget
+// Documentation window at a section.
 
 import { Window } from './window.js';
 import { Panel } from '../widgets/panel.js';
@@ -48,17 +48,6 @@ export const WELCOME_LINKS = [
 
 const HELP_WINDOWS = { python: () => PythonHelpWindow.instance, widgets: () => WidgetHelpWindow.instance };
 
-const STORAGE_KEY = 'crumb.welcome';
-
-/** Whether the Welcome window opens when the desktop starts (yes, unless turned off). */
-export function showWelcomeAtStartup() {
-  try { return window.localStorage.getItem(STORAGE_KEY) !== 'off'; } catch { return true; }
-}
-
-export function setShowWelcomeAtStartup(show) {
-  try { window.localStorage.setItem(STORAGE_KEY, show ? 'on' : 'off'); } catch { /* storage blocked */ }
-}
-
 const STYLE = `
 .cr-welcome{position:absolute;box-sizing:border-box;overflow:auto;padding:16px 20px;
   background:var(--cr-window-bg);color:var(--cr-text);font:var(--cr-font-size)/1.5 var(--cr-font-ui)}
@@ -72,7 +61,6 @@ const STYLE = `
   text-decoration:underline;cursor:pointer}
 .cr-welcome-link:hover,.cr-welcome-link:focus-visible{text-decoration:none}
 .cr-welcome-blurb{color:var(--cr-text-muted)}
-.cr-welcome-startup{display:flex;align-items:center;gap:6px;margin-top:16px;color:var(--cr-text-muted)}
 `;
 
 function installStyle() {
@@ -113,13 +101,6 @@ class WelcomePanel extends Panel {
       }
       this.element.append(list);
     }
-    const startup = el('label', undefined, 'cr-welcome-startup');
-    this.startupBox = el('input');
-    this.startupBox.type = 'checkbox';
-    this.startupBox.checked = showWelcomeAtStartup();
-    this.startupBox.addEventListener('change', () => setShowWelcomeAtStartup(this.startupBox.checked));
-    startup.append(this.startupBox, el('span', 'Show this window when FastBlips starts'));
-    this.element.append(startup);
   }
 }
 
