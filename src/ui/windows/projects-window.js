@@ -7,9 +7,12 @@
 // of the selected one in an edit window, whose Save changes that copy and
 // saves the project (the script it was copied from is left as it was);
 // Remove takes it out; Up and Down move it. Projects can be created, edited
-// and deleted. The Category button chooses the project's category
-// (Development, Desktop Game, Desktop App, Mobile Game or Mobile App), which
-// Save stores with it. Opened from the Navbar's My Projects button.
+// and deleted. With a project selected, the Category button shows and
+// chooses the project's category (Development, Desktop Game, Desktop App,
+// Mobile Game or Mobile App), which Save stores with it; with none selected,
+// it filters the list to the projects of one category (All shows them all).
+// Refresh leaves no project and no category selected. Opened from the
+// Navbar's My Projects button.
 
 import { HSplitWindow } from './hsplit-window.js';
 import { ListPanel } from '../widgets/list-panel.js';
@@ -62,6 +65,7 @@ export class ProjectsWindow extends HSplitWindow {
     this.editors = new Map();   // the open ScriptEditWindows, by the key of the project script
     this.current = null;   // the project being edited; id null for a new one
     this.category = DEFAULT_PROJECT_CATEGORY;   // the category chosen for it, which Save stores
+    this.filter = null;    // with no project selected: the category the list shows (null: all)
     this._refreshToken = 0;
     this._suppressSelect = false;
 
@@ -91,11 +95,15 @@ export class ProjectsWindow extends HSplitWindow {
       { enabled: () => editing() && at() >= 0 && at() < this.projectPanel.names.length - 1 });
     this.projectsMenu = this.buttonBar.add(projectsMenu);
     this.scriptsMenu = this.buttonBar.add(scriptsMenu);
-    // Category: what kind of project it is; its label shows the one chosen.
+    // Category: with a project, what kind of project it is; with none, which
+    // projects the list shows. Its label shows the one chosen.
     this.categoryMenu = this.buttonBar.add(new Menu('Category'));
+    this.categoryMenu.addItem('All', () => this.setFilter(null),
+      { checked: () => !editing() && this.filter == null, enabled: () => !editing() });
+    this.categoryMenu.addSeparator();
     for (const { value, label } of PROJECT_CATEGORIES) {
-      this.categoryMenu.addItem(label, () => this.setCategory(value),
-        { checked: () => this.category === value, enabled: editing });
+      this.categoryMenu.addItem(label, () => (editing() ? this.setCategory(value) : this.setFilter(value)),
+        { checked: () => (editing() ? this.category === value : this.filter === value) });
     }
     this.buttonBar.add(new Separator());
     // As in a console: Launch runs the project's scripts together, in a
@@ -166,20 +174,16 @@ export class ProjectsWindow extends HSplitWindow {
       if (token !== this._refreshToken) return;   // a later refresh won
       this.projects = byName(projects).filter((p) => String(p.owner ?? '').trim() !== '');   // not ownerless (shared) ones
       this.scripts = scripts ?? [];
-      this._suppressSelect = true;
-      this.listPanel.items = this.projects.map((p) => ({ value: p.id, label: rowLabel(p) }));
-      this._suppressSelect = false;
-
-      if (clear) { this._showProject(null); this._selectId(null); }   // Refresh starts with no project selected
+      // Refresh starts with no project and no category selected.
+      if (clear) { this.filter = null; this._showProject(null); }
+      this._fillList();
+      if (clear) this._selectId(null);
       const dirty = this.dirty;
       const fresh = this.current?.id == null ? null : this.projects.find((p) => p.id === this.current.id);
       if (this.current?.id != null && !dirty) {
         this._showProject(fresh ?? null);   // gone if it was deleted elsewhere, or is in another space
       }   // with unsaved edits, they are kept as they are
-      const n = this.projects.length;
-      const space = this.store.space;
-      this.setStatus(`${n} project${n === 1 ? '' : 's'} · `
-        + `${space == null ? '' : `${space || 'shared'} · `}${this.store.baseUrl}`);
+      this._showCount();
     } catch (e) {
       this._suppressSelect = false;
       if (token === this._refreshToken) this.setStatus(e.message, 'error');
@@ -187,11 +191,11 @@ export class ProjectsWindow extends HSplitWindow {
     this.updateButtons();
   }
 
-  /** Starts a new, unsaved project. */
+  /** Starts a new, unsaved project, in the category the list shows, if any. */
   newProject() {
     if (!this._confirmDiscard()) return;
     this._selectId(null);
-    this._showProject({ id: null, name: '', description: '', shared: false, category: DEFAULT_PROJECT_CATEGORY, scripts: [] });
+    this._showProject({ id: null, name: '', description: '', shared: false, category: this.filter ?? DEFAULT_PROJECT_CATEGORY, scripts: [] });
     this.projectPanel.focusName();
     this.setStatus('New project — Save to create it');
   }
@@ -202,6 +206,35 @@ export class ProjectsWindow extends HSplitWindow {
     this.category = value;
     this.updateButtons();
     if (this.dirty) this.setStatus(`Category ${projectCategoryLabel(value)} — Save to keep it`);
+  }
+
+  /** With no project selected: shows only the projects of one category (null: all of them). */
+  setFilter(category) {
+    if (this.current) return;
+    this.filter = category;
+    this._fillList();
+    this._selectId(null);
+    this._showCount();
+    this.updateButtons();
+  }
+
+  /** The list on the left: the projects of the category chosen, or all of them. */
+  _fillList() {
+    const shown = this.projects.filter((p) => this.filter == null || projectCategory(p) === this.filter);
+    this._suppressSelect = true;
+    try { this.listPanel.items = shown.map((p) => ({ value: p.id, label: rowLabel(p) })); }
+    finally { this._suppressSelect = false; }
+  }
+
+  /** The status: how many projects are listed, in which space and on which server. */
+  _showCount() {
+    const total = this.projects.length;
+    const n = this.listPanel.items.length;
+    const count = this.filter == null
+      ? `${total} project${total === 1 ? '' : 's'}`
+      : `${n} of ${total} project${total === 1 ? '' : 's'} (${projectCategoryLabel(this.filter)})`;
+    const space = this.store.space;
+    this.setStatus(`${count} · ${space == null ? '' : `${space || 'shared'} · `}${this.store.baseUrl}`);
   }
 
   /** The space the project being edited is in: a user name, '' for shared. */
@@ -342,6 +375,8 @@ export class ProjectsWindow extends HSplitWindow {
       this.projectPanel.shared = Boolean(saved.shared);
       this.category = projectCategory(saved);
       this.projectPanel.scripts = saved.scripts ?? [];
+      // Saved in another category than the list shows: show them all, so it stays listed.
+      if (this.filter != null && this.category !== this.filter) this.filter = null;
       await this.refresh();
       this._selectId(saved.id);
       const n = (saved.scripts ?? []).length;
@@ -379,10 +414,13 @@ export class ProjectsWindow extends HSplitWindow {
   }
 
   updateButtons() {
-    // The Category button names the project's category, and is greyed out
-    // with no project.
-    this.categoryMenu.label = this.current ? `Category: ${projectCategoryLabel(this.category)}` : 'Category';
-    this.categoryMenu.button.disabled = !this.current;
+    // The Category button names the project's category or, with no project
+    // selected, the category the list is filtered to (none: just Category).
+    const shown = this.current ? this.category : this.filter;
+    this.categoryMenu.label = shown == null ? 'Category' : `Category: ${projectCategoryLabel(shown)}`;
+    this.categoryMenu.button.disabled = false;
+    // The title names it too: "My Projects: Desktop Game".
+    this.title = shown == null ? 'My Projects' : `My Projects: ${projectCategoryLabel(shown)}`;
     this.buttonBar.layout();
   }
 

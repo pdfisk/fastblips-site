@@ -1,5 +1,5 @@
 // The My Projects window's Category button: the project's category, chosen
-// from five and stored by Save. Runs on the fake DOM of ./example-host.js,
+// from five and stored by Save; with no project, a filter on the list. Runs on the fake DOM of ./example-host.js,
 // with in-memory stores in place of the server.
 
 import { test, before } from 'node:test';
@@ -49,13 +49,71 @@ async function openWindow() {
 const item = (win, label) => win.categoryMenu.items.find((it) => it.label === label);
 const choose = (win, i) => win._onSelect(i, win.listPanel.items[i]);
 
-test('the Category button lists the five categories and is greyed out with no project', async () => {
+test('with no project, the Category button lists All and the five categories, all shown', async () => {
   const { win } = await openWindow();
-  assert.deepEqual(win.categoryMenu.items.map((it) => it.label),
-    ['Development', 'Desktop Game', 'Desktop App', 'Mobile Game', 'Mobile App']);
+  assert.deepEqual(win.categoryMenu.items.filter((it) => it.label).map((it) => it.label),
+    ['All', 'Development', 'Desktop Game', 'Desktop App', 'Mobile Game', 'Mobile App']);
   assert.equal(win.categoryMenu.label, 'Category');
-  assert.equal(win.categoryMenu.button.disabled, true);
-  assert.equal(item(win, 'Mobile Game').enabled(), false);
+  assert.equal(win.categoryMenu.button.disabled, false);
+  assert.equal(item(win, 'All').checked(), true);
+  assert.equal(item(win, 'Mobile Game').checked(), false);
+  assert.equal(win.listPanel.items.length, 2);
+});
+
+test('with no project, choosing a category lists only its projects; All lists them all', async () => {
+  const { win } = await openWindow();
+  item(win, 'Desktop Game').action();
+  assert.deepEqual(win.listPanel.items.map((i) => i.value), [1]);
+  assert.equal(win.categoryMenu.label, 'Category: Desktop Game');
+  assert.equal(win.title, 'My Projects: Desktop Game');
+  assert.equal(item(win, 'Desktop Game').checked(), true);
+  assert.equal(item(win, 'All').checked(), false);
+  assert.equal(win.current, null, 'filtering selects no project');
+  item(win, 'Development').action();
+  assert.deepEqual(win.listPanel.items.map((i) => i.value), [2], 'a project from before categories is Development');
+  item(win, 'Mobile App').action();
+  assert.equal(win.listPanel.items.length, 0);
+  item(win, 'All').action();
+  assert.equal(win.listPanel.items.length, 2);
+  assert.equal(win.categoryMenu.label, 'Category');
+  assert.equal(win.title, 'My Projects');
+});
+
+test('with a project selected, the button shows its category, not the filter', async () => {
+  const { win } = await openWindow();
+  item(win, 'Desktop Game').action();
+  choose(win, 0);
+  assert.equal(win.current.name, 'Pong');
+  assert.equal(win.categoryMenu.label, 'Category: Desktop Game');
+  assert.equal(item(win, 'All').enabled(), false);
+  item(win, 'Mobile Game').action();   // sets the project's category, not the filter
+  assert.equal(win.category, 'mobile-game');
+  assert.equal(win.title, 'My Projects: Mobile Game');
+  assert.equal(win.filter, 'desktop-game');
+  assert.deepEqual(win.listPanel.items.map((i) => i.value), [1]);
+});
+
+test('Refresh leaves no project and no category selected', async () => {
+  const { win } = await openWindow();
+  item(win, 'Desktop Game').action();
+  choose(win, 0);
+  await win.refresh({ clear: true });
+  assert.equal(win.current, null);
+  assert.equal(win.filter, null);
+  assert.equal(win.listPanel.items.length, 2);
+  assert.equal(win.categoryMenu.label, 'Category');
+});
+
+test('a new project starts in the category the list shows, and stays listed when saved elsewhere', async () => {
+  const { win } = await openWindow();
+  item(win, 'Mobile Game').action();
+  win.newProject();
+  assert.equal(win.category, 'mobile-game');
+  win.projectPanel.name = 'Tap';
+  item(win, 'Mobile App').action();
+  await win.save();
+  assert.equal(win.filter, null, 'saved outside the filter: all are listed again');
+  assert.ok(win.listPanel.items.some((i) => i.value === win.current.id));
 });
 
 test('a project shows its category; one from before categories is Development', async () => {
