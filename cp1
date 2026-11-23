@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Linux equivalent of cp1.ps1: copy web/ contents into deploy/
+set -euo pipefail
+cd "$(dirname "$0")"
+mkdir -p ./deploy
+cp -rf ./web/. ./deploy/

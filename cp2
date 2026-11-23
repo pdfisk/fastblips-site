@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Linux equivalent of cp2.ps1: publish web/ to /var/www/fastblips (needs sudo)
+set -euo pipefail
+cd "$(dirname "$0")"
+sudo mkdir -p /var/www/fastblips
+sudo cp -r ./web/. /var/www/fastblips/
+sudo chown -R www-data:www-data /var/www/fastblips
