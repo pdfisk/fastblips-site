@@ -20,7 +20,7 @@ import { MENU_THEMES, setTheme, themeName } from './theme.js';
 import { CODE_FONTS, installCodeFont, setCodeFont, codeFontName } from './fonts.js';
 import { PythonDatabaseWindow } from './windows/database-window.js';
 import { ProjectsWindow } from './windows/projects-window.js';
-import { serverChoices, setServer, serverName, userName, setUser, isDesktopServer, isDesktopApp } from './db-client.js';
+import { databaseMenuChoices, setServer, serverName, userName, setUser, isDesktopServer, isDesktopApp } from './db-client.js';
 import { TOAST_SIDES, TOAST_DURATIONS, toastSide, setToastSide, toastDuration, setToastDuration, durationLabel, Toast } from './toast.js';
 import { BUILD_STAMP } from './build-info.js';
 import { DRAWER_TIMEOUTS, drawerTimeout, setDrawerTimeout, drawerTimeoutLabel } from './widgets/drawer.js';
@@ -209,7 +209,7 @@ function buildLabel() {
   return label;
 }
 
-// The Settings menu. Theme, Code Font and Database each open a submenu of
+// The Settings menu. Theme, Code Font and Database (when offered) each open a submenu of
 // choices: the one in use is checked, and choosing another switches to it at
 // once and remembers it for the next visit.
 function settingsMenu() {
@@ -224,11 +224,14 @@ function settingsMenu() {
     action: () => setCodeFont(name),
     checked: () => codeFontName() === name,
   })));
-  menu.addSubmenu('Database', () => serverChoices().map(([name, label]) => ({
+  // Database: Desktop, Local and Remote in the desktop app; Local and Remote
+  // when served from localhost:8080; left out of the menu anywhere else.
+  const database = menu.addSubmenu('Database', () => databaseMenuChoices().map(([name, label]) => ({
     label,
     action: () => setServer(name),
     checked: () => serverName() === name,
   })));
+  database.visible = () => databaseMenuChoices().length > 0;
   // Toast Side and Toast Time: where toasts pop out from and how long they
   // stay. Choosing one shows a sample toast.
   menu.addSubmenu('Toast Side', () => TOAST_SIDES.map(([name, label]) => ({

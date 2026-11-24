@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  serverChoices, serverName, setServer, getServerUrl, isDesktopServer, accountServerUrl, isDesktopApp,
+  serverChoices, databaseMenuChoices, isLocalMode, serverName, setServer, getServerUrl, isDesktopServer, accountServerUrl, isDesktopApp,
   DESKTOP_SERVER_URL, REMOTE_SERVER_URL, LOCAL_SERVER_URL, SourceStore,
 } from '../src/ui/db-client.js';
 import { ForumClient } from '../src/ui/forum-client.js';
@@ -66,4 +66,40 @@ test('with the desktop database in use, a remote 401 points to File > FastBlips 
     await assert.rejects(desktop.create({ name: 'x' }), /File > Sign In/);
     setServer('remote');
   } finally { asDesktop(false); }
+});
+
+// Settings > Database: which choices the menu shows depends on the mode.
+const servedFrom = (href) => {
+  if (href) globalThis.location = { href, search: new URL(href).search };
+  else delete globalThis.location;
+};
+const menuNames = () => databaseMenuChoices().map(([n]) => n);
+
+test('Settings > Database in desktop mode: Desktop, Local and Remote', () => {
+  asDesktop(true);
+  try {
+    assert.deepEqual(menuNames(), ['desktop', 'local', 'remote']);
+    servedFrom('http://localhost:8080/');
+    assert.deepEqual(menuNames(), ['desktop', 'local', 'remote'], 'desktop mode wins over local mode');
+  } finally { asDesktop(false); servedFrom(null); }
+});
+
+test('Settings > Database in local mode (localhost:8080): Local and Remote', () => {
+  try {
+    servedFrom('http://localhost:8080/?app=peter/pong');
+    assert.equal(isLocalMode(), true);
+    assert.deepEqual(menuNames(), ['local', 'remote']);
+  } finally { servedFrom(null); }
+});
+
+test('Settings > Database anywhere else: no choices', () => {
+  try {
+    servedFrom('https://fastblips.com/');
+    assert.equal(isLocalMode(), false);
+    assert.deepEqual(menuNames(), []);
+    servedFrom('http://localhost:3000/');
+    assert.deepEqual(menuNames(), [], 'only port 8080 is local mode');
+    servedFrom(null);
+    assert.deepEqual(menuNames(), []);
+  } finally { servedFrom(null); }
 });

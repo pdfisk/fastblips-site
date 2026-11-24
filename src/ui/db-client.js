@@ -53,6 +53,30 @@ export function serverChoices() {
   ];
 }
 
+/**
+ * True in local mode: the page was served from localhost:8080 (a development
+ * copy of the IDE on this machine).
+ */
+export function isLocalMode() {
+  try {
+    return String(globalThis.location?.href ?? '').includes('localhost:8080');
+  } catch { return false; }
+}
+
+/**
+ * The databases the Settings menu offers, [name, label] in menu order:
+ *   desktop mode (the Electron app): Desktop, Local and Remote;
+ *   local mode (served from localhost:8080): Local and Remote;
+ *   otherwise none, and Settings shows no Database submenu.
+ */
+export function databaseMenuChoices() {
+  const label = (name) => serverChoices().find(([n]) => n === name)[1];
+  const names = isDesktopApp() ? ['desktop', 'local', 'remote']
+    : isLocalMode() ? ['local', 'remote']
+    : [];
+  return names.map((name) => [name, label(name)]);
+}
+
 /** The servers offered when this page loaded (serverChoices() is always current). */
 export const SERVERS = serverChoices();
 
