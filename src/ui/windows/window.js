@@ -181,9 +181,34 @@ export class Window extends Panel {
       this._stateChanged();
     }
     if (this.maximized) this.fitToParent();
+    else this.keepInside();
     this.bringToFront();
     this.layout();
     return this;
+  }
+
+  /**
+   * Moves the window back inside its parent (below the Navbar, above the
+   * StatusBar) if it sticks out past an edge, so its title bar and buttons
+   * can be reached. A resizable window larger than the room is made smaller;
+   * one that is not resizable keeps its size, its top left corner showing.
+   */
+  keepInside() {
+    const parent = this.parent?.element;
+    if (!parent || this.maximized) return;
+    const roomWidth = parent.clientWidth;
+    const top = this._top();
+    const bottom = parent.clientHeight - this._bottom();
+    if (roomWidth <= 0 || bottom <= top) return;   // not laid out yet
+    let { x, y, width, height } = this.bounds;
+    if (this.resizable) {
+      width = Math.max(this.minWidth, Math.min(width, roomWidth));
+      height = Math.max(this.minHeight, Math.min(height, bottom - top));
+    }
+    x = Math.max(0, Math.min(x, roomWidth - width));
+    y = Math.max(top, Math.min(y, bottom - height));
+    const b = this.bounds;
+    if (x !== b.x || y !== b.y || width !== b.width || height !== b.height) this.setBounds(x, y, width, height);
   }
 
   bringToFront() {

@@ -43,10 +43,27 @@ const page = [
   .replaceAll('__BUILD_ISO__', buildIso)
   .replaceAll('__BUILD_STAMP__', buildStamp);
 
+const SITE_DESCRIPTION = 'Write, run and share Python programs in your browser: '
+  + 'games, apps and windows, with nothing to install.';
+
 const html = standalone
   ? ['<!doctype html><html lang="en"><head><meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width,initial-scale=1">',
     '<title>FastBlips</title>',
+    // What search results and link previews (Slack, iMessage, social media)
+    // show. Link previews need absolute URLs.
+    `<meta name="description" content="${SITE_DESCRIPTION}">`,
+    '<link rel="canonical" href="https://fastblips.com/">',
+    '<meta property="og:type" content="website">',
+    '<meta property="og:site_name" content="FastBlips">',
+    '<meta property="og:title" content="FastBlips">',
+    `<meta property="og:description" content="${SITE_DESCRIPTION}">`,
+    '<meta property="og:url" content="https://fastblips.com/">',
+    '<meta property="og:image" content="https://fastblips.com/icon-512.png">',
+    '<meta property="og:image:width" content="512">',
+    '<meta property="og:image:height" content="512">',
+    '<meta name="twitter:card" content="summary">',
+    '<meta name="theme-color" content="#3a6ea5">',
     // Relative paths, so the page also works from a subfolder. The files sit
     // next to index.html in web/ and are made by electron/scripts/make-icon.py.
     '<link rel="icon" href="favicon.ico" sizes="any">',

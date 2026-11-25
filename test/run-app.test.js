@@ -3,7 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { findProgram, splitRunName, findProject, projectParameter, findApp, runParameter } from '../src/ui/run-app.js';
+import { findProgram, splitRunName, findProject, projectParameter, findApp, runParameter, homeUrl } from '../src/ui/run-app.js';
 
 // A store whose records are per space: { '': [...], peter: [...] }.
 const store = (spaces, owner = '') => ({
@@ -79,4 +79,10 @@ test('findApp: a project of that name, else a program, else null', async () => {
   assert.equal(program.found.record.id, 6);
 
   assert.equal(await findApp('admin/nope', { stores }), null);
+});
+
+test('homeUrl: the page with no app, keeping db= and ui=', () => {
+  assert.equal(homeUrl('https://fastblips.com/?app=admin/Breakout'), 'https://fastblips.com/');
+  assert.equal(homeUrl('https://fastblips.com/?app=Simon&db=local&ui=mobile#x'),
+    'https://fastblips.com/?db=local&ui=mobile');
 });

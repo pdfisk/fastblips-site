@@ -1,14 +1,14 @@
 // The mobile UI, shown on a phone when the address names no app (no ?app=):
 // the start menu of shared apps and games (see start-menu.js), mobile games
-// first, then mobile apps, desktop games and desktop apps, each a link that
-// runs it full-page; a "Show at startup" box (when cleared, the list waits
+// then mobile apps, each a link that runs it full-page (desktop games and
+// apps are left out: they need a keyboard and a larger screen); a "Show at startup" box (when cleared, the list waits
 // behind a "Show apps and games" button); and a link to the full playground. It uses plain DOM rather than the desktop widgets
 // (Viewport, Window, ...), which are built for a mouse and a large screen.
 
 import { installTheme } from '../theme.js';
 import { BUILD_STAMP } from '../build-info.js';
 import { projectUrl } from '../app-list.js';
-import { loadStartMenu, showStartMenuAtStartup, setShowStartMenuAtStartup } from '../start-menu.js';
+import { loadStartMenu, showStartMenuAtStartup, setShowStartMenuAtStartup, isMobileCategory } from '../start-menu.js';
 
 const STYLE = `
 .cr-mobile{box-sizing:border-box;min-height:100vh;min-height:100dvh;margin:0;
@@ -65,7 +65,7 @@ export function startMobile() {
         <div class="cr-mobile-sections"></div>
       </div>
       <label class="cr-mobile-startup"><input type="checkbox" class="cr-mobile-startup-box"> Show at startup</label>
-      <a class="cr-mobile-full" href="">Open the full playground (made for a larger screen)</a>
+      <a class="cr-mobile-full" href="">Open the full playground, with the desktop games (made for a computer with a keyboard)</a>
     </section>
     <footer class="cr-mobile-footer"></footer>`;
   root.querySelector('.cr-mobile-full').href = desktopUrl.href;
@@ -86,9 +86,11 @@ export function startMobile() {
   }
   showButton.addEventListener('click', () => { menu.hidden = false; showButton.hidden = true; });
 
-  // The games and apps anyone has shared, mobile games first, each a link
-  // that runs the project full-page.
-  const ready = loadStartMenu({ mobile: true }).then((sections) => {
+  // The mobile games and apps anyone has shared, each a link that runs the
+  // project full-page. Desktop ones need arrow keys and a larger screen, so a
+  // phone does not list them.
+  const ready = loadStartMenu({ mobile: true }).then((all) => {
+    const sections = all.filter((s) => isMobileCategory(s.category));
     status.textContent = sections.length ? 'Tap one to run it.' : 'There are no shared apps or games yet.';
     sectionsEl.replaceChildren(...sections.flatMap(({ label, projects }) => {
       const heading = document.createElement('h2');

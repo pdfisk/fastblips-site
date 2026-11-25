@@ -34,6 +34,19 @@ export const RUN_TABLES = [
   ['python', PythonConsoleWindow],
 ];
 
+/**
+ * The address of the page without an app: this page with no query, keeping a
+ * db= choice of server and a ui= choice of desktop or mobile.
+ */
+export function homeUrl(href = globalThis.location?.href ?? 'http://localhost/') {
+  const url = new URL(href);
+  const keep = ['db', 'ui'].map((k) => [k, url.searchParams.get(k)]).filter(([, v]) => v);
+  url.search = '';
+  url.hash = '';
+  for (const [k, v] of keep) url.searchParams.set(k, v);
+  return url.href;
+}
+
 /** The program name in the ?app= query parameter (or the older ?run=), or null. */
 export function runParameter(g = globalThis) {
   try {
@@ -187,6 +200,10 @@ function startPage(name, load, notFound) {
       return result;
     },
   };
+  // Back to the list of apps and games: someone who arrived on a shared
+  // link has no other way to find the rest of the site.
+  page.homeButton = buttonBar.addButton('‹ All apps', () => { location.href = homeUrl(); });
+  page.homeButton.element.title = 'All apps and games';
   page.goButton = buttonBar.addButton('Go', () => { page.showOutput(); page.runner?.go(); });
   page.resetButton = buttonBar.addButton('Reset', () => page.runner?.reset());
   page.sourceButton = buttonBar.addButton('Show source', () => page.toggleSource());

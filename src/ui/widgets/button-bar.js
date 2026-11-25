@@ -12,7 +12,10 @@ export class ButtonBar extends HPanel {
     this.height = BUTTON_BAR_HEIGHT;
     this.element.classList.add('cr-button-bar');
     this.element.style.cssText += ';background:var(--cr-buttonbar-bg);border-top:1px solid var(--cr-buttonbar-border);'
-      + 'box-sizing:border-box';
+      + 'box-sizing:border-box;'
+      // The theme's UI font: on the ?app= page nothing above the bar sets
+      // one, and buttons would otherwise get the browser's default (Times).
+      + 'font:var(--cr-font-size) var(--cr-font-ui)';
   }
 
   /** Adds a Button with the given label and action, and returns it. */

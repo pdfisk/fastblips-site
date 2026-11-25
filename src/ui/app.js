@@ -84,7 +84,26 @@ export function startDesktop() {
 
   transcript.open(viewport);
   if (showStartMenuAtStartup()) StartMenuWindow.instance.open(viewport);
+  // A first visit also gets the Welcome window, in front: what FastBlips is
+  // and where to start. Later visits go straight to the apps and games.
+  if (isFirstVisit()) WelcomeWindow.instance.open(viewport);
   return viewport;
+}
+
+const VISITED_KEY = 'fastblips.visited';
+
+/**
+ * True the first time this browser opens the desktop UI (and every time, if
+ * storage is blocked: then nothing can be remembered). Marks it visited.
+ */
+export function isFirstVisit(storage = globalThis.localStorage) {
+  try {
+    if (storage.getItem(VISITED_KEY)) return false;
+    storage.setItem(VISITED_KEY, '1');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 // The StatusBar shows messages from the consoles on the left and a live
@@ -114,7 +133,8 @@ export const REGISTRATION_ENABLED = false;
 //   Sign In      the Sign In window: the user this browser works as
 //                (Sign Out, the Sign Out window, while a user is signed in)
 //   Register...  the Register window: a new user on the database server
-//                (greyed out while REGISTRATION_ENABLED is false)
+//                (greyed out, as "Register (coming soon)", while
+//                REGISTRATION_ENABLED is false)
 //   New Python   a new, empty Python console
 //   Open...      a source file in a new console of the matching language
 //                (.py)
@@ -147,7 +167,8 @@ function fileMenu(viewport) {
     () => (userName() ? 'Sign Out' : 'Sign In'),
     () => (userName() ? SignOutWindow : SignInWindow).instance.open(viewport),
   );
-  menu.addItem('Register...', () => RegisterWindow.instance.open(viewport), { enabled: () => REGISTRATION_ENABLED });
+  menu.addItem(REGISTRATION_ENABLED ? 'Register...' : 'Register (coming soon)',
+    () => RegisterWindow.instance.open(viewport), { enabled: () => REGISTRATION_ENABLED });
   menu.addItem('FastBlips Account...', () => SignInWindow.instance.openRemote(viewport), { visible: isDesktopServer });
   menu.addSeparator();
   menu.addItem('New Python', newConsole(PythonConsoleWindow));
@@ -206,8 +227,22 @@ function buildLabel() {
   label.element.style.opacity = '0.7';
   label.element.style.paddingLeft = '10px';   // gap after the sign-in status
   label.element.style.paddingRight = '12px';
+  // On a narrower screen there is no room for it after the menus and the
+  // sign-in status: it would be cut off at the right edge, so it is hidden,
+  // keeping just its right padding as a margin after the sign-in status.
+  const narrow = globalThis.matchMedia?.(`(max-width: ${BUILD_STAMP_MIN_WIDTH - 1}px)`);
+  if (narrow) {
+    const show = () => { label.element.style.visibility = narrow.matches ? 'hidden' : ''; };
+    const measure = label.preferredWidth.bind(label);
+    label.preferredWidth = () => (narrow.matches ? 12 : measure());
+    narrow.addEventListener?.('change', () => { show(); Navbar.instance.layout(); });
+    show();
+  }
   return label;
 }
+
+/** The narrowest window, in CSS pixels, whose Navbar shows the build timestamp. */
+export const BUILD_STAMP_MIN_WIDTH = 1200;
 
 // The Settings menu. Theme, Code Font and Database (when offered) each open a submenu of
 // choices: the one in use is checked, and choosing another switches to it at

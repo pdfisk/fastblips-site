@@ -112,6 +112,7 @@ export class LaunchWindow extends Window {
   open(viewport) {
     super.open(viewport);
     this.fitScreen();
+    this.keepInside();   // fitScreen can make it wider
     if (this.autoStart && !this._autoStarted) {
       this._autoStarted = true;
       this.go();
