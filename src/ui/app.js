@@ -205,13 +205,14 @@ function signInLabel() {
   label.element.classList.add('cr-nav-user');
   label.element.style.color = 'var(--cr-nav-text)';
   label.element.style.paddingRight = '0';
-  label.element.style.width = '50ch';
   label.element.style.justifyContent = 'flex-end';
   label.element.style.textAlign = 'right';
-  label.preferredWidth = () => Math.ceil(label.element.getBoundingClientRect().width);
+  // As wide as its text, so the build timestamp after it fits on a
+  // 1024px-wide screen; the Navbar is laid out again when the text changes.
   const show = () => {
     const who = userName() ? `Signed in as ${userName()}` : 'Not signed in';
     label.text = isDesktopServer() ? `${who} \u00b7 Desktop database` : who;
+    if (label.parent) Navbar.instance.layout();
   };
   show();
   document.addEventListener('cr-userchange', show);
@@ -227,22 +228,8 @@ function buildLabel() {
   label.element.style.opacity = '0.7';
   label.element.style.paddingLeft = '10px';   // gap after the sign-in status
   label.element.style.paddingRight = '12px';
-  // On a narrower screen there is no room for it after the menus and the
-  // sign-in status: it would be cut off at the right edge, so it is hidden,
-  // keeping just its right padding as a margin after the sign-in status.
-  const narrow = globalThis.matchMedia?.(`(max-width: ${BUILD_STAMP_MIN_WIDTH - 1}px)`);
-  if (narrow) {
-    const show = () => { label.element.style.visibility = narrow.matches ? 'hidden' : ''; };
-    const measure = label.preferredWidth.bind(label);
-    label.preferredWidth = () => (narrow.matches ? 12 : measure());
-    narrow.addEventListener?.('change', () => { show(); Navbar.instance.layout(); });
-    show();
-  }
   return label;
 }
-
-/** The narrowest window, in CSS pixels, whose Navbar shows the build timestamp. */
-export const BUILD_STAMP_MIN_WIDTH = 1200;
 
 // The Settings menu. Theme, Code Font and Database (when offered) each open a submenu of
 // choices: the one in use is checked, and choosing another switches to it at
